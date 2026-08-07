@@ -1,104 +1,85 @@
--- 1. Catálogo de Tarifas (HU4)
-CREATE TABLE tarifas (
+-- 1. Entidades Principales (Sin dependencias)
+CREATE TABLE Usuario (
     id SERIAL PRIMARY KEY,
-    categoria VARCHAR(20) NOT NULL UNIQUE CHECK (categoria IN ('economico', 'confort', 'premium')),
-    precio_base NUMERIC(10, 2) NOT NULL CHECK (precio_base > 0),
-    precio_por_km NUMERIC(10, 2) NOT NULL CHECK (precio_por_km > 0)
+    email VARCHAR(255) UNIQUE NOT NULL,
+    nickname VARCHAR(50) UNIQUE NOT NULL,
+    saldo DECIMAL(10, 2) DEFAULT 0.00,
+    fecha_registro TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
--- 2. Pasajeros (HU1)
-CREATE TABLE pasajeros (
-    id SERIAL PRIMARY KEY,
-    nombre VARCHAR(100) NOT NULL,
-    email VARCHAR(150) NOT NULL UNIQUE,
-    telefono VARCHAR(20) NOT NULL
-);
-
--- 3. Conductores (HU1)
-CREATE TABLE conductores (
+CREATE TABLE Desarrollador (
     id SERIAL PRIMARY KEY,
     nombre VARCHAR(100) NOT NULL,
-    licencia VARCHAR(50) NOT NULL UNIQUE,
-    calificacion_promedio NUMERIC(3, 2) DEFAULT 0 CHECK (calificacion_promedio >= 0 AND calificacion_promedio <= 5),
-    disponible BOOLEAN DEFAULT TRUE
+    pais VARCHAR(50)
 );
 
--- 4. Vehículos (HU2)
-CREATE TABLE vehiculos (
+-- 2. Entidades con dependencias simples
+CREATE TABLE Juego (
     id SERIAL PRIMARY KEY,
-    conductor_id INTEGER NOT NULL REFERENCES conductores(id),
-    patente VARCHAR(20) NOT NULL UNIQUE,
-    modelo VARCHAR(50) NOT NULL,
-    anio INTEGER NOT NULL,
-    categoria VARCHAR(20) NOT NULL CHECK (categoria IN ('economico', 'confort', 'premium'))
+    titulo VARCHAR(150) NOT NULL,
+    desarrollador_id INT NOT NULL,
+    precio DECIMAL(10, 2) NOT NULL,
+    fecha_lanzamiento DATE,
+    genero VARCHAR(50),
+    FOREIGN KEY (desarrollador_id) REFERENCES Desarrollador(id)
 );
 
--- 5. Métodos de Pago (HU3)
-CREATE TABLE metodos_pago (
+CREATE TABLE Logro (
     id SERIAL PRIMARY KEY,
-    pasajero_id INTEGER NOT NULL REFERENCES pasajeros(id),
-    tipo VARCHAR(30) NOT NULL CHECK (tipo IN ('tarjeta_credito', 'tarjeta_debito', 'efectivo', 'billetera_virtual')),
-    ultimos_digitos CHAR(4) -- Solo para tarjetas, puede ser NULL en efectivo
+    juego_id INT NOT NULL,
+    nombre VARCHAR(100) NOT NULL,
+    descripcion TEXT,
+    puntos INT DEFAULT 0,
+    FOREIGN KEY (juego_id) REFERENCES Juego(id)
 );
 
--- 6. Cupones (HU13)
-CREATE TABLE cupones (
+-- 3. Tablas Intermedias (Relaciones y Transacciones)
+CREATE TABLE Compra (
     id SERIAL PRIMARY KEY,
-    codigo VARCHAR(20) NOT NULL UNIQUE,
-    porcentaje_descuento INTEGER NOT NULL CHECK (porcentaje_descuento BETWEEN 1 AND 100),
-    fecha_vencimiento DATE NOT NULL
+    usuario_id INT NOT NULL,
+    juego_id INT NOT NULL,
+    fecha TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    precio_pagado DECIMAL(10, 2) NOT NULL,
+    FOREIGN KEY (usuario_id) REFERENCES Usuario(id),
+    FOREIGN KEY (juego_id) REFERENCES Juego(id)
 );
 
--- 7. Multiplicador Horario (HU11)
-CREATE TABLE multiplicadores_horario (
+CREATE TABLE LogroDesbloqueado (
+    usuario_id INT NOT NULL,
+    logro_id INT NOT NULL,
+    fecha TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (usuario_id, logro_id),
+    FOREIGN KEY (usuario_id) REFERENCES Usuario(id),
+    FOREIGN KEY (logro_id) REFERENCES Logro(id)
+);
+
+CREATE TABLE Resena (
     id SERIAL PRIMARY KEY,
-    dia_semana INTEGER NOT NULL CHECK (dia_semana BETWEEN 0 AND 6), -- 0=Domingo, 6=Sábado
-    hora_desde TIME NOT NULL,
-    hora_hasta TIME NOT NULL,
-    factor NUMERIC(3, 2) NOT NULL CHECK (factor > 1),
-    CONSTRAINT check_horario_valido CHECK (hora_desde < hora_hasta)
+    usuario_id INT NOT NULL,
+    juego_id INT NOT NULL,
+    recomienda BOOLEAN NOT NULL,
+    texto TEXT,
+    fecha TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (usuario_id) REFERENCES Usuario(id),
+    FOREIGN KEY (juego_id) REFERENCES Juego(id)
 );
 
--- 8. Viajes (HU5, HU6, HU7, HU11, HU13)
-CREATE TABLE viajes (
-    id SERIAL PRIMARY KEY,
-    pasajero_id INTEGER NOT NULL REFERENCES pasajeros(id),
-    conductor_id INTEGER REFERENCES conductores(id), -- NULL inicialmente (HU5)
-    vehiculo_id INTEGER REFERENCES vehiculos(id),
-    metodo_pago_id INTEGER NOT NULL REFERENCES metodos_pago(id),
-    cupon_id INTEGER REFERENCES cupones(id),
-    origen TEXT NOT NULL,
-    destino TEXT NOT NULL,
-    distancia_km NUMERIC(10, 2) NOT NULL CHECK (distancia_km > 0),
-    fecha_solicitud TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    fecha_inicio TIMESTAMP,
-    fecha_fin TIMESTAMP,
-    estado VARCHAR(20) DEFAULT 'pendiente' 
-        CHECK (estado IN ('pendiente', 'asignado', 'en_curso', 'finalizado', 'cancelado', 'sin_conductor')),
-    tarifa_final NUMERIC(10, 2) NOT NULL, -- Se guarda el cálculo final (HU5)
-    multiplicador_aplicado NUMERIC(3, 2) DEFAULT 1.0
+-- 4. Relaciones N a M explícitas
+CREATE TABLE Wishlist (
+    usuario_id INT NOT NULL,
+    juego_id INT NOT NULL,
+    fecha_agregado TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (usuario_id, juego_id),
+    FOREIGN KEY (usuario_id) REFERENCES Usuario(id),
+    FOREIGN KEY (juego_id) REFERENCES Juego(id)
 );
 
--- 9. Calificaciones (HU8)
-CREATE TABLE calificaciones (
-    id SERIAL PRIMARY KEY,
-    viaje_id INTEGER NOT NULL UNIQUE REFERENCES viajes(id),
-    puntaje_pasajero INTEGER CHECK (puntaje_pasajero BETWEEN 1 AND 5),
-    puntaje_conductor INTEGER CHECK (puntaje_conductor BETWEEN 1 AND 5),
-    comentario TEXT
-);
-
--- 10. Cargos / Penalidades (HU12)
-CREATE TABLE cargos (
-    id SERIAL PRIMARY KEY,
-    viaje_id INTEGER NOT NULL REFERENCES viajes(id),
-    monto NUMERIC(10, 2) NOT NULL,
-    motivo VARCHAR(100) DEFAULT 'Penalidad por cancelación tardía'
-);
-
--- 11. Tabla pivote para uso de cupones (HU13 - Para que no se repita por pasajero)
-CREATE TABLE cupones_usados (
-    pasajero_id INTEGER REFERENCES pasajeros(id),
-    cupon_id INTEGER REFERENCES cupones(id),
-    PRIMARY KEY (pasajero_id, cupon_id)
+CREATE TABLE Amigos (
+    usuario_a INT NOT NULL,
+    usuario_b INT NOT NULL,
+    fecha TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (usuario_a, usuario_b),
+    FOREIGN KEY (usuario_a) REFERENCES Usuario(id),
+    FOREIGN KEY (usuario_b) REFERENCES Usuario(id),
+    CHECK (usuario_a != usuario_b) -- Evita que un usuario sea amigo de sí mismo
 );
