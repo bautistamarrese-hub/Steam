@@ -1,7 +1,7 @@
 from sqlalchemy.orm import Session
 
-from src.dtos.conductores_dto import CreateConductoresDTO, ConductoresResponseDTO
-from src.mappers.conductores_mapper import to_conductores_response
+from backend.src.dtos.registroUsuario import CreateConductoresDTO, ConductoresResponseDTO
+from backend.src.mappers.registroUsuario_mapper import to_conductores_response
 from src.repositories.conductores_repository import ConductoresRepository
 
 

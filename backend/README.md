@@ -30,7 +30,7 @@ Estructura base de un proyecto en capas (routers, services, repositories, models
 Recordatorio: Verificar de tener los permisos para poder hacerlo. Estos se habilitan ejecutando: `Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser`
 4) Una vez que estas dentro del (venv), instalar las dependencias: `pip install -r requirements.txt`
 5) Chequear de que el .env este completo y correcto
-6) Levantar la api con: `uvicorn src.main:main --reload`
+6) Levantar la api con: `uvicorn src.app:app --reload`
 
 
 ### Comentarios utiles
