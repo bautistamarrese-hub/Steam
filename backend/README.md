@@ -24,6 +24,19 @@ Estructura base de un proyecto en capas (routers, services, repositories, models
 
 ## Setup
 
+1) Correr en una terminal: `cd .\backend\`
+2) Inicializar el entonrno virtual: `python -m venv venv`
+3) Activar el entorno virtual: `venv\Scripts\Activate.ps1`
+Recordatorio: Verificar de tener los permisos para poder hacerlo. Estos se habilitan ejecutando: `Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser`
+4) Una vez que estas dentro del (venv), instalar las dependencias: `pip install -r requirements.txt`
+5) Chequear de que el .env este completo y correcto
+6) Levantar la api con: `uvicorn src.main:main --reload`
+
+
+### Comentarios utiles
+- Si queres borrar el venv lo que tenes que hacer primero es desactivarlo de la terminal con el comnado  `deactivate` y luego borrar la carpeta
+
+
 ```bash
 python -m venv venv
 source venv/bin/activate          # Linux/Mac
