@@ -1,4 +1,4 @@
-from src.db.models.conductores_model import Conductores
+from backend.src.db.models.registroUsuario_model import Conductores
 from src.dtos.conductores_dto import ConductoresResponseDTO
 
 

@@ -1,6 +1,6 @@
 from sqlalchemy.orm import Session
 
-from src.db.models.conductores_model import Conductores
+from backend.src.db.models.registroUsuario_model import Conductores
 
 
 class ConductoresRepository:
