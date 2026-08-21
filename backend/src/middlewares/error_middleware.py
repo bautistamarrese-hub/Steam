@@ -1,11 +1,19 @@
-from fastapi import Request
+from fastapi import Request, status
 from fastapi.responses import JSONResponse
-
+from starlette.middleware.base import BaseHTTPMiddleware
 from src.utils.errors import AppError
 
-
-async def app_error_handler(request: Request, exc: AppError):
-    return JSONResponse(
-        status_code=exc.status_code,
-        content={"error": exc.__class__.__name__, "message": exc.message},
-    )
+class ErrorHandlerMiddleware(BaseHTTPMiddleware):
+    async def dispatch(self, request: Request, call_next):
+        try:
+            return await call_next(request)
+        except AppError as exc:
+            return JSONResponse(
+                status_code=getattr(exc, "status_code", status.HTTP_400_BAD_REQUEST),
+                content={"detail": exc.message if hasattr(exc, "message") else str(exc)}
+            )
+        except Exception as exc:
+            return JSONResponse(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                content={"detail": f"Internal Server Error: {str(exc)}"}
+            )
