@@ -1,7 +1,7 @@
 from sqlalchemy.orm import Session
 
 from backend.src.dtos.compra_dto import CreatePasajeroDTO, PasajeroResponseDTO
-from src.mappers.pasajero_mapper import to_pasajero_response
+from backend.src.mappers.usuario_mapper import to_pasajero_response
 from src.repositories.pasajero_repository import PasajeroRepository
 
 

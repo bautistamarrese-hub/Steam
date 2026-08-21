@@ -1,7 +1,7 @@
 from sqlalchemy.orm import Session
 
 from backend.src.dtos.desarollador_dto import CreateUserDTO, UserResponseDTO
-from src.mappers.user_mapper import to_user_response
+from backend.src.mappers.desarollador_mapper import to_user_response
 from backend.src.repositories.desarrollador_repository import UserRepository
 from src.utils.hash import hash_password
 
