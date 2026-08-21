@@ -9,7 +9,7 @@ from src.db.connection import Base
 # Usamos TYPE_CHECKING para evitar el subrayado amarillo y errores de importación circular
 if TYPE_CHECKING:
     from src.db.models.registroUsuario_model import Usuario
-    from src.db.models.juego_model import Juego
+    from src.db.models.desarrolladorJuego_model import Juego
 
 
 class Wishlist(Base):

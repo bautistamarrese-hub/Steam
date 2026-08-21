@@ -1,4 +1,6 @@
-from src.db.models.logro import Logro, LogroDesbloqueado
+from src.db.models.logros_model import Logro
+from src.db.models.desbloquearLogro_model import LogroDesbloqueado
+
 from src.dtos.logro_dto import LogroResponseDTO, LogroDesbloqueadoResponseDTO
 
 def to_logro_response(logro: Logro) -> LogroResponseDTO:

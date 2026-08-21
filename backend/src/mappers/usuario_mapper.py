@@ -1,4 +1,4 @@
-from src.db.models.usuario import Usuario
+from src.db.models.registroUsuario_model import Usuario
 from src.dtos.usuario_dto import UsuarioResponseDTO
 
 def to_usuario_response(usuario: Usuario) -> UsuarioResponseDTO:

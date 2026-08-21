@@ -4,14 +4,14 @@ compra_repository.py
 Acceso a datos para la tabla `compra` y consultas de biblioteca (HU5).
 """
 
-from app.database import db
-from app.models.compra import Compra
+from src.db import connection
+from src.db.models.comprarJuego_model import Compra
 
 
 class CompraRepository:
 
     def crear(self, usuario_id, juego_id, precio_pagado):
-        cursor = db.obtener_cursor()
+        cursor = connection.obtener_cursor()
         try:
             cursor.execute(
                 """
@@ -22,15 +22,15 @@ class CompraRepository:
                 (usuario_id, juego_id, precio_pagado),
             )
             fila = cursor.fetchone()
-            db.confirmar()
+            connection.confirmar()
             return Compra.desde_fila(fila)
         except Exception:
-            db.revertir()
+            connection.revertir()
             raise
 
     def existe_compra(self, usuario_id, juego_id):
         """HU4: no se puede comprar un juego que el usuario ya posee."""
-        cursor = db.obtener_cursor()
+        cursor = connection.obtener_cursor()
         cursor.execute(
             "SELECT 1 FROM compra WHERE usuario_id = %s AND juego_id = %s;",
             (usuario_id, juego_id),
@@ -43,7 +43,7 @@ class CompraRepository:
         Devuelve los juegos comprados por el usuario, con fecha de compra
         y precio pagado, opcionalmente filtrado por género.
         """
-        cursor = db.obtener_cursor()
+        cursor = connection.obtener_cursor()
         if genero:
             cursor.execute(
                 """

@@ -10,7 +10,7 @@ from src.db.connection import Base
 if TYPE_CHECKING:
     # ⚠️ ASEGURATE DE CAMBIAR ESTAS RUTAS POR LAS TUYAS ⚠️
     from src.db.models.registroUsuario_model import Usuario
-    from src.db.models.juego_model import Juego
+    from src.db.models.desarrolladorJuego_model import Juego
 
 
 class Compra(Base):

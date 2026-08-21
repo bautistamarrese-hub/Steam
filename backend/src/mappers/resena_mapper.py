@@ -1,4 +1,4 @@
-from src.db.models.resena import Resena
+from src.db.models.reseñas_model import Resena
 from src.dtos.resena_dto import ResenaResponseDTO
 
 def to_resena_response(resena: Resena) -> ResenaResponseDTO:

@@ -1,4 +1,4 @@
-from src.db.models.compra import Compra
+from src.db.models.comprarJuego_model import Compra
 from src.dtos.compra_dto import CompraResponseDTO
 
 def to_compra_response(compra: Compra) -> CompraResponseDTO:

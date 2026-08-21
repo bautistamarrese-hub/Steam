@@ -1,4 +1,4 @@
-from src.db.models.juego import Juego
+from src.db.models.desarrolladorJuego_model import Juego
 from src.dtos.juego_dto import JuegoResponseDTO
 
 def to_juego_response(juego: Juego) -> JuegoResponseDTO:

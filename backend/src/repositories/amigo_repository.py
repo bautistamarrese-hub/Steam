@@ -9,7 +9,7 @@ Recordatorio de la estrategia elegida en el schema SQL:
     los dos ids antes de cualquier operación.
 """
 
-from app.database import db
+from src.db import connection
 
 
 class AmigoRepository:
@@ -20,7 +20,7 @@ class AmigoRepository:
 
     def existe_amistad(self, usuario_1, usuario_2):
         a, b = self._ordenar(usuario_1, usuario_2)
-        cursor = db.obtener_cursor()
+        cursor = connection.obtener_cursor()
         cursor.execute(
             "SELECT 1 FROM amigos WHERE usuario_a = %s AND usuario_b = %s;",
             (a, b),
@@ -29,15 +29,15 @@ class AmigoRepository:
 
     def crear_amistad(self, usuario_1, usuario_2):
         a, b = self._ordenar(usuario_1, usuario_2)
-        cursor = db.obtener_cursor()
+        cursor = connection.obtener_cursor()
         try:
             cursor.execute(
                 "INSERT INTO amigos (usuario_a, usuario_b) VALUES (%s, %s);",
                 (a, b),
             )
-            db.confirmar()
+            connection.confirmar()
         except Exception:
-            db.revertir()
+            connection.revertir()
             raise
 
     def listar_amigos_de(self, usuario_id):
@@ -46,7 +46,7 @@ class AmigoRepository:
         puede estar guardada como (usuario_id, otro) o (otro, usuario_id),
         buscamos en ambas columnas.
         """
-        cursor = db.obtener_cursor()
+        cursor = connection.obtener_cursor()
         cursor.execute(
             """
             SELECT

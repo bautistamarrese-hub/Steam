@@ -8,7 +8,7 @@ from src.db.connection import Base
 
 if TYPE_CHECKING:
     from backend.src.db.models.registroUsuario_model import Usuario
-    from backend.src.db.models.juego_model import Juego
+    from backend.src.db.models.desarrolladorJuego_model import Juego
 
 
 class Resena(Base):

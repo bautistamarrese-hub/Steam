@@ -2,7 +2,7 @@ from fastapi import Depends, Header
 from sqlalchemy.orm import Session
 
 from src.db.connection import get_db
-from src.db.models.usuario import Usuario
+from src.db.models.registroUsuario_model import Usuario
 from src.repositories.usuario_repository import UsuarioRepository
 from src.utils.errors import UnauthorizedError
 from src.utils.jwt import decode_token
