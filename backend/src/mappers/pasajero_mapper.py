@@ -1,4 +1,4 @@
-from src.db.models.pasajero_model import Pasajero
+from backend.src.db.models.desbloquearLogro import Pasajero
 from src.dtos.pasajero_dto import PasajeroResponseDTO
 
 

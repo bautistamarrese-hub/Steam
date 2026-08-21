@@ -1,4 +1,4 @@
-from src.db.models.user_model import User
+from backend.src.db.models.amigos import User
 from src.dtos.user_dto import UserResponseDTO
 
 
