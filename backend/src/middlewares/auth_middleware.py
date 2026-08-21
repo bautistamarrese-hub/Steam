@@ -3,7 +3,7 @@ from sqlalchemy.orm import Session
 
 from src.db.connection import get_db
 from src.db.models.user_model import User
-from src.repositories.user_repository import UserRepository
+from backend.src.repositories.desarrollador_repository import UserRepository
 from src.utils.errors import UnauthorizedError
 from src.utils.jwt import decode_token
 

@@ -4,7 +4,7 @@ from sqlalchemy.orm import Session
 from ..db.models.registroUsuario_model import Usuario
 from ..dtos.registroUsuario_dto import CreateUsuarioDTO, UsuarioResponseDTO
 from ..mappers.registroUsuario_mapper import UsuarioMapper
-from ..repositories.registroUsuario_repository import UsuarioRepository
+from ..repositories.compra_repository import UsuarioRepository
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
