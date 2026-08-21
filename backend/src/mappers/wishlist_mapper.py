@@ -1,4 +1,4 @@
-from src.db.models.wishlist import Wishlist
+from backend.src.db.models.wishlist_model import Wishlist
 from src.dtos.wishlist_dto import WishlistResponseDTO
 
 def to_wishlist_response(wishlist: Wishlist) -> WishlistResponseDTO:
