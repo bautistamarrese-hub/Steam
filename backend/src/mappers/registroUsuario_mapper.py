@@ -1,5 +1,5 @@
 from ..db.models.registroUsuario_model import Usuario
-from ..dtos.registroUsuario_dto import UsuarioResponseDTO
+from ..dtos.logro_dto import UsuarioResponseDTO
 
 
 class UsuarioMapper:
