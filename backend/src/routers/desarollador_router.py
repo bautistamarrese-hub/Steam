@@ -2,9 +2,9 @@ from fastapi import APIRouter, Depends, status
 from sqlalchemy.orm import Session
 from src.db.connection import get_db
 
-from src.schemas.desarrollador_schema import CreateDesarrolladorSchema, GetDesarrolladorSchema
+from ..schemas.desarrolador_schema import CreateDesarrolladorSchema, GetDesarrolladorSchema
 from src.schemas.juego_schema import GetJuegoSchema
-from src.services.desarrollador_service import DesarrolladorService
+#from ..services. import DesarrolladorService
 
 router = APIRouter(prefix="/desarrolladores", tags=["desarrolladores"])
 

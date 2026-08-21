@@ -1,4 +1,4 @@
-from backend.src.routers import desarollador_router, juego_router, usuario_router
+from .routers import desarollador_router, juego_router, usuario_router
 from fastapi import FastAPI
 
 from src.middlewares.error_middleware import app_error_handler
