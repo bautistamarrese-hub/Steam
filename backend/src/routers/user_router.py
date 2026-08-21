@@ -3,7 +3,7 @@ from sqlalchemy.orm import Session
 
 from src.db.connection import get_db
 from src.dtos.user_dto import CreateUserDTO, UserResponseDTO
-from src.schemas.user_schema import CreateUserSchema
+from backend.src.schemas.wishlist_schema import CreateUserSchema
 from src.services.user_service import UserService
 
 router = APIRouter(prefix="/users", tags=["users"])

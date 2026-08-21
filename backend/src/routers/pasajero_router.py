@@ -3,7 +3,7 @@ from sqlalchemy.orm import Session
 
 from src.db.connection import get_db
 from src.dtos.pasajero_dto import CreatePasajeroDTO, PasajeroResponseDTO
-from src.schemas.pasajero_schema import CreatePasajeroSchema
+from backend.src.schemas.desarrolador_schema import CreatePasajeroSchema
 from src.services.pasajero_service import PasajeroService
 
 router = APIRouter(prefix="/pasajeros", tags=["pasajeros"])
