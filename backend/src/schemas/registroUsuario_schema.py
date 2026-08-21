@@ -2,13 +2,26 @@ from datetime import datetime
 from pydantic import BaseModel, ConfigDict, EmailStr, Field
 
 
-# Lo que envia el usuario al registrarse (Entrada)
 class CreateUsuarioSchema(BaseModel):
-    email: EmailStr
-    nickname: str = Field(..., min_length=3, max_length=50)
-    password: str = Field(..., min_length=6, description="Contraseña en texto plano")
-
-
+    email: EmailStr = Field(
+        ..., 
+        description="Correo electrónico del usuario",
+        json_schema_extra={"example": "usuario@ejemplo.com"}
+    )
+    nickname: str = Field(
+        ..., 
+        min_length=3, 
+        max_length=50,
+        description="Nombre de usuario público",
+        json_schema_extra={"example": "juanperez123"}
+    )
+    password: str = Field(
+        ..., 
+        min_length=8,
+        description="Contraseña secreta (mínimo 8 caracteres)",
+        json_schema_extra={"example": "MiClaveSegura99!"}
+    )
+    
 # Lo que devuelve la API al cliente (Salida)
 class ResponseUsuarioSchema(BaseModel):
     model_config = ConfigDict(from_attributes=True)
