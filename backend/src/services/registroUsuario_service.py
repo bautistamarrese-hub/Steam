@@ -1,10 +1,10 @@
 from passlib.context import CryptContext
 from sqlalchemy.orm import Session
 
-from backend.src.db.models.registroUsuario_model import Usuario
-from backend.src.dtos.registroUsuario_dto import CreateUsuarioDTO, UsuarioResponseDTO
-from backend.src.mappers.registroUsuario_mapper import UsuarioMapper
-from backend.src.repositories.registroUsuario_repository import UsuarioRepository
+from ..db.models.registroUsuario_model import Usuario
+from ..dtos.registroUsuario_dto import CreateUsuarioDTO, UsuarioResponseDTO
+from ..mappers.registroUsuario_mapper import UsuarioMapper
+from ..repositories.registroUsuario_repository import UsuarioRepository
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 

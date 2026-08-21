@@ -1,8 +1,7 @@
 from fastapi import FastAPI
 
-from backend.src.routers import registroUsuario_router
 from src.middlewares.error_middleware import app_error_handler
-from src.routers import auth_router, user_router, pasajero_router
+from src.routers import auth_router, user_router, pasajero_router, registroUsuario_router
 from src.utils.errors import AppError
 
 app = FastAPI(title="Initial Structure API")

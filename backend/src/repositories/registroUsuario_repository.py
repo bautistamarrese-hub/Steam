@@ -1,7 +1,7 @@
 from typing import Optional
 from sqlalchemy.orm import Session
 
-from backend.src.db.models.registroUsuario_model import Usuario
+from ..db.models.registroUsuario_model import Usuario
 
 
 class UsuarioRepository:

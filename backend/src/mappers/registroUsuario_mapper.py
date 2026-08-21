@@ -1,5 +1,5 @@
-from backend.src.db.models.registroUsuario_model import Usuario
-from backend.src.dtos.registroUsuario_dto import UsuarioResponseDTO
+from ..db.models.registroUsuario_model import Usuario
+from ..dtos.registroUsuario_dto import UsuarioResponseDTO
 
 
 class UsuarioMapper:
