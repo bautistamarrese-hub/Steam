@@ -1,10 +1,10 @@
 from sqlalchemy.orm import Session
 from sqlalchemy import func, or_
-from backend.src.db.models.registroUsuario_model import Usuario
-from backend.src.db.models.comprarJuego_model import Compra
-from backend.src.db.models.desbloquearLogro_model import LogroDesbloqueado
-from backend.src.db.models.logros_model import Logro
-from backend.src.db.models.amigos_model import Amigos
+from src.db.models.registroUsuario_model import Usuario
+from src.db.models.comprarJuego_model import Compra
+from src.db.models.desbloquearLogro_model import LogroDesbloqueado
+from src.db.models.logros_model import Logro
+from src.db.models.amigos_model import Amigos
 
 
 class EstadisticasUsuarioService:
@@ -16,7 +16,6 @@ class EstadisticasUsuarioService:
         if not usuario:
             raise ValueError("El usuario no existe.")
 
-        # 1. Total gastado y cantidad de juegos comprados
         compras_stats = (
             self.db.query(
                 func.count(Compra.id).label("total_juegos"),
@@ -26,7 +25,6 @@ class EstadisticasUsuarioService:
             .first()
         )
 
-        # 2. Cantidad de logros desbloqueados y puntos acumulados
         logros_stats = (
             self.db.query(
                 func.count(LogroDesbloqueado.logro_id).label("total_logros"),
@@ -37,14 +35,12 @@ class EstadisticasUsuarioService:
             .first()
         )
 
-        # 3. Cantidad de amigos
         total_amigos = (
             self.db.query(func.count(Amigos.usuario_a))
             .filter(or_(Amigos.usuario_a == usuario_id, Amigos.usuario_b == usuario_id))
             .scalar()
         )
 
-        # 4. Top 5 juegos más completados (%)
         juegos_comprados = (
             self.db.query(Compra.juego_id)
             .filter(Compra.usuario_id == usuario_id)

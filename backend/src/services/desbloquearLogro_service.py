@@ -1,8 +1,8 @@
 from sqlalchemy.orm import Session
-from backend.src.db.models.registroUsuario_model import Usuario
-from backend.src.db.models.logros_model import Logro
-from backend.src.db.models.comprarJuego_model import Compra
-from backend.src.db.models.desbloquearLogro_model import LogroDesbloqueado
+from src.db.models.registroUsuario_model import Usuario
+from src.db.models.logros_model import Logro
+from src.db.models.comprarJuego_model import Compra
+from src.db.models.desbloquearLogro_model import LogroDesbloqueado
 
 
 class DesbloqueoLogroService:
@@ -17,7 +17,6 @@ class DesbloqueoLogroService:
         if not logro:
             raise ValueError("El logro no existe.")
 
-        # Verificar propiedad del juego
         comprado = (
             self.db.query(Compra)
             .filter(Compra.usuario_id == usuario_id, Compra.juego_id == logro.juego_id)
@@ -26,7 +25,6 @@ class DesbloqueoLogroService:
         if not comprado:
             raise ValueError("El usuario no posee el juego al que pertenece este logro.")
 
-        # Verificar si ya lo desbloqueó
         desbloqueado = (
             self.db.query(LogroDesbloqueado)
             .filter(
