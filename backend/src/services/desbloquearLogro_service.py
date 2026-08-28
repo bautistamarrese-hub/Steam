@@ -1,8 +1,8 @@
 from sqlalchemy.orm import Session
 from backend.src.db.models.registroUsuario_model import Usuario
-from backend.src.db.models.logro_model import Logro
-from backend.src.db.models.compra_model import Compra
-from backend.src.db.models.logroDesbloqueado_model import LogroDesbloqueado
+from backend.src.db.models.logros_model import Logro
+from backend.src.db.models.comprarJuego_model import Compra
+from backend.src.db.models.desbloquearLogro_model import LogroDesbloqueado
 
 
 class DesbloqueoLogroService:

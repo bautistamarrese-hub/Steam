@@ -1,7 +1,7 @@
 from sqlalchemy.orm import Session
 from backend.src.db.models.registroUsuario_model import Usuario
-from backend.src.db.models.juego_model import Juego
-from backend.src.db.models.compra_model import Compra
+from backend.src.db.models.desarrolladorJuego_model import Juego
+from backend.src.db.models.comprarJuego_model import Compra
 from backend.src.db.models.wishlist_model import Wishlist
 
 

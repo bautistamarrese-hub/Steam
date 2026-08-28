@@ -6,14 +6,14 @@ complejas como "top ventas" y "mejor valorados" (HU11), ya que son
 consultas de SOLO LECTURA sobre juegos: tiene sentido que vivan acá.
 """
 
-from app.database import db
-from app.models.juego import Juego
+from src.db import connection
+from src.db.models.desarrolladorJuego_model import Juego
 
 
 class JuegoRepository:
 
     def crear(self, titulo, desarrollador_id, precio, fecha_lanzamiento, genero):
-        cursor = db.obtener_cursor()
+        cursor = connection.obtener_cursor()
         try:
             cursor.execute(
                 """
@@ -24,21 +24,21 @@ class JuegoRepository:
                 (titulo, desarrollador_id, precio, fecha_lanzamiento, genero),
             )
             fila = cursor.fetchone()
-            db.confirmar()
+            connection.confirmar()
             return Juego.desde_fila(fila)
         except Exception:
-            db.revertir()
+            connection.revertir()
             raise
 
     def obtener_por_id(self, juego_id):
-        cursor = db.obtener_cursor()
+        cursor = connection.obtener_cursor()
         cursor.execute("SELECT * FROM juego WHERE id = %s;", (juego_id,))
         fila = cursor.fetchone()
         return Juego.desde_fila(fila) if fila else None
 
     def existe_titulo_para_desarrollador(self, desarrollador_id, titulo):
         """HU2: el título debe ser único por desarrollador."""
-        cursor = db.obtener_cursor()
+        cursor = connection.obtener_cursor()
         cursor.execute(
             "SELECT 1 FROM juego WHERE desarrollador_id = %s AND titulo = %s;",
             (desarrollador_id, titulo),
@@ -47,7 +47,7 @@ class JuegoRepository:
 
     def listar_por_desarrollador(self, desarrollador_id):
         """HU2: GET /desarrolladores/{id}/juegos"""
-        cursor = db.obtener_cursor()
+        cursor = connection.obtener_cursor()
         cursor.execute(
             "SELECT * FROM juego WHERE desarrollador_id = %s ORDER BY id;",
             (desarrollador_id,),
@@ -55,7 +55,7 @@ class JuegoRepository:
         return [Juego.desde_fila(f) for f in cursor.fetchall()]
 
     def listar_todos(self, genero=None):
-        cursor = db.obtener_cursor()
+        cursor = connection.obtener_cursor()
         if genero:
             cursor.execute("SELECT * FROM juego WHERE genero = %s ORDER BY id;", (genero,))
         else:
@@ -68,7 +68,7 @@ class JuegoRepository:
         Usamos JOIN + GROUP BY + COUNT para contar cuántas compras tiene
         cada juego, y ordenamos de mayor a menor.
         """
-        cursor = db.obtener_cursor()
+        cursor = connection.obtener_cursor()
         if genero:
             cursor.execute(
                 """
@@ -110,7 +110,7 @@ class JuegoRepository:
         estadísticamente significativo (evita que un juego con 1 reseña
         positiva de 1 total "gane" con 100%).
         """
-        cursor = db.obtener_cursor()
+        cursor = connection.obtener_cursor()
         condicion_genero = "AND j.genero = %s" if genero else ""
         parametros = []
         if genero:

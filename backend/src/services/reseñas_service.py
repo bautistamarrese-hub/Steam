@@ -1,9 +1,9 @@
 from typing import Optional
 from sqlalchemy.orm import Session
 from backend.src.db.models.registroUsuario_model import Usuario
-from backend.src.db.models.juego_model import Juego
-from backend.src.db.models.compra_model import Compra
-from backend.src.db.models.resena_model import Resena
+from backend.src.db.models.desarrolladorJuego_model import Juego
+from backend.src.db.models.comprarJuego_model import Compra
+from backend.src.db.models.reseñas_model import Resena
 
 
 class ResenaService:

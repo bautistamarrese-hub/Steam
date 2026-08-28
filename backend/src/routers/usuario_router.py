@@ -9,7 +9,7 @@ from src.schemas.juego_schema import GetJuegoSchema
 from src.schemas.wishlist_schema import CreateWishlistSchema, GetWishlistSchema
 from src.schemas.logro_schema import GetLogroDesbloqueadoSchema
 from src.schemas.amigo_schema import CreateAmigoSchema, GetAmigoSchema
-from src.services.usuario_service import UsuarioService
+from src.services.registroUsuario_service import UsuarioService
 
 router = APIRouter(prefix="/usuarios", tags=["usuarios"])
 

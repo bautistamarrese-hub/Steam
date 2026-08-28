@@ -4,25 +4,25 @@ wishlist_repository.py
 Acceso a datos para la tabla `wishlist` (relación N a M usuario-juego).
 """
 
-from app.database import db
+from src.db import connection
 
 
 class WishlistRepository:
 
     def agregar(self, usuario_id, juego_id):
-        cursor = db.obtener_cursor()
+        cursor = connection.obtener_cursor()
         try:
             cursor.execute(
                 "INSERT INTO wishlist (usuario_id, juego_id) VALUES (%s, %s);",
                 (usuario_id, juego_id),
             )
-            db.confirmar()
+            connection.confirmar()
         except Exception:
-            db.revertir()
+            connection.revertir()
             raise
 
     def existe(self, usuario_id, juego_id):
-        cursor = db.obtener_cursor()
+        cursor = connection.obtener_cursor()
         cursor.execute(
             "SELECT 1 FROM wishlist WHERE usuario_id = %s AND juego_id = %s;",
             (usuario_id, juego_id),
@@ -35,20 +35,20 @@ class WishlistRepository:
         si estaba ahí. Este método se usa tanto para eso como para que el
         usuario quite manualmente un juego de su wishlist.
         """
-        cursor = db.obtener_cursor()
+        cursor = connection.obtener_cursor()
         try:
             cursor.execute(
                 "DELETE FROM wishlist WHERE usuario_id = %s AND juego_id = %s;",
                 (usuario_id, juego_id),
             )
-            db.confirmar()
+            connection.confirmar()
         except Exception:
-            db.revertir()
+            connection.revertir()
             raise
 
     def listar_por_usuario(self, usuario_id):
         """HU6: GET /usuarios/{id}/wishlist ordenada por fecha_agregado."""
-        cursor = db.obtener_cursor()
+        cursor = connection.obtener_cursor()
         cursor.execute(
             """
             SELECT j.id, j.titulo, j.genero, j.precio, w.fecha_agregado

@@ -12,7 +12,6 @@ app.add_exception_handler(AppError, app_error_handler)
 app.include_router(desarollador_router.router, prefix="/api")
 app.include_router(usuario_router.router, prefix="/api")
 app.include_router(juego_router.router, prefix="/api")
-app.include_router(registroUsuario_router.router, prefix="/api")
 
 
 @app.get("/health")

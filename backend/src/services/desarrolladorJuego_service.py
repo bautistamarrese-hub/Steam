@@ -1,5 +1,5 @@
 from sqlalchemy.orm import Session
-from backend.src.db.models.juego_model import Juego, Desarrollador
+from backend.src.db.models.desarrolladorJuego_model import Juego, Desarrollador
 from backend.src.dtos.juego_dto import CreateJuegoDTO
 
 

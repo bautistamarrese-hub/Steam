@@ -4,14 +4,14 @@ resena_repository.py
 Acceso a datos para la tabla `resena` (HU7).
 """
 
-from app.database import db
-from app.models.resena import Resena
+from src.db import connection
+from src.db.models.reseñas_model import Resena
 
 
 class ResenaRepository:
 
     def obtener_por_usuario_y_juego(self, usuario_id, juego_id):
-        cursor = db.obtener_cursor()
+        cursor = connection.obtener_cursor()
         cursor.execute(
             "SELECT * FROM resena WHERE usuario_id = %s AND juego_id = %s;",
             (usuario_id, juego_id),
@@ -20,7 +20,7 @@ class ResenaRepository:
         return Resena.desde_fila(fila) if fila else None
 
     def crear(self, usuario_id, juego_id, recomienda, texto):
-        cursor = db.obtener_cursor()
+        cursor = connection.obtener_cursor()
         try:
             cursor.execute(
                 """
@@ -31,15 +31,15 @@ class ResenaRepository:
                 (usuario_id, juego_id, recomienda, texto),
             )
             fila = cursor.fetchone()
-            db.confirmar()
+            connection.confirmar()
             return Resena.desde_fila(fila)
         except Exception:
-            db.revertir()
+            connection.revertir()
             raise
 
     def actualizar(self, usuario_id, juego_id, recomienda, texto):
         """HU7: un usuario puede EDITAR su única reseña por juego."""
-        cursor = db.obtener_cursor()
+        cursor = connection.obtener_cursor()
         try:
             cursor.execute(
                 """
@@ -51,14 +51,14 @@ class ResenaRepository:
                 (recomienda, texto, usuario_id, juego_id),
             )
             fila = cursor.fetchone()
-            db.confirmar()
+            connection.confirmar()
             return Resena.desde_fila(fila)
         except Exception:
-            db.revertir()
+            connection.revertir()
             raise
 
     def listar_por_juego(self, juego_id):
-        cursor = db.obtener_cursor()
+        cursor = connection.obtener_cursor()
         cursor.execute(
             "SELECT * FROM resena WHERE juego_id = %s ORDER BY fecha DESC;",
             (juego_id,),

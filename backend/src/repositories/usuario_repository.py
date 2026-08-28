@@ -13,8 +13,8 @@ base de datos para una entidad en particular (en este caso, Usuario).
   mientras que el repositorio solo hace INSERT/UPDATE/SELECT puros.
 """
 
-from app.database import db
-from app.models.usuario import Usuario
+from src.db import connection
+from src.db.models.registroUsuario_model import Usuario
 
 
 class UsuarioRepository:
@@ -26,7 +26,7 @@ class UsuarioRepository:
         base de datos por default (HU1).
         Devuelve el objeto Usuario recién creado.
         """
-        cursor = db.obtener_cursor()
+        cursor = connection.obtener_cursor()
         try:
             cursor.execute(
                 """
@@ -37,35 +37,35 @@ class UsuarioRepository:
                 (email, nickname),
             )
             fila = cursor.fetchone()
-            db.confirmar()
+            connection.confirmar()
             return Usuario.desde_fila(fila)
         except Exception:
             # Si algo falla (ej: email duplicado -> viola UNIQUE) revertimos
             # la transacción para no dejar la conexión en un estado roto.
-            db.revertir()
+            connection.revertir()
             raise
 
     def obtener_por_id(self, usuario_id):
         """Devuelve un Usuario por su id, o None si no existe."""
-        cursor = db.obtener_cursor()
+        cursor = connection.obtener_cursor()
         cursor.execute("SELECT * FROM usuario WHERE id = %s;", (usuario_id,))
         fila = cursor.fetchone()
         return Usuario.desde_fila(fila) if fila else None
 
     def obtener_por_email(self, email):
-        cursor = db.obtener_cursor()
+        cursor = connection.obtener_cursor()
         cursor.execute("SELECT * FROM usuario WHERE email = %s;", (email,))
         fila = cursor.fetchone()
         return Usuario.desde_fila(fila) if fila else None
 
     def obtener_por_nickname(self, nickname):
-        cursor = db.obtener_cursor()
+        cursor = connection.obtener_cursor()
         cursor.execute("SELECT * FROM usuario WHERE nickname = %s;", (nickname,))
         fila = cursor.fetchone()
         return Usuario.desde_fila(fila) if fila else None
 
     def listar_todos(self):
-        cursor = db.obtener_cursor()
+        cursor = connection.obtener_cursor()
         cursor.execute("SELECT * FROM usuario ORDER BY id;")
         return [Usuario.desde_fila(f) for f in cursor.fetchall()]
 
@@ -77,15 +77,15 @@ class UsuarioRepository:
         ejecutamos el UPDATE. Además la tabla tiene un CHECK (saldo >= 0)
         como última barrera de seguridad a nivel base de datos.
         """
-        cursor = db.obtener_cursor()
+        cursor = connection.obtener_cursor()
         try:
             cursor.execute(
                 "UPDATE usuario SET saldo = %s WHERE id = %s;",
                 (nuevo_saldo, usuario_id),
             )
-            db.confirmar()
+            connection.confirmar()
         except Exception:
-            db.revertir()
+            connection.revertir()
             raise
 
     def registrar_recarga(self, usuario_id, monto):
@@ -99,7 +99,7 @@ class UsuarioRepository:
         Para mantenernos fieles al modelo de datos entregado, esta
         implementación crea (si no existe) una tabla auxiliar `recarga`.
         """
-        cursor = db.obtener_cursor()
+        cursor = connection.obtener_cursor()
         try:
             # Creamos la tabla de recargas si todavía no existe (idempotente).
             cursor.execute(
@@ -123,12 +123,12 @@ class UsuarioRepository:
                 (monto, usuario_id),
             )
             nuevo_saldo = cursor.fetchone()["saldo"]
-            db.confirmar()
+            connection.confirmar()
             return float(nuevo_saldo)
         except Exception:
-            db.revertir()
+            connection.revertir()
             raise
 
 
-# Instancia única reutilizable, igual que hicimos con `db`.
+# Instancia única reutilizable, igual que hicimos con `connection`.
 usuario_repository = UsuarioRepository()

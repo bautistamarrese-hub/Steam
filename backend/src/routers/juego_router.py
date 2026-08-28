@@ -5,7 +5,7 @@ from src.db.connection import get_db
 from src.schemas.juego_schema import CreateJuegoSchema, GetJuegoSchema
 from src.schemas.logro_schema import CreateLogroSchema, GetLogroSchema
 from src.schemas.resena_schema import CreateResenaSchema, GetResenaSchema
-from src.services.juego_service import JuegoService
+from src.services.desarrolladorJuego_service import JuegoService
 
 router = APIRouter(prefix="/juegos", tags=["juegos"])
 
