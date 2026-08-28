@@ -2,9 +2,9 @@ from passlib.context import CryptContext
 from sqlalchemy.orm import Session
 
 from ..db.models.registroUsuario_model import Usuario
-from ..dtos.logro_dto import CreateUsuarioDTO, UsuarioResponseDTO
-from ..mappers.juego_mapper import UsuarioMapper
-from ..repositories.compra_repository import UsuarioRepository
+from ..dtos.usuario_dto import CreateUsuarioDTO, UsuarioResponseDTO
+from ..mappers.usuario_mapper import UsuarioResponseDTO
+from ..repositories.usuario_repository import UsuarioRepository
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
@@ -36,4 +36,4 @@ class UsuarioService:
         usuario_guardado = self.repo.save(nuevo_usuario)
 
         # 6. Mapear la entidad guardada al DTO de respuesta
-        return UsuarioMapper.to_response_dto(usuario_guardado)
+        return UsuarioResponseDTO.to_response_dto(usuario_guardado)
