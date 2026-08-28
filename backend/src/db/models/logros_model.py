@@ -7,6 +7,7 @@ from src.db.connection import Base
 
 if TYPE_CHECKING:
     from backend.src.db.models.desarrolladorJuego_model import Juego
+    from backend.src.db.models.desbloquearLogro_model import LogroDesbloqueado
 
 
 class Logro(Base):
@@ -26,3 +27,8 @@ class Logro(Base):
 
     # Relación con el juego al que pertenece
     juego: Mapped["Juego"] = relationship("Juego", back_populates="logros")
+
+    desbloqueados: Mapped[list["LogroDesbloqueado"]] = relationship(
+    "LogroDesbloqueado",
+    back_populates="logro"
+)
