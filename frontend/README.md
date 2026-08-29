@@ -1,5 +1,8 @@
 # Game Hub Connect
 
+> Estado de integración: la matriz de endpoints, diferencias de contrato y
+> rutas pendientes está en [INTEGRACION_FRONTEND_BACKEND.md](../INTEGRACION_FRONTEND_BACKEND.md).
+
 realiza el frontend en typescript basándote en: 
 
 Proyecto 5 — Steam
