@@ -1,8 +1,8 @@
 from sqlalchemy.orm import Session
-from backend.src.db.models.registroUsuario_model import Usuario
-from backend.src.db.models.desarrolladorJuego_model import Juego
-from backend.src.db.models.wishlist_model import Wishlist
-from backend.src.db.models.comprarJuego_model import Compra
+from src.db.models.registroUsuario_model import Usuario
+from src.db.models.desarrolladorJuego_model import Juego
+from src.db.models.wishlist_model import Wishlist
+from src.db.models.comprarJuego_model import Compra
 
 
 class WishlistService:

@@ -1,8 +1,8 @@
 from datetime import datetime
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 class CreateResenaSchema(BaseModel):
-    juego_id: int
+    usuario_id: int
     recomienda: bool
     texto: str | None = None
 
@@ -11,6 +11,8 @@ class UpdateResenaSchema(BaseModel):
     texto: str | None = None
 
 class GetResenaSchema(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
     id: int
     usuario_id: int
     juego_id: int

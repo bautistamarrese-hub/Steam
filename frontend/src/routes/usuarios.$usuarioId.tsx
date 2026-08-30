@@ -1,16 +1,17 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { toast } from "sonner";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Award, Coins, Gamepad2, Trophy, UserMinus, UserPlus, Users } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import {
   agregarAmigo,
+  amigosDe,
   ApiError,
   eliminarAmigo,
   formatPrecio,
   perfilPublico,
-  sonAmigos,
 } from "@/lib/api";
 import { useSesion, useUsuario } from "@/lib/sesion";
 
@@ -33,8 +34,17 @@ function PerfilUsuario() {
   const { usuarioId } = Route.useParams();
   const yo = useUsuario();
   const { refrescar } = useSesion();
+  const queryClient = useQueryClient();
   // GET /usuarios/{id}/perfil
-  const perfil = perfilPublico(Number(usuarioId));
+  const id = Number(usuarioId);
+  const { data: perfil } = useQuery({
+    queryKey: ["perfil-publico", id],
+    queryFn: () => perfilPublico(id),
+  });
+  const { data: misAmigos = [] } = useQuery({
+    queryKey: ["amigos", yo.id],
+    queryFn: () => amigosDe(yo.id),
+  });
 
   if (!perfil) {
     return (
@@ -49,12 +59,16 @@ function PerfilUsuario() {
 
   const { usuario, stats, juegos, logros, amigos } = perfil;
   const esYo = usuario.id === yo.id;
-  const amigo = sonAmigos(yo.id, usuario.id);
+  const amigo = misAmigos.some((item) => item.id === usuario.id);
 
-  const accion = (fn: () => void, ok: string) => {
+  const accion = async (fn: () => Promise<unknown>, ok: string) => {
     try {
-      fn();
-      refrescar();
+      await fn();
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["amigos", yo.id] }),
+        queryClient.invalidateQueries({ queryKey: ["perfil-publico", id] }),
+        refrescar(),
+      ]);
       toast.success(ok);
     } catch (e) {
       toast.error(e instanceof ApiError ? e.message : "Ocurrió un error");

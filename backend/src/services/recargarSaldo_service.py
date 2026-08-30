@@ -1,6 +1,7 @@
 from sqlalchemy.orm import Session
-from backend.src.db.models.recargarSaldo_model import Usuario, Recarga
-from backend.src.dtos.usuario_dto import RecargarSaldoDTO
+from src.db.models.recargarSaldo_model import Recarga
+from src.db.models.registroUsuario_model import Usuario
+from src.dtos.usuario_dto import RecargarSaldoDTO
 
 
 class RecargaService:

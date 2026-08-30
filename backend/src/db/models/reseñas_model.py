@@ -7,8 +7,8 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from src.db.connection import Base
 
 if TYPE_CHECKING:
-    from backend.src.db.models.registroUsuario_model import Usuario
-    from backend.src.db.models.desarrolladorJuego_model import Juego
+    from src.db.models.registroUsuario_model import Usuario
+    from src.db.models.desarrolladorJuego_model import Juego
 
 
 class Resena(Base):
@@ -20,7 +20,7 @@ class Resena(Base):
     )
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
-    usuario_id: Mapped[int] = mapped_column(Integer, ForeignKey("usuario.id"), nullable=False)
+    usuario_id: Mapped[int] = mapped_column(Integer, ForeignKey("usuarios.id"), nullable=False)
     juego_id: Mapped[int] = mapped_column(Integer, ForeignKey("juego.id"), nullable=False)
     recomienda: Mapped[bool] = mapped_column(Boolean, nullable=False)
     texto: Mapped[Optional[str]] = mapped_column(Text, nullable=True)

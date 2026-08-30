@@ -8,7 +8,11 @@ from src.db.connection import Base
 
 
 if TYPE_CHECKING:
-    from backend.src.db.models.desbloquearLogro_model import LogroDesbloqueado
+    from src.db.models.comprarJuego_model import Compra
+    from src.db.models.desbloquearLogro_model import LogroDesbloqueado
+    from src.db.models.recargarSaldo_model import Recarga
+    from src.db.models.reseñas_model import Resena
+    from src.db.models.wishlist_model import Wishlist
 
 
 class Usuario(Base):
@@ -54,3 +58,8 @@ class Usuario(Base):
         "LogroDesbloqueado",
         back_populates="usuario"
     )
+
+    compras: Mapped[list["Compra"]] = relationship("Compra", back_populates="usuario")
+    wishlist: Mapped[list["Wishlist"]] = relationship("Wishlist", back_populates="usuario")
+    resenas: Mapped[list["Resena"]] = relationship("Resena", back_populates="usuario")
+    recargas: Mapped[list["Recarga"]] = relationship("Recarga", back_populates="usuario")

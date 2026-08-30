@@ -1,5 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -44,11 +45,22 @@ const GENEROS: Genero[] = [
 function Desarrolladores() {
   const usuario = useUsuario();
   const { esAdmin } = useSesion();
-  const [tick, setTick] = useState(0);
+  const queryClient = useQueryClient();
   const [titulo, setTitulo] = useState("");
   const [precio, setPrecio] = useState("0");
   const [resumen, setResumen] = useState("");
   const [genero, setGenero] = useState<Genero>("Indie");
+
+  const { data: dev } = useQuery({
+    queryKey: ["desarrollador", usuario.desarrollador_id],
+    queryFn: () => obtenerDesarrollador(usuario.desarrollador_id!),
+    enabled: Boolean(esAdmin && usuario.desarrollador_id),
+  });
+  const { data: misJuegos = [] } = useQuery({
+    queryKey: ["juegos-desarrollador", usuario.desarrollador_id],
+    queryFn: () => juegosDeDesarrollador(usuario.desarrollador_id!),
+    enabled: Boolean(esAdmin && usuario.desarrollador_id),
+  });
 
   if (!esAdmin || !usuario.desarrollador_id) {
     return (
@@ -65,13 +77,12 @@ function Desarrolladores() {
     );
   }
 
-  const dev = obtenerDesarrollador(usuario.desarrollador_id)!;
-  const misJuegos = juegosDeDesarrollador(dev.id); // GET /desarrolladores/{id}/juegos
+  if (!dev) return null;
 
-  const publicar = () => {
+  const publicar = async () => {
     try {
       // El estudio siempre es el de la sesión activa
-      publicarJuego({
+      await publicarJuego({
         titulo,
         desarrollador_id: dev.id,
         precio: Number(precio),
@@ -82,7 +93,7 @@ function Desarrolladores() {
       });
       setTitulo("");
       setResumen("");
-      setTick(tick + 1);
+      await queryClient.invalidateQueries({ queryKey: ["juegos-desarrollador", dev.id] });
       toast.success(`Juego publicado como ${dev.nombre}`);
     } catch (e) {
       toast.error(e instanceof ApiError ? e.message : "Ocurrió un error");

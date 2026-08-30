@@ -8,8 +8,8 @@ from src.db.connection import Base
 
 
 if TYPE_CHECKING:
-    from backend.src.db.models.registroUsuario_model import Usuario
-    from backend.src.db.models.logros_model import Logro
+    from src.db.models.registroUsuario_model import Usuario
+    from src.db.models.logros_model import Logro
 
 
 class LogroDesbloqueado(Base):

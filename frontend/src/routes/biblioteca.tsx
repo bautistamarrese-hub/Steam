@@ -1,5 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useMemo, useState } from "react";
+import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { JuegoCard } from "@/components/JuegoCard";
 import { biblioteca, formatPrecio } from "@/lib/api";
 import { useUsuario } from "@/lib/sesion";
@@ -36,7 +37,10 @@ function Biblioteca() {
   const usuario = useUsuario();
   const [genero, setGenero] = useState<Genero | "todos">("todos");
   // GET /usuarios/{id}/biblioteca?genero=
-  const items = useMemo(() => biblioteca(usuario.id, genero), [usuario.id, genero]);
+  const { data: items = [] } = useQuery({
+    queryKey: ["biblioteca", usuario.id, genero],
+    queryFn: () => biblioteca(usuario.id, genero),
+  });
 
   return (
     <div className="mx-auto max-w-6xl px-4 py-10">

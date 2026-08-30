@@ -15,8 +15,8 @@ class Amigos(Base):
     )
 
     # Clave primaria compuesta para impedir duplicados idénticos
-    usuario_a: Mapped[int] = mapped_column(Integer, ForeignKey("usuario.id"), primary_key=True)
-    usuario_b: Mapped[int] = mapped_column(Integer, ForeignKey("usuario.id"), primary_key=True)
+    usuario_a: Mapped[int] = mapped_column(Integer, ForeignKey("usuarios.id"), primary_key=True)
+    usuario_b: Mapped[int] = mapped_column(Integer, ForeignKey("usuarios.id"), primary_key=True)
     
     fecha: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), 

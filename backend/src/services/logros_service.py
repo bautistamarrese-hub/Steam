@@ -1,7 +1,7 @@
 from typing import Optional
 from sqlalchemy.orm import Session
-from backend.src.db.models.desarrolladorJuego_model import Juego
-from backend.src.db.models.logros_model import Logro
+from src.db.models.desarrolladorJuego_model import Juego
+from src.db.models.logros_model import Logro
 
 
 class LogroService:

@@ -12,6 +12,14 @@ router = APIRouter(prefix="/desarrolladores", tags=["desarrolladores"])
 def crear_desarrollador(payload: CreateDesarrolladorSchema, db: Session = Depends(get_db)):
     return JuegoService(db).crear(payload)
 
+@router.get("/", response_model=list[GetDesarrolladorSchema])
+def listar_desarrolladores(db: Session = Depends(get_db)):
+    return JuegoService(db).listar_desarrolladores()
+
+@router.get("/{id}", response_model=GetDesarrolladorSchema)
+def obtener_desarrollador(id: int, db: Session = Depends(get_db)):
+    return JuegoService(db).obtener_desarrollador(id)
+
 # HU2 — Listar juegos del desarrollador
 @router.get("/{id}/juegos", response_model=list[GetJuegoSchema])
 def listar_juegos_desarrollador(id: int, db: Session = Depends(get_db)):

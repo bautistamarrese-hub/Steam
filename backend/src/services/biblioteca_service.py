@@ -1,8 +1,8 @@
 from typing import Optional
 from sqlalchemy.orm import Session
-from backend.src.db.models.registroUsuario_model import Usuario
-from backend.src.db.models.comprarJuego_model import Compra
-from backend.src.db.models.desarrolladorJuego_model import Juego
+from src.db.models.registroUsuario_model import Usuario
+from src.db.models.comprarJuego_model import Compra
+from src.db.models.desarrolladorJuego_model import Juego
 
 
 class BibliotecaService:

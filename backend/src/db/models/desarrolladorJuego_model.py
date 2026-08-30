@@ -1,10 +1,16 @@
 from datetime import date
-from typing import List, Optional
+from typing import List, Optional, TYPE_CHECKING
 
 from sqlalchemy import Date, Float, ForeignKey, Integer, String, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from src.db.connection import Base
+
+if TYPE_CHECKING:
+    from src.db.models.comprarJuego_model import Compra
+    from src.db.models.logros_model import Logro
+    from src.db.models.reseñas_model import Resena
+    from src.db.models.wishlist_model import Wishlist
 
 
 class Desarrollador(Base):
@@ -37,3 +43,7 @@ class Juego(Base):
 
     # Relación inversa
     desarrollador: Mapped["Desarrollador"] = relationship("Desarrollador", back_populates="juegos")
+    compras: Mapped[List["Compra"]] = relationship("Compra", back_populates="juego")
+    wishlist: Mapped[List["Wishlist"]] = relationship("Wishlist", back_populates="juego")
+    resenas: Mapped[List["Resena"]] = relationship("Resena", back_populates="juego")
+    logros: Mapped[List["Logro"]] = relationship("Logro", back_populates="juego")

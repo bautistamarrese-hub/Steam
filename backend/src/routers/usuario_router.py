@@ -1,196 +1,117 @@
-from fastapi import APIRouter, Depends, Query, status, HTTPException
+from fastapi import APIRouter, Depends, Query, Response, status
 from sqlalchemy.orm import Session
 
 from src.db.connection import get_db
-
+from src.schemas.amigo_schema import CreateAmigoSchema, GetAmigoSchema
+from src.schemas.compra_schema import GetCompraSchema, GetRecargaSchema
+from src.schemas.juego_schema import GetItemBibliotecaSchema
+from src.schemas.logro_schema import GetLogroDesbloqueadoSchema
 from src.schemas.usuario_schema import (
     CreateUsuarioSchema,
+    GetEstadisticasUsuarioSchema,
     GetUsuarioSchema,
     RecargarSaldoSchema,
-    GetEstadisticasUsuarioSchema
 )
-from src.schemas.juego_schema import GetJuegoSchema
 from src.schemas.wishlist_schema import CreateWishlistSchema, GetWishlistSchema
-from src.schemas.logro_schema import GetLogroDesbloqueadoSchema
-from src.schemas.amigo_schema import CreateAmigoSchema, GetAmigoSchema
-
-from src.services.registroUsuario_service import UsuarioService
 from src.services.desbloquearLogro_service import DesbloqueoLogroService
+from src.services.registroUsuario_service import UsuarioService
+
+router = APIRouter(prefix="/usuarios", tags=["usuarios"])
 
 
-router = APIRouter(
-    prefix="/usuarios",
-    tags=["usuarios"]
-)
-
-
-# ============================================================
-# HU1 — Registro de usuario
-# ============================================================
-
-@router.post(
-    "/",
-    response_model=GetUsuarioSchema,
-    status_code=status.HTTP_201_CREATED
-)
-def registrar_usuario(
-    payload: CreateUsuarioSchema,
-    db: Session = Depends(get_db)
-):
+@router.post("/", response_model=GetUsuarioSchema, status_code=status.HTTP_201_CREATED)
+def registrar_usuario(payload: CreateUsuarioSchema, db: Session = Depends(get_db)):
     return UsuarioService(db).registrar(payload)
 
 
-# ============================================================
-# HU3 — Recargar saldo
-# ============================================================
-
-@router.post(
-    "/{id}/recargar",
-    status_code=status.HTTP_200_OK
-)
-def recargar_saldo(
-    id: int,
-    payload: RecargarSaldoSchema,
-    db: Session = Depends(get_db)
-):
-    return UsuarioService(db).recargar_saldo(
-        id,
-        payload
-    )
+@router.get("/", response_model=list[GetUsuarioSchema])
+def listar_usuarios(email: str | None = Query(default=None), db: Session = Depends(get_db)):
+    return UsuarioService(db).listar(email)
 
 
-# ============================================================
-# HU4 — Comprar juego
-# ============================================================
+@router.get("/{id}", response_model=GetUsuarioSchema)
+def obtener_usuario(id: int, db: Session = Depends(get_db)):
+    return UsuarioService(db).obtener(id)
+
+
+@router.post("/{id}/recargar", response_model=GetRecargaSchema)
+def recargar_saldo(id: int, payload: RecargarSaldoSchema, db: Session = Depends(get_db)):
+    return UsuarioService(db).recargar_saldo(id, payload)
+
+
+@router.get("/{id}/recargas", response_model=list[GetRecargaSchema])
+def listar_recargas(id: int, db: Session = Depends(get_db)):
+    return UsuarioService(db).listar_recargas(id)
+
 
 @router.post(
     "/{id}/comprar/{juego_id}",
-    status_code=status.HTTP_201_CREATED
+    response_model=GetCompraSchema,
+    status_code=status.HTTP_201_CREATED,
 )
-def comprar_juego(
-    id: int,
-    juego_id: int,
-    db: Session = Depends(get_db)
-):
-    return UsuarioService(db).comprar_juego(
-        id,
-        juego_id
-    )
+def comprar_juego(id: int, juego_id: int, db: Session = Depends(get_db)):
+    return UsuarioService(db).comprar_juego(id, juego_id)
 
 
-# ============================================================
-# HU5 — Biblioteca del usuario
-# ============================================================
-
-@router.get(
-    "/{id}/biblioteca",
-    response_model=list[GetJuegoSchema]
-)
+@router.get("/{id}/biblioteca", response_model=list[GetItemBibliotecaSchema])
 def obtener_biblioteca(
-    id: int,
-    genero: str | None = None,
-    db: Session = Depends(get_db)
+    id: int, genero: str | None = Query(default=None), db: Session = Depends(get_db)
 ):
-    return UsuarioService(db).obtener_biblioteca(
-        id,
-        genero
-    )
+    return UsuarioService(db).obtener_biblioteca(id, genero)
 
-
-# ============================================================
-# HU6 — Agregar juego a Wishlist
-# ============================================================
 
 @router.post(
     "/{id}/wishlist",
     response_model=GetWishlistSchema,
-    status_code=status.HTTP_201_CREATED
+    status_code=status.HTTP_201_CREATED,
 )
-def agregar_wishlist(
-    id: int,
-    payload: CreateWishlistSchema,
-    db: Session = Depends(get_db)
-):
-    return UsuarioService(db).agregar_a_wishlist(
-        id,
-        payload
-    )
+def agregar_wishlist(id: int, payload: CreateWishlistSchema, db: Session = Depends(get_db)):
+    return UsuarioService(db).agregar_a_wishlist(id, payload)
 
 
-# ============================================================
-# HU6 — Obtener Wishlist
-# ============================================================
-
-@router.get(
-    "/{id}/wishlist",
-    response_model=list[GetWishlistSchema]
-)
-def obtener_wishlist(
-    id: int,
-    db: Session = Depends(get_db)
-):
+@router.get("/{id}/wishlist", response_model=list[GetWishlistSchema])
+def obtener_wishlist(id: int, db: Session = Depends(get_db)):
     return UsuarioService(db).obtener_wishlist(id)
 
 
-# ============================================================
-# HU9 — Desbloquear logro
-# ============================================================
+@router.delete("/{id}/wishlist/{juego_id}", status_code=status.HTTP_204_NO_CONTENT)
+def quitar_wishlist(id: int, juego_id: int, db: Session = Depends(get_db)):
+    UsuarioService(db).quitar_de_wishlist(id, juego_id)
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
+
 
 @router.post(
     "/{id}/logros/{logro_id}",
     response_model=GetLogroDesbloqueadoSchema,
-    status_code=status.HTTP_201_CREATED
+    status_code=status.HTTP_201_CREATED,
 )
-def desbloquear_logro(
-    id: int,
-    logro_id: int,
-    db: Session = Depends(get_db)
-):
-    try:
-        service = DesbloqueoLogroService(db)
-
-        return service.desbloquear_logro(
-            usuario_id=id,
-            logro_id=logro_id
-        )
-
-    except ValueError as error:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=str(error)
-        )
+def desbloquear_logro(id: int, logro_id: int, db: Session = Depends(get_db)):
+    return DesbloqueoLogroService(db).desbloquear_logro(id, logro_id)
 
 
-# ============================================================
-# HU10 — Agregar amigo
-# ============================================================
+@router.get("/{id}/logros", response_model=list[GetLogroDesbloqueadoSchema])
+def obtener_logros_desbloqueados(id: int, db: Session = Depends(get_db)):
+    return UsuarioService(db).obtener_logros_desbloqueados(id)
+
 
 @router.post(
-    "/{id}/amigos",
-    response_model=GetAmigoSchema,
-    status_code=status.HTTP_201_CREATED
+    "/{id}/amigos", response_model=GetAmigoSchema, status_code=status.HTTP_201_CREATED
 )
-def agregar_amigo(
-    id: int,
-    payload: CreateAmigoSchema,
-    db: Session = Depends(get_db)
-):
-    return UsuarioService(db).agregar_amigo(
-        id,
-        payload
-    )
+def agregar_amigo(id: int, payload: CreateAmigoSchema, db: Session = Depends(get_db)):
+    return UsuarioService(db).agregar_amigo(id, payload)
 
 
-# ============================================================
-# HU12 — Estadísticas del usuario
-# ============================================================
+@router.get("/{id}/amigos", response_model=list[GetUsuarioSchema])
+def obtener_amigos(id: int, db: Session = Depends(get_db)):
+    return UsuarioService(db).obtener_amigos(id)
 
-@router.get(
-    "/{id}/estadisticas",
-    response_model=GetEstadisticasUsuarioSchema
-)
-def obtener_estadisticas(
-    id: int,
-    db: Session = Depends(get_db)
-):
+
+@router.delete("/{id}/amigos/{amigo_id}", status_code=status.HTTP_204_NO_CONTENT)
+def eliminar_amigo(id: int, amigo_id: int, db: Session = Depends(get_db)):
+    UsuarioService(db).eliminar_amigo(id, amigo_id)
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
+@router.get("/{id}/estadisticas", response_model=GetEstadisticasUsuarioSchema)
+def obtener_estadisticas(id: int, db: Session = Depends(get_db)):
     return UsuarioService(db).obtener_estadisticas(id)

@@ -1,5 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useMemo, useState } from "react";
+import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { formatPrecio, mejorValorados, MINIMO_RESENAS_VALORADOS, topVentas } from "@/lib/api";
@@ -63,9 +64,15 @@ function Fila({ juego, pos, metrica }: { juego: JuegoTop; pos: number; metrica: 
 function Top() {
   const [genero, setGenero] = useState<Genero | "todos">("todos");
   // GET /juegos/top-ventas?genero=
-  const ventas = useMemo(() => topVentas(genero), [genero]);
+  const { data: ventas = [] } = useQuery({
+    queryKey: ["top-ventas", genero],
+    queryFn: () => topVentas(genero),
+  });
   // GET /juegos/mejor-valorados?genero=  (mínimo 20 reseñas)
-  const valorados = useMemo(() => mejorValorados(genero), [genero]);
+  const { data: valorados = [] } = useQuery({
+    queryKey: ["mejor-valorados", genero],
+    queryFn: () => mejorValorados(genero),
+  });
 
   return (
     <div className="mx-auto max-w-4xl px-4 py-10">

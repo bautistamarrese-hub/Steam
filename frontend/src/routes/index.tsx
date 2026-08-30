@@ -1,5 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useMemo, useState } from "react";
+import { useState } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Search } from "lucide-react";
 import { toast } from "sonner";
 import { JuegoCard } from "@/components/JuegoCard";
@@ -10,9 +11,9 @@ import {
   agregarAWishlist,
   ApiError,
   comprarJuego,
-  enWishlist,
+  biblioteca,
   listarJuegos,
-  poseeJuego,
+  obtenerWishlist,
 } from "@/lib/api";
 import { useSesion, useUsuario } from "@/lib/sesion";
 import type { Genero } from "@/lib/types";
@@ -53,15 +54,30 @@ function Tienda() {
   const { refrescar } = useSesion();
   const [q, setQ] = useState("");
   const [genero, setGenero] = useState<Genero | "todos">("todos");
-  const [tick, setTick] = useState(0);
+  const queryClient = useQueryClient();
+  const { data: juegos = [] } = useQuery({
+    queryKey: ["juegos", genero, q],
+    queryFn: () => listarJuegos({ genero, q }),
+  });
+  const { data: comprados = [] } = useQuery({
+    queryKey: ["biblioteca", usuario.id],
+    queryFn: () => biblioteca(usuario.id),
+  });
+  const { data: deseados = [] } = useQuery({
+    queryKey: ["wishlist", usuario.id],
+    queryFn: () => obtenerWishlist(usuario.id),
+  });
+  const compradosIds = new Set(comprados.map((item) => item.juego.id));
+  const deseadosIds = new Set(deseados.map((item) => item.juego_id));
 
-  const juegos = useMemo(() => listarJuegos({ genero, q }), [genero, q]);
-
-  const accion = (fn: () => void, ok: string) => {
+  const accion = async (fn: () => Promise<unknown>, ok: string) => {
     try {
-      fn();
-      setTick(tick + 1);
-      refrescar();
+      await fn();
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["biblioteca", usuario.id] }),
+        queryClient.invalidateQueries({ queryKey: ["wishlist", usuario.id] }),
+        refrescar(),
+      ]);
       toast.success(ok);
     } catch (e) {
       toast.error(e instanceof ApiError ? e.message : "Ocurrió un error");
@@ -122,11 +138,11 @@ function Tienda() {
 
         <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
           {juegos.map((juego) => {
-            const comprado = poseeJuego(usuario.id, juego.id);
-            const deseado = enWishlist(usuario.id, juego.id);
+            const comprado = compradosIds.has(juego.id);
+            const deseado = deseadosIds.has(juego.id);
             return (
               <JuegoCard
-                key={`${juego.id}-${tick}`}
+                key={juego.id}
                 juego={juego}
                 wishlisted={deseado}
                 footer={

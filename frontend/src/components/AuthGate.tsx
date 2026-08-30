@@ -20,13 +20,13 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
   if (cargando) return null;
   if (usuario) return <>{children}</>;
 
-  const enviar = () => {
+  const enviar = async () => {
     try {
       if (modo === "login") {
-        login(email);
+        await login(email);
         toast.success("¡Bienvenido de vuelta!");
       } else {
-        registrar(email, nickname, rol, estudio || undefined);
+        await registrar(email, nickname, rol, estudio || undefined);
         toast.success("Cuenta creada, ¡a jugar!");
       }
     } catch (e) {

@@ -1,8 +1,9 @@
 -- 1. Entidades Principales (Sin dependencias)
-CREATE TABLE Usuario (
+CREATE TABLE usuarios (
     id SERIAL PRIMARY KEY,
     email VARCHAR(255) UNIQUE NOT NULL,
     nickname VARCHAR(50) UNIQUE NOT NULL,
+    password_hash VARCHAR(255) NOT NULL,
     saldo DECIMAL(10, 2) DEFAULT 0.00,
     fecha_registro TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
@@ -21,6 +22,7 @@ CREATE TABLE Juego (
     precio DECIMAL(10, 2) NOT NULL,
     fecha_lanzamiento DATE,
     genero VARCHAR(50),
+    UNIQUE (titulo, desarrollador_id),
     FOREIGN KEY (desarrollador_id) REFERENCES Desarrollador(id)
 );
 
@@ -29,7 +31,8 @@ CREATE TABLE Logro (
     juego_id INT NOT NULL,
     nombre VARCHAR(100) NOT NULL,
     descripcion TEXT,
-    puntos INT DEFAULT 0,
+    puntos INT DEFAULT 1 CHECK (puntos BETWEEN 1 AND 100),
+    UNIQUE (nombre, juego_id),
     FOREIGN KEY (juego_id) REFERENCES Juego(id)
 );
 
@@ -40,7 +43,8 @@ CREATE TABLE Compra (
     juego_id INT NOT NULL,
     fecha TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     precio_pagado DECIMAL(10, 2) NOT NULL,
-    FOREIGN KEY (usuario_id) REFERENCES Usuario(id),
+    UNIQUE (usuario_id, juego_id),
+    FOREIGN KEY (usuario_id) REFERENCES usuarios(id),
     FOREIGN KEY (juego_id) REFERENCES Juego(id)
 );
 
@@ -49,7 +53,7 @@ CREATE TABLE LogroDesbloqueado (
     logro_id INT NOT NULL,
     fecha TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     PRIMARY KEY (usuario_id, logro_id),
-    FOREIGN KEY (usuario_id) REFERENCES Usuario(id),
+    FOREIGN KEY (usuario_id) REFERENCES usuarios(id),
     FOREIGN KEY (logro_id) REFERENCES Logro(id)
 );
 
@@ -60,7 +64,7 @@ CREATE TABLE Resena (
     recomienda BOOLEAN NOT NULL,
     texto TEXT,
     fecha TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (usuario_id) REFERENCES Usuario(id),
+    FOREIGN KEY (usuario_id) REFERENCES usuarios(id),
     FOREIGN KEY (juego_id) REFERENCES Juego(id)
 );
 
@@ -70,7 +74,7 @@ CREATE TABLE Wishlist (
     juego_id INT NOT NULL,
     fecha_agregado TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     PRIMARY KEY (usuario_id, juego_id),
-    FOREIGN KEY (usuario_id) REFERENCES Usuario(id),
+    FOREIGN KEY (usuario_id) REFERENCES usuarios(id),
     FOREIGN KEY (juego_id) REFERENCES Juego(id)
 );
 
@@ -79,7 +83,16 @@ CREATE TABLE Amigos (
     usuario_b INT NOT NULL,
     fecha TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     PRIMARY KEY (usuario_a, usuario_b),
-    FOREIGN KEY (usuario_a) REFERENCES Usuario(id),
-    FOREIGN KEY (usuario_b) REFERENCES Usuario(id),
+    FOREIGN KEY (usuario_a) REFERENCES usuarios(id),
+    FOREIGN KEY (usuario_b) REFERENCES usuarios(id),
     CHECK (usuario_a != usuario_b) -- Evita que un usuario sea amigo de sí mismo
+);
+
+CREATE TABLE Recarga (
+    id SERIAL PRIMARY KEY,
+    usuario_id INT NOT NULL,
+    monto DECIMAL(10, 2) NOT NULL,
+    fecha TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE (usuario_id, juego_id),
+    FOREIGN KEY (usuario_id) REFERENCES usuarios(id)
 );

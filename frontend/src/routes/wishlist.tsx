@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useState } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { JuegoCard } from "@/components/JuegoCard";
 import { Button } from "@/components/ui/button";
@@ -26,16 +26,21 @@ export const Route = createFileRoute("/wishlist")({
 function Wishlist() {
   const usuario = useUsuario();
   const { refrescar } = useSesion();
-  const [tick, setTick] = useState(0);
+  const queryClient = useQueryClient();
   // GET /usuarios/{id}/wishlist (ordenada por fecha_agregado)
-  const items = obtenerWishlist(usuario.id);
-  void tick;
+  const { data: items = [] } = useQuery({
+    queryKey: ["wishlist", usuario.id],
+    queryFn: () => obtenerWishlist(usuario.id),
+  });
 
-  const accion = (fn: () => void, ok: string) => {
+  const accion = async (fn: () => Promise<unknown>, ok: string) => {
     try {
-      fn();
-      setTick(tick + 1);
-      refrescar();
+      await fn();
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["wishlist", usuario.id] }),
+        queryClient.invalidateQueries({ queryKey: ["biblioteca", usuario.id] }),
+        refrescar(),
+      ]);
       toast.success(ok);
     } catch (e) {
       toast.error(e instanceof ApiError ? e.message : "Ocurrió un error");

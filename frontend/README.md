@@ -1,5 +1,8 @@
 # Game Hub Connect
 
+Antes de iniciar Vite, copiá `.env.example` a `.env` y ajustá
+`VITE_API_URL` si FastAPI no corre en `http://localhost:8000`.
+
 > Estado de integración: la matriz de endpoints, diferencias de contrato y
 > rutas pendientes está en [INTEGRACION_FRONTEND_BACKEND.md](../INTEGRACION_FRONTEND_BACKEND.md).
 

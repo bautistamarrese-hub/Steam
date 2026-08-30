@@ -1,5 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { Award, Coins, CreditCard, Gamepad2, Trophy, Users } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
@@ -39,18 +40,39 @@ export const Route = createFileRoute("/perfil")({
 function Perfil() {
   const { esAdmin, refrescar } = useSesion();
   const usuario = useUsuario();
+  const queryClient = useQueryClient();
   const [monto, setMonto] = useState("1000");
   const [tarjeta, setTarjeta] = useState("");
 
-  const stats = estadisticas(usuario.id); // GET /usuarios/{id}/estadisticas
-  const recargas = listarRecargas(usuario.id);
-  const dev = usuario.desarrollador_id ? obtenerDesarrollador(usuario.desarrollador_id) : undefined;
-  const misJuegos = dev ? juegosDeDesarrollador(dev.id) : [];
+  const { data: stats } = useQuery({
+    queryKey: ["estadisticas", usuario.id],
+    queryFn: () => estadisticas(usuario.id),
+  });
+  const { data: recargas = [] } = useQuery({
+    queryKey: ["recargas", usuario.id],
+    queryFn: () => listarRecargas(usuario.id),
+  });
+  const { data: dev } = useQuery({
+    queryKey: ["desarrollador", usuario.desarrollador_id],
+    queryFn: () => obtenerDesarrollador(usuario.desarrollador_id!),
+    enabled: Boolean(usuario.desarrollador_id),
+  });
+  const { data: misJuegos = [] } = useQuery({
+    queryKey: ["juegos-desarrollador", usuario.desarrollador_id],
+    queryFn: () => juegosDeDesarrollador(usuario.desarrollador_id!),
+    enabled: Boolean(usuario.desarrollador_id),
+  });
 
-  const accion = (fn: () => void, ok: string) => {
+  if (!stats) return null;
+
+  const accion = async (fn: () => Promise<unknown>, ok: string) => {
     try {
-      fn();
-      refrescar();
+      await fn();
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["estadisticas", usuario.id] }),
+        queryClient.invalidateQueries({ queryKey: ["recargas", usuario.id] }),
+        refrescar(),
+      ]);
       toast.success(ok);
     } catch (e) {
       toast.error(e instanceof ApiError ? e.message : "Ocurrió un error");
@@ -183,8 +205,8 @@ function Perfil() {
               <Button
                 className="w-full"
                 onClick={() =>
-                  accion(() => {
-                    recargarSaldo(usuario.id, Number(monto), tarjeta);
+                  accion(async () => {
+                    await recargarSaldo(usuario.id, Number(monto), tarjeta);
                     setTarjeta("");
                   }, "Saldo recargado con éxito")
                 }

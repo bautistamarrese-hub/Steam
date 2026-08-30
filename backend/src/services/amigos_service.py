@@ -1,7 +1,7 @@
 from sqlalchemy.orm import Session
 from sqlalchemy import or_
-from backend.src.db.models.registroUsuario_model import Usuario
-from backend.src.db.models.amigos_model import Amigos
+from src.db.models.registroUsuario_model import Usuario
+from src.db.models.amigos_model import Amigos
 
 
 class AmigosService:

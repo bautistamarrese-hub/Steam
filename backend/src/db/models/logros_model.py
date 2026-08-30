@@ -6,8 +6,8 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from src.db.connection import Base
 
 if TYPE_CHECKING:
-    from backend.src.db.models.desarrolladorJuego_model import Juego
-    from backend.src.db.models.desbloquearLogro_model import LogroDesbloqueado
+    from src.db.models.desarrolladorJuego_model import Juego
+    from src.db.models.desbloquearLogro_model import LogroDesbloqueado
 
 
 class Logro(Base):

@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import TYPE_CHECKING
 
-from sqlalchemy import DateTime, Float, ForeignKey, Integer, func
+from sqlalchemy import DateTime, Float, ForeignKey, Integer, UniqueConstraint, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from src.db.connection import Base
@@ -15,9 +15,12 @@ if TYPE_CHECKING:
 
 class Compra(Base):
     __tablename__ = "compra"
+    __table_args__ = (
+        UniqueConstraint("usuario_id", "juego_id", name="uq_compra_usuario_juego"),
+    )
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
-    usuario_id: Mapped[int] = mapped_column(Integer, ForeignKey("usuario.id"), nullable=False)
+    usuario_id: Mapped[int] = mapped_column(Integer, ForeignKey("usuarios.id"), nullable=False)
     juego_id: Mapped[int] = mapped_column(Integer, ForeignKey("juego.id"), nullable=False)
     
     fecha: Mapped[datetime] = mapped_column(

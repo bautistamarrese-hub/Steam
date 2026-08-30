@@ -17,7 +17,7 @@ class Wishlist(Base):
 
     # Al tener primary_key=True en ambas, se crea una clave primaria compuesta.
     # Esto asegura que la combinación (usuario, juego) sea única.
-    usuario_id: Mapped[int] = mapped_column(Integer, ForeignKey("usuario.id"), primary_key=True)
+    usuario_id: Mapped[int] = mapped_column(Integer, ForeignKey("usuarios.id"), primary_key=True)
     juego_id: Mapped[int] = mapped_column(Integer, ForeignKey("juego.id"), primary_key=True)
     
     fecha_agregado: Mapped[datetime] = mapped_column(
