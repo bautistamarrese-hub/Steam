@@ -1,9 +1,10 @@
 from sqlalchemy import func, or_
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from src.db.models.amigos_model import Amigos
 from src.db.models.comprarJuego_model import Compra
-from src.db.models.desarrolladorJuego_model import Juego
+from src.db.models.desarrolladorJuego_model import Desarrollador, Juego
 from src.db.models.desbloquearLogro_model import LogroDesbloqueado
 from src.db.models.logros_model import Logro
 from src.db.models.recargarSaldo_model import Recarga
@@ -22,20 +23,39 @@ class UsuarioService:
         self.db = db
 
     def registrar(self, payload) -> Usuario:
-        if self.db.query(Usuario).filter(Usuario.email == payload.email).first():
+        email = str(payload.email).strip().lower()
+        nickname = payload.nickname.strip()
+        if self.db.query(Usuario).filter(func.lower(Usuario.email) == email).first():
             raise ValueError("El email ya está registrado.")
-        if self.db.query(Usuario).filter(Usuario.nickname == payload.nickname).first():
+        if self.db.query(Usuario).filter(
+            func.lower(Usuario.nickname) == nickname.lower()
+        ).first():
             raise ValueError("El nickname ya está registrado.")
 
-        # El frontend actual no solicita contraseña; el hueco de autenticación
-        # se documenta hasta incorporar un flujo de credenciales real.
+        desarrollador_id = None
+        if payload.rol == "admin":
+            nombre_estudio = (payload.estudio or f"{nickname} Studio").strip()
+            desarrollador = Desarrollador(nombre=nombre_estudio, pais="Argentina")
+            self.db.add(desarrollador)
+            self.db.flush()
+
+            desarrollador_id = desarrollador.id
+
+        # El frontend actual no solicita contraseña. El rol y la relación con
+        # el estudio sí se guardan para poder reconstruir la sesión al volver.
         usuario = Usuario(
-            email=payload.email,
-            nickname=payload.nickname,
+            email=email,
+            nickname=nickname,
             password_hash="autenticacion-pendiente",
+            rol=payload.rol,
+            desarrollador_id=desarrollador_id,
         )
         self.db.add(usuario)
-        self.db.commit()
+        try:
+            self.db.commit()
+        except IntegrityError as exc:
+            self.db.rollback()
+            raise ValueError("El email o el nickname ya están registrados.") from exc
         self.db.refresh(usuario)
         return usuario
 

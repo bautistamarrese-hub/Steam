@@ -21,22 +21,41 @@ import type {
 const BASE_URL = (import.meta.env.VITE_API_URL ?? "http://localhost:8000/api").replace(/\/$/, "");
 
 export class ApiError extends Error {
-  constructor(message: string, readonly status?: number) {
+  constructor(
+    message: string,
+    readonly status?: number,
+  ) {
     super(message);
     this.name = "ApiError";
   }
 }
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
-  const response = await fetch(`${BASE_URL}${path}`, {
-    ...init,
-    headers: { "Content-Type": "application/json", ...init?.headers },
-  });
+  let response: Response;
+  try {
+    response = await fetch(`${BASE_URL}${path}`, {
+      ...init,
+      headers: { "Content-Type": "application/json", ...init?.headers },
+    });
+  } catch {
+    throw new ApiError("No se pudo conectar con la API. Verificá que el backend esté iniciado.");
+  }
   if (!response.ok) {
     let message = `La API respondió ${response.status}.`;
     try {
-      const body = (await response.json()) as { detail?: string };
-      if (body.detail) message = body.detail;
+      const body = (await response.json()) as {
+        detail?: string | Array<{ msg?: string; loc?: Array<string | number> }>;
+      };
+      if (typeof body.detail === "string") {
+        message = body.detail;
+      } else if (Array.isArray(body.detail)) {
+        message = body.detail
+          .map((error) => {
+            const campo = error.loc?.at(-1);
+            return `${campo ? `${String(campo)}: ` : ""}${error.msg ?? "Valor inválido"}`;
+          })
+          .join(". ");
+      }
     } catch {
       // La respuesta de error no era JSON.
     }
@@ -46,14 +65,30 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   return response.json() as Promise<T>;
 }
 
-type UsuarioApi = Omit<Usuario, "password" | "rol">;
+type UsuarioApi = Omit<Usuario, "password" | "desarrollador_id"> & {
+  desarrollador_id: number | null;
+};
 type JuegoApi = Omit<Juego, "descripcion" | "imagen" | "resumen" | "galeria">;
 
-const adaptarUsuario = (usuario: UsuarioApi): Usuario => ({
-  ...usuario,
-  password: "",
-  rol: "cliente",
-});
+const adaptarUsuario = (usuario: UsuarioApi): Usuario => {
+  const { desarrollador_id, ...datos } = usuario;
+  return {
+    ...datos,
+    password: "",
+    ...(desarrollador_id === null ? {} : { desarrollador_id }),
+  };
+};
+
+const textoRequerido = (value: string, campo: string) => {
+  const limpio = value.trim();
+  if (!limpio) throw new ApiError(`${campo} es obligatorio.`);
+  return limpio;
+};
+
+const numeroFinito = (value: number, campo: string) => {
+  if (!Number.isFinite(value)) throw new ApiError(`${campo} debe ser un número válido.`);
+  return value;
+};
 
 const adaptarJuego = (juego: JuegoApi): Juego => {
   const presentacion = mock.juegos.find(
@@ -83,25 +118,25 @@ export async function registrarUsuario(
   rol: Rol = "cliente",
   estudio?: string,
 ): Promise<Usuario> {
-  const usuario = adaptarUsuario(
+  const emailLimpio = textoRequerido(email, "El email").toLowerCase();
+  const nicknameLimpio = textoRequerido(nickname, "El nickname");
+  const estudioLimpio = rol === "admin" ? textoRequerido(estudio ?? "", "El estudio") : undefined;
+  return adaptarUsuario(
     await request<UsuarioApi>("/usuarios/", {
       method: "POST",
-      body: JSON.stringify({ email, nickname }),
+      body: JSON.stringify({
+        email: emailLimpio,
+        nickname: nicknameLimpio,
+        rol,
+        ...(estudioLimpio ? { estudio: estudioLimpio } : {}),
+      }),
     }),
   );
-  if (rol === "admin") {
-    const dev = await request<Desarrollador>("/desarrolladores/", {
-      method: "POST",
-      body: JSON.stringify({ nombre: estudio || `${nickname} Studio`, pais: "Argentina" }),
-    });
-    usuario.rol = "admin";
-    usuario.desarrollador_id = dev.id;
-  }
-  return usuario;
 }
 
 export async function iniciarSesion(email: string): Promise<Usuario> {
-  const usuarios = await request<UsuarioApi[]>(`/usuarios/${query({ email: email.trim() })}`);
+  const emailLimpio = textoRequerido(email, "El email").toLowerCase();
+  const usuarios = await request<UsuarioApi[]>(`/usuarios/${query({ email: emailLimpio })}`);
   if (!usuarios[0]) throw new ApiError("No existe ninguna cuenta con ese email.", 404);
   return adaptarUsuario(usuarios[0]);
 }
@@ -112,8 +147,7 @@ export const listarUsuarios = async (): Promise<Usuario[]> =>
 export const obtenerUsuario = async (id: number): Promise<Usuario> =>
   adaptarUsuario(await request<UsuarioApi>(`/usuarios/${id}`));
 
-export const listarDesarrolladores = (): Promise<Desarrollador[]> =>
-  request("/desarrolladores/");
+export const listarDesarrolladores = (): Promise<Desarrollador[]> => request("/desarrolladores/");
 
 export const obtenerDesarrollador = (id: number): Promise<Desarrollador> =>
   request(`/desarrolladores/${id}`);
@@ -125,10 +159,19 @@ export async function publicarJuego(
   input: Omit<Juego, "id" | "imagen"> & { imagen?: string },
 ): Promise<Juego> {
   const { titulo, desarrollador_id, precio, fecha_lanzamiento, genero } = input;
+  const tituloLimpio = textoRequerido(titulo, "El título");
+  numeroFinito(precio, "El precio");
+  if (precio < 0) throw new ApiError("El precio no puede ser negativo.");
   return adaptarJuego(
     await request<JuegoApi>("/juegos/", {
       method: "POST",
-      body: JSON.stringify({ titulo, desarrollador_id, precio, fecha_lanzamiento, genero }),
+      body: JSON.stringify({
+        titulo: tituloLimpio,
+        desarrollador_id,
+        precio,
+        fecha_lanzamiento,
+        genero,
+      }),
     }),
   );
 }
@@ -138,9 +181,9 @@ export async function listarJuegos(filtros?: {
   q?: string;
 }): Promise<Juego[]> {
   const genero = filtros?.genero === "todos" ? undefined : filtros?.genero;
-  return (
-    await request<JuegoApi[]>(`/juegos/${query({ genero, q: filtros?.q })}`)
-  ).map(adaptarJuego);
+  return (await request<JuegoApi[]>(`/juegos/${query({ genero, q: filtros?.q })}`)).map(
+    adaptarJuego,
+  );
 }
 
 export const obtenerJuego = async (id: number): Promise<Juego> =>
@@ -157,6 +200,9 @@ export async function recargarSaldo(
   tarjeta: string,
 ): Promise<Recarga> {
   if (!tarjetaValida(tarjeta)) throw new ApiError("La tarjeta debe tener 16 cifras.");
+  numeroFinito(monto, "El monto");
+  if (monto < MONTO_MINIMO_RECARGA)
+    throw new ApiError(`El monto mínimo de recarga es ${MONTO_MINIMO_RECARGA}.`);
   if (monto > MONTO_MAXIMO_RECARGA)
     throw new ApiError(`El monto máximo de recarga es ${MONTO_MAXIMO_RECARGA}.`);
   return request(`/usuarios/${usuarioId}/recargar`, {
@@ -235,19 +281,21 @@ export const crearLogro = (
   nombre: string,
   descripcion: string,
   puntos: number,
-): Promise<Logro> =>
-  request(`/juegos/${juegoId}/logros`, {
+): Promise<Logro> => {
+  const nombreLimpio = textoRequerido(nombre, "El nombre del logro");
+  numeroFinito(puntos, "Los puntos");
+  if (!Number.isInteger(puntos) || puntos < 1 || puntos > 100)
+    throw new ApiError("Los puntos deben ser un número entero entre 1 y 100.");
+  return request(`/juegos/${juegoId}/logros`, {
     method: "POST",
-    body: JSON.stringify({ nombre, descripcion, puntos }),
+    body: JSON.stringify({ nombre: nombreLimpio, descripcion: descripcion.trim(), puntos }),
   });
+};
 
 export const obtenerLogrosDesbloqueados = (usuarioId: number): Promise<LogroDesbloqueado[]> =>
   request(`/usuarios/${usuarioId}/logros`);
 
-export const desbloquearLogro = (
-  usuarioId: number,
-  logroId: number,
-): Promise<LogroDesbloqueado> =>
+export const desbloquearLogro = (usuarioId: number, logroId: number): Promise<LogroDesbloqueado> =>
   request(`/usuarios/${usuarioId}/logros/${logroId}`, { method: "POST" });
 
 export const amigosDe = async (usuarioId: number): Promise<Usuario[]> =>
@@ -264,20 +312,30 @@ export const eliminarAmigo = (a: number, b: number): Promise<void> =>
 
 export async function topVentas(genero?: Genero | "todos"): Promise<JuegoTop[]> {
   const filtro = genero === "todos" ? undefined : genero;
-  const rows = await request<Array<JuegoApi & Pick<JuegoTop, "compras" | "total_resenas" | "porcentaje_positivas">>>(
-    `/juegos/top-ventas${query({ genero: filtro })}`,
-  );
-  return rows.map((row) => ({ ...adaptarJuego(row), compras: row.compras, total_resenas: row.total_resenas, porcentaje_positivas: row.porcentaje_positivas }));
+  const rows = await request<
+    Array<JuegoApi & Pick<JuegoTop, "compras" | "total_resenas" | "porcentaje_positivas">>
+  >(`/juegos/top-ventas${query({ genero: filtro })}`);
+  return rows.map((row) => ({
+    ...adaptarJuego(row),
+    compras: row.compras,
+    total_resenas: row.total_resenas,
+    porcentaje_positivas: row.porcentaje_positivas,
+  }));
 }
 
 export const MINIMO_RESENAS_VALORADOS = 20;
 
 export async function mejorValorados(genero?: Genero | "todos"): Promise<JuegoTop[]> {
   const filtro = genero === "todos" ? undefined : genero;
-  const rows = await request<Array<JuegoApi & Pick<JuegoTop, "compras" | "total_resenas" | "porcentaje_positivas">>>(
-    `/juegos/mejor-valorados${query({ genero: filtro })}`,
-  );
-  return rows.map((row) => ({ ...adaptarJuego(row), compras: row.compras, total_resenas: row.total_resenas, porcentaje_positivas: row.porcentaje_positivas }));
+  const rows = await request<
+    Array<JuegoApi & Pick<JuegoTop, "compras" | "total_resenas" | "porcentaje_positivas">>
+  >(`/juegos/mejor-valorados${query({ genero: filtro })}`);
+  return rows.map((row) => ({
+    ...adaptarJuego(row),
+    compras: row.compras,
+    total_resenas: row.total_resenas,
+    porcentaje_positivas: row.porcentaje_positivas,
+  }));
 }
 
 export async function estadisticas(usuarioId: number): Promise<EstadisticasUsuario> {

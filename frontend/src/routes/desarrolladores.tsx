@@ -21,7 +21,10 @@ export const Route = createFileRoute("/desarrolladores")({
   head: () => ({
     meta: [
       { title: "Panel de desarrollador — Steamn't" },
-      { name: "description", content: "Publicá y administrá los juegos de tu estudio en Steamn't." },
+      {
+        name: "description",
+        content: "Publicá y administrá los juegos de tu estudio en Steamn't.",
+      },
       { property: "og:title", content: "Panel de desarrollador — Steamn't" },
       { property: "og:description", content: "Publicá juegos bajo el nombre de tu estudio." },
       { property: "og:type", content: "website" },
@@ -50,6 +53,7 @@ function Desarrolladores() {
   const [precio, setPrecio] = useState("0");
   const [resumen, setResumen] = useState("");
   const [genero, setGenero] = useState<Genero>("Indie");
+  const [publicando, setPublicando] = useState(false);
 
   const { data: dev } = useQuery({
     queryKey: ["desarrollador", usuario.desarrollador_id],
@@ -67,8 +71,8 @@ function Desarrolladores() {
       <div className="mx-auto max-w-2xl px-4 py-24 text-center">
         <h1 className="text-2xl font-bold">Panel exclusivo de desarrolladores</h1>
         <p className="mt-3 text-muted-foreground">
-          Esta sección es solo para cuentas de desarrollador. Con tu cuenta de jugador podés
-          comprar juegos, armar tu wishlist y desbloquear logros.
+          Esta sección es solo para cuentas de desarrollador. Con tu cuenta de jugador podés comprar
+          juegos, armar tu wishlist y desbloquear logros.
         </p>
         <Button asChild className="mt-6">
           <Link to="/">Ir a la tienda</Link>
@@ -77,9 +81,12 @@ function Desarrolladores() {
     );
   }
 
-  if (!dev) return null;
+  if (!dev)
+    return <p className="px-4 py-24 text-center text-muted-foreground">Cargando panel...</p>;
 
   const publicar = async () => {
+    if (publicando) return;
+    setPublicando(true);
     try {
       // El estudio siempre es el de la sesión activa
       await publicarJuego({
@@ -93,10 +100,13 @@ function Desarrolladores() {
       });
       setTitulo("");
       setResumen("");
+      setPrecio("0");
       await queryClient.invalidateQueries({ queryKey: ["juegos-desarrollador", dev.id] });
       toast.success(`Juego publicado como ${dev.nombre}`);
     } catch (e) {
       toast.error(e instanceof ApiError ? e.message : "Ocurrió un error");
+    } finally {
+      setPublicando(false);
     }
   };
 
@@ -150,8 +160,8 @@ function Desarrolladores() {
           </div>
         </div>
         {/* POST /juegos  body: { titulo, desarrollador_id (de la sesión), precio, genero } */}
-        <Button className="mt-4 w-fit" onClick={publicar}>
-          Publicar juego
+        <Button className="mt-4 w-fit" onClick={publicar} disabled={publicando}>
+          {publicando ? "Publicando..." : "Publicar juego"}
         </Button>
       </Card>
 

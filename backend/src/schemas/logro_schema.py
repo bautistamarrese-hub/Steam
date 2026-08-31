@@ -4,6 +4,8 @@ from pydantic import BaseModel, Field, ConfigDict
 
 
 class CreateLogroSchema(BaseModel):
+    model_config = ConfigDict(str_strip_whitespace=True)
+
     nombre: str = Field(min_length=1)
     descripcion: str | None = None
     puntos: int = Field(ge=1, le=100)

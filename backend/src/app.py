@@ -2,13 +2,14 @@ from .routers import desarollador_router, juego_router, usuario_router
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from src.config.env import settings
 from src.middlewares.error_middleware import ErrorHandlerMiddleware
 
 app = FastAPI(title="Initial Structure API")
 app.add_middleware(ErrorHandlerMiddleware)
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173"],
+    allow_origins=settings.frontend_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

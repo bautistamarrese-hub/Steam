@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import Optional, TYPE_CHECKING
 
-from sqlalchemy import DateTime, Float, Integer, String, func
+from sqlalchemy import DateTime, Float, ForeignKey, Integer, String, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from src.db.connection import Base
@@ -51,6 +51,20 @@ class Usuario(Base):
         DateTime(timezone=True),
         server_default=func.now(),
         nullable=False
+    )
+
+    rol: Mapped[str] = mapped_column(
+        String(20),
+        default="cliente",
+        server_default="cliente",
+        nullable=False,
+    )
+
+    desarrollador_id: Mapped[Optional[int]] = mapped_column(
+        Integer,
+        ForeignKey("desarrollador.id"),
+        nullable=True,
+        unique=True,
     )
 
     # Logros desbloqueados por el usuario

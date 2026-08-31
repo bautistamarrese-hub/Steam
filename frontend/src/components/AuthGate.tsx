@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, type FormEvent } from "react";
 import { toast } from "sonner";
 import { Gamepad2, Code2, User } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -16,11 +16,15 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
   const [nickname, setNickname] = useState("");
   const [estudio, setEstudio] = useState("");
   const [rol, setRol] = useState<Rol>("cliente");
+  const [enviando, setEnviando] = useState(false);
 
   if (cargando) return null;
   if (usuario) return <>{children}</>;
 
-  const enviar = async () => {
+  const enviar = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (enviando) return;
+    setEnviando(true);
     try {
       if (modo === "login") {
         await login(email);
@@ -31,6 +35,8 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
       }
     } catch (e) {
       toast.error(e instanceof ApiError ? e.message : "Ocurrió un error");
+    } finally {
+      setEnviando(false);
     }
   };
 
@@ -50,11 +56,14 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
             : "Ingresá con el email de tu cuenta."}
         </p>
 
-        <div className="mt-6 space-y-4">
+        <form className="mt-6 space-y-4" onSubmit={enviar}>
           <div className="space-y-1">
             <Label htmlFor="email">Email</Label>
             <Input
               id="email"
+              type="email"
+              autoComplete="email"
+              required
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               placeholder="vos@mail.com"
@@ -67,6 +76,9 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
                 <Label htmlFor="nick">Nickname</Label>
                 <Input
                   id="nick"
+                  autoComplete="username"
+                  minLength={3}
+                  required
                   value={nickname}
                   onChange={(e) => setNickname(e.target.value)}
                   placeholder="TuNick"
@@ -76,22 +88,20 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
               <div className="space-y-2">
                 <Label>¿Qué tipo de cuenta querés?</Label>
                 <div className="grid gap-3 sm:grid-cols-2">
-                  {(
-                    [
-                      {
-                        v: "cliente" as Rol,
-                        icon: User,
-                        t: "Jugador",
-                        d: "Comprá juegos, sumá logros y reseñas.",
-                      },
-                      {
-                        v: "admin" as Rol,
-                        icon: Code2,
-                        t: "Desarrollador / Admin",
-                        d: "Publicá juegos y creá sus logros.",
-                      },
-                    ]
-                  ).map((o) => (
+                  {[
+                    {
+                      v: "cliente" as Rol,
+                      icon: User,
+                      t: "Jugador",
+                      d: "Comprá juegos, sumá logros y reseñas.",
+                    },
+                    {
+                      v: "admin" as Rol,
+                      icon: Code2,
+                      t: "Desarrollador / Admin",
+                      d: "Publicá juegos y creá sus logros.",
+                    },
+                  ].map((o) => (
                     <button
                       key={o.v}
                       type="button"
@@ -115,6 +125,8 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
                   <Label htmlFor="estudio">Nombre del estudio o compañía</Label>
                   <Input
                     id="estudio"
+                    minLength={2}
+                    required
                     value={estudio}
                     onChange={(e) => setEstudio(e.target.value)}
                     placeholder="Mi Estudio"
@@ -124,11 +136,12 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
             </>
           )}
 
-          <Button className="w-full" onClick={enviar}>
-            {modo === "registro" ? "Crear cuenta" : "Entrar"}
+          <Button className="w-full" type="submit" disabled={enviando}>
+            {enviando ? "Procesando..." : modo === "registro" ? "Crear cuenta" : "Entrar"}
           </Button>
           <button
             type="button"
+            disabled={enviando}
             className="w-full text-sm text-muted-foreground underline-offset-4 hover:underline"
             onClick={() => setModo(modo === "registro" ? "login" : "registro")}
           >
@@ -136,7 +149,7 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
               ? "Ya tengo cuenta, quiero iniciar sesión"
               : "No tengo cuenta, quiero registrarme"}
           </button>
-        </div>
+        </form>
       </Card>
     </div>
   );

@@ -47,37 +47,33 @@ email con `GET /api/usuarios/?email=`. Esto sirve para desarrollo, pero no es
 seguro para producción. El backend guarda temporalmente
 `autenticacion-pendiente` en `password_hash` al registrar.
 
-### 2. Rol y relación usuario–desarrollador
-
-El modelo `Usuario` no guarda `rol` ni `desarrollador_id`. El frontend conserva
-esos dos valores en la sesión local cuando se registra una cuenta admin, pero
-otro navegador no puede reconstruirlos. Se necesita una migración de base de
-datos y exponer ambos campos en `CreateUsuarioSchema`/`GetUsuarioSchema`.
-
-### 3. Contenido editorial de juegos
+### 2. Contenido editorial de juegos
 
 El backend no guarda `descripcion`, `resumen`, `imagen`, `galeria` ni trailer.
 El adaptador del frontend reutiliza esos campos de `mock-data.ts` cuando
 encuentra el mismo id o título y usa valores neutros para juegos nuevos. Estos
 campos deberían agregarse al modelo, schema y migración de `Juego`.
 
-### 4. Datos de tarjeta
+### 3. Datos de tarjeta
 
 La tarjeta sólo se valida en el navegador y no se envía al backend. Esto evita
 guardar números sensibles sin una pasarela de pagos, pero significa que la
 recarga actual es una simulación. Para producción se necesita integrar un
 proveedor de pagos y enviar únicamente su token.
 
-### 5. Migración de una base existente
+### 4. Migración de una base existente
 
 Los modelos quedaron unificados sobre la tabla `usuarios` y `tables.sql` fue
 actualizado. Si la base ya fue creada con la tabla singular `usuario`, hay que
 migrar/renombrar esa tabla y sus claves foráneas antes de iniciar la API. El
 repositorio todavía no contiene una revisión Alembic para hacerlo de forma
-automática.
+automática. Para una base que ya usa `usuarios`, el script
+`src/db/migrations/20260831_usuario_rol.sql` agrega el rol y la relación con el
+estudio sin borrar datos.
 
-### 6. Pruebas automatizadas
+## Verificación automatizada
 
-No hay tests de contrato o integración. Se recomienda cubrir al menos registro,
-compra transaccional, eliminación automática de wishlist, reseña, desbloqueo de
-logro y amistad bidireccional contra una base de prueba.
+`backend/tests/test_flows.py` cubre registro y persistencia de rol, CORS,
+publicación, búsqueda, recargas, compra transaccional, wishlist, biblioteca,
+reseñas editables, logros, amistades bidireccionales, estadísticas y rankings.
+Se ejecuta contra SQLite aislado con `pytest -q` y no modifica la base local.

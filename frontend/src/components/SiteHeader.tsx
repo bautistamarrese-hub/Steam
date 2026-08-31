@@ -60,9 +60,7 @@ export function SiteHeader() {
               <span className="font-semibold">{formatPrecio(usuario.saldo)}</span>
             </Link>
           )}
-          <span className="hidden text-sm text-muted-foreground sm:inline">
-            {usuario.nickname}
-          </span>
+          <span className="hidden text-sm text-muted-foreground sm:inline">{usuario.nickname}</span>
           <button
             onClick={logout}
             aria-label="Cerrar sesión"

@@ -44,6 +44,7 @@ function DetalleJuego() {
     queryKey: ["juego", id],
     queryFn: () => obtenerJuego(id),
     retry: false,
+    throwOnError: false,
   });
   const { data: compras = [] } = useQuery({
     queryKey: ["biblioteca", usuario.id],
@@ -97,11 +98,14 @@ function DetalleJuego() {
     return (
       <div className="mx-auto max-w-3xl px-4 py-24 text-center">
         <h1 className="text-2xl font-bold">Juego no encontrado</h1>
-        <Button asChild className="mt-6"><Link to="/">Volver a la tienda</Link></Button>
+        <Button asChild className="mt-6">
+          <Link to="/">Volver a la tienda</Link>
+        </Button>
       </div>
     );
   }
-  if (!juego) return null;
+  if (!juego)
+    return <p className="px-4 py-24 text-center text-muted-foreground">Cargando juego...</p>;
 
   const comprado = compras.some((item) => item.juego.id === id);
   const deseado = wishlist.some((item) => item.juego_id === id);
@@ -111,7 +115,11 @@ function DetalleJuego() {
     <div>
       <section className="bg-hero border-b border-border">
         <div className="mx-auto grid max-w-6xl gap-8 px-4 py-10 md:grid-cols-[1.4fr_1fr]">
-          <img src={juego.imagen} alt={`Portada de ${juego.titulo}`} className="w-full rounded-lg border border-border object-cover" />
+          <img
+            src={juego.imagen}
+            alt={`Portada de ${juego.titulo}`}
+            className="w-full rounded-lg border border-border object-cover"
+          />
           <div>
             <h1 className="text-3xl font-bold">{juego.titulo}</h1>
             <p className="mt-2 text-muted-foreground">{juego.descripcion}</p>
@@ -122,10 +130,21 @@ function DetalleJuego() {
             </div>
             <p className="mt-6 text-3xl font-bold text-accent">{formatPrecio(juego.precio)}</p>
             <div className="mt-4 flex gap-2">
-              <Button disabled={comprado} onClick={() => accion(() => comprarJuego(usuario.id, id), `Compraste ${juego.titulo}`)}>
+              <Button
+                disabled={comprado}
+                onClick={() =>
+                  accion(() => comprarJuego(usuario.id, id), `Compraste ${juego.titulo}`)
+                }
+              >
                 {comprado ? "Ya en tu biblioteca" : "Comprar ahora"}
               </Button>
-              <Button variant="secondary" disabled={comprado || deseado} onClick={() => accion(() => agregarAWishlist(usuario.id, id), "Agregado a la wishlist")}>
+              <Button
+                variant="secondary"
+                disabled={comprado || deseado}
+                onClick={() =>
+                  accion(() => agregarAWishlist(usuario.id, id), "Agregado a la wishlist")
+                }
+              >
                 {deseado ? "En tu wishlist" : "Agregar a wishlist"}
               </Button>
             </div>
@@ -137,14 +156,34 @@ function DetalleJuego() {
         <section>
           <h2 className="text-xl font-semibold">Reseñas ({resenas.length})</h2>
           <Card className="mt-4 p-4">
-            <h3 className="font-semibold">{miResena ? "Editar mi reseña" : "Escribir una reseña"}</h3>
+            <h3 className="font-semibold">
+              {miResena ? "Editar mi reseña" : "Escribir una reseña"}
+            </h3>
             <p className="text-xs text-muted-foreground">Solo podés reseñar juegos comprados.</p>
-            <Textarea className="mt-3" value={texto} onChange={(event) => setTexto(event.target.value)} disabled={!comprado} />
+            <Textarea
+              className="mt-3"
+              value={texto}
+              onChange={(event) => setTexto(event.target.value)}
+              disabled={!comprado}
+            />
             <div className="mt-3 flex gap-2">
-              <Button size="sm" disabled={!comprado} onClick={() => accion(() => guardarResena(usuario.id, id, true, texto), "Reseña publicada")}>
+              <Button
+                size="sm"
+                disabled={!comprado}
+                onClick={() =>
+                  accion(() => guardarResena(usuario.id, id, true, texto), "Reseña publicada")
+                }
+              >
                 <ThumbsUp className="h-4 w-4" /> Recomiendo
               </Button>
-              <Button size="sm" variant="secondary" disabled={!comprado} onClick={() => accion(() => guardarResena(usuario.id, id, false, texto), "Reseña publicada")}>
+              <Button
+                size="sm"
+                variant="secondary"
+                disabled={!comprado}
+                onClick={() =>
+                  accion(() => guardarResena(usuario.id, id, false, texto), "Reseña publicada")
+                }
+              >
                 <ThumbsDown className="h-4 w-4" /> No recomiendo
               </Button>
             </div>
@@ -153,10 +192,16 @@ function DetalleJuego() {
             {resenas.map((resena) => (
               <Card key={resena.id} className="gap-2 p-4">
                 <div className="flex items-center justify-between">
-                  <Link to="/usuarios/$usuarioId" params={{ usuarioId: String(resena.usuario_id) }} className="font-medium hover:text-primary">
+                  <Link
+                    to="/usuarios/$usuarioId"
+                    params={{ usuarioId: String(resena.usuario_id) }}
+                    className="font-medium hover:text-primary"
+                  >
                     {resena.autor?.nickname ?? "Usuario"}
                   </Link>
-                  <Badge variant={resena.recomienda ? "default" : "destructive"}>{resena.recomienda ? "Recomendado" : "No recomendado"}</Badge>
+                  <Badge variant={resena.recomienda ? "default" : "destructive"}>
+                    {resena.recomienda ? "Recomendado" : "No recomendado"}
+                  </Badge>
                 </div>
                 <p className="text-sm text-muted-foreground">{resena.texto}</p>
               </Card>
@@ -171,10 +216,24 @@ function DetalleJuego() {
               const hecho = desbloqueados.some((item) => item.logro_id === logro.id);
               return (
                 <Card key={logro.id} className="flex flex-row items-center gap-3 p-4">
-                  {hecho ? <Trophy className="h-5 w-5 text-accent" /> : <Lock className="h-5 w-5 text-muted-foreground" />}
-                  <div className="min-w-0 flex-1"><p className="font-medium">{logro.nombre}</p><p className="text-sm text-muted-foreground">{logro.descripcion}</p></div>
+                  {hecho ? (
+                    <Trophy className="h-5 w-5 text-accent" />
+                  ) : (
+                    <Lock className="h-5 w-5 text-muted-foreground" />
+                  )}
+                  <div className="min-w-0 flex-1">
+                    <p className="font-medium">{logro.nombre}</p>
+                    <p className="text-sm text-muted-foreground">{logro.descripcion}</p>
+                  </div>
                   <Badge variant="secondary">{logro.puntos} pts</Badge>
-                  <Button size="sm" variant="secondary" disabled={hecho || !comprado} onClick={() => accion(() => desbloquearLogro(usuario.id, logro.id), "¡Logro desbloqueado!")}>
+                  <Button
+                    size="sm"
+                    variant="secondary"
+                    disabled={hecho || !comprado}
+                    onClick={() =>
+                      accion(() => desbloquearLogro(usuario.id, logro.id), "¡Logro desbloqueado!")
+                    }
+                  >
                     {hecho ? "Listo" : "Desbloquear"}
                   </Button>
                 </Card>
@@ -186,13 +245,34 @@ function DetalleJuego() {
             <Card className="mt-6 p-4">
               <h3 className="font-semibold">Nuevo logro</h3>
               <div className="mt-3 grid gap-3 sm:grid-cols-[2fr_1fr]">
-                <Input value={nombreLogro} onChange={(event) => setNombreLogro(event.target.value)} placeholder="Nombre" />
-                <Input type="number" value={puntos} onChange={(event) => setPuntos(event.target.value)} />
+                <Input
+                  value={nombreLogro}
+                  onChange={(event) => setNombreLogro(event.target.value)}
+                  placeholder="Nombre"
+                />
+                <Input
+                  type="number"
+                  value={puntos}
+                  onChange={(event) => setPuntos(event.target.value)}
+                />
               </div>
-              <Button className="mt-3" size="sm" onClick={() => accion(async () => {
-                await crearLogro(id, nombreLogro, "Logro creado desde el panel.", Number(puntos));
-                setNombreLogro("");
-              }, "Logro creado")}>Crear logro</Button>
+              <Button
+                className="mt-3"
+                size="sm"
+                onClick={() =>
+                  accion(async () => {
+                    await crearLogro(
+                      id,
+                      nombreLogro,
+                      "Logro creado desde el panel.",
+                      Number(puntos),
+                    );
+                    setNombreLogro("");
+                  }, "Logro creado")
+                }
+              >
+                Crear logro
+              </Button>
             </Card>
           )}
         </section>

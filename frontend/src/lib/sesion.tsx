@@ -42,13 +42,7 @@ export function SesionProvider({ children }: { children: React.ReactNode }) {
       return;
     }
     obtenerUsuario(guardado.id)
-      .then((actual) => guardar({
-        ...actual,
-        rol: guardado.rol,
-        ...(guardado.desarrollador_id
-          ? { desarrollador_id: guardado.desarrollador_id }
-          : {}),
-      }))
+      .then(guardar)
       .catch(() => guardar(null))
       .finally(() => setCargando(false));
   }, [guardar]);
@@ -56,13 +50,7 @@ export function SesionProvider({ children }: { children: React.ReactNode }) {
   const refrescar = useCallback(async () => {
     if (!usuario) return;
     const actual = await obtenerUsuario(usuario.id);
-    guardar({
-      ...actual,
-      rol: usuario.rol,
-      ...(usuario.desarrollador_id
-        ? { desarrollador_id: usuario.desarrollador_id }
-        : {}),
-    });
+    guardar(actual);
   }, [guardar, usuario]);
 
   const value = useMemo<SesionCtx>(

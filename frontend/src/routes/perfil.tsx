@@ -63,7 +63,8 @@ function Perfil() {
     enabled: Boolean(usuario.desarrollador_id),
   });
 
-  if (!stats) return null;
+  if (!stats)
+    return <p className="px-4 py-24 text-center text-muted-foreground">Cargando perfil...</p>;
 
   const accion = async (fn: () => Promise<unknown>, ok: string) => {
     try {

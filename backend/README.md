@@ -50,6 +50,7 @@ uvicorn src.app:app --reload
 
 Abrir http://localhost:8000/docs para ver Swagger.
 
+http://localhost:8080/
 ---
 
 ## Estructura de carpetas
@@ -92,3 +93,5 @@ El resto de los métodos (`GET`, `PUT`, `DELETE`) y los demás dominios (`produc
 4. `models` no salen del repository / service.
 5. `schemas` solo en routers.
 6. Al cliente siempre va un DTO, nunca un Model.
+
+

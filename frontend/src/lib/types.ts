@@ -1,12 +1,5 @@
 export type Genero =
-  | "Acción"
-  | "Aventura"
-  | "RPG"
-  | "Estrategia"
-  | "Deportes"
-  | "Indie"
-  | "Terror"
-  | "Simulación";
+  "Acción" | "Aventura" | "RPG" | "Estrategia" | "Deportes" | "Indie" | "Terror" | "Simulación";
 
 export type Rol = "cliente" | "admin";
 
@@ -43,7 +36,6 @@ export interface Juego {
   /** Capturas adicionales del juego. */
   galeria?: string[];
 }
-
 
 export interface Compra {
   id: number;
@@ -104,7 +96,6 @@ export interface SolicitudAmistad {
   fecha: string;
   estado: EstadoSolicitud;
 }
-
 
 export interface ItemBiblioteca {
   juego: Juego;

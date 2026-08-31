@@ -2,11 +2,13 @@ from datetime import date, datetime
 from pydantic import BaseModel, ConfigDict, Field
 
 class CreateJuegoSchema(BaseModel):
+    model_config = ConfigDict(str_strip_whitespace=True)
+
     titulo: str = Field(min_length=1)
     desarrollador_id: int
     precio: float = Field(ge=0.0)  # HU2: Mayor o igual a 0
     fecha_lanzamiento: date | None = None
-    genero: str
+    genero: str = Field(min_length=1)
 
 class GetJuegoSchema(BaseModel):
     model_config = ConfigDict(from_attributes=True)

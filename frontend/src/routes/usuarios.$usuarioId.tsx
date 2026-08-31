@@ -37,16 +37,26 @@ function PerfilUsuario() {
   const queryClient = useQueryClient();
   // GET /usuarios/{id}/perfil
   const id = Number(usuarioId);
-  const { data: perfil } = useQuery({
+  const {
+    data: perfil,
+    isError,
+    isPending,
+  } = useQuery({
     queryKey: ["perfil-publico", id],
     queryFn: () => perfilPublico(id),
+    retry: false,
+    throwOnError: false,
   });
   const { data: misAmigos = [] } = useQuery({
     queryKey: ["amigos", yo.id],
     queryFn: () => amigosDe(yo.id),
   });
 
-  if (!perfil) {
+  if (isPending) {
+    return <p className="px-4 py-24 text-center text-muted-foreground">Cargando perfil...</p>;
+  }
+
+  if (isError || !perfil) {
     return (
       <div className="mx-auto max-w-3xl px-4 py-24 text-center">
         <h1 className="text-2xl font-bold">Usuario no encontrado</h1>

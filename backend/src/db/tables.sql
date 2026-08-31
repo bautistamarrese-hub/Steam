@@ -1,17 +1,20 @@
--- 1. Entidades Principales (Sin dependencias)
+CREATE TABLE Desarrollador (
+    id SERIAL PRIMARY KEY,
+    nombre VARCHAR(100) NOT NULL,
+    pais VARCHAR(50)
+);
+
+-- 1. Entidades Principales
 CREATE TABLE usuarios (
     id SERIAL PRIMARY KEY,
     email VARCHAR(255) UNIQUE NOT NULL,
     nickname VARCHAR(50) UNIQUE NOT NULL,
     password_hash VARCHAR(255) NOT NULL,
-    saldo DECIMAL(10, 2) DEFAULT 0.00,
-    fecha_registro TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
-
-CREATE TABLE Desarrollador (
-    id SERIAL PRIMARY KEY,
-    nombre VARCHAR(100) NOT NULL,
-    pais VARCHAR(50)
+    saldo DECIMAL(10, 2) DEFAULT 0.00 CHECK (saldo >= 0),
+    fecha_registro TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    rol VARCHAR(20) NOT NULL DEFAULT 'cliente' CHECK (rol IN ('cliente', 'admin')),
+    desarrollador_id INT UNIQUE,
+    FOREIGN KEY (desarrollador_id) REFERENCES Desarrollador(id)
 );
 
 -- 2. Entidades con dependencias simples
@@ -19,7 +22,7 @@ CREATE TABLE Juego (
     id SERIAL PRIMARY KEY,
     titulo VARCHAR(150) NOT NULL,
     desarrollador_id INT NOT NULL,
-    precio DECIMAL(10, 2) NOT NULL,
+    precio DECIMAL(10, 2) NOT NULL CHECK (precio >= 0),
     fecha_lanzamiento DATE,
     genero VARCHAR(50),
     UNIQUE (titulo, desarrollador_id),
@@ -64,6 +67,7 @@ CREATE TABLE Resena (
     recomienda BOOLEAN NOT NULL,
     texto TEXT,
     fecha TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE (usuario_id, juego_id),
     FOREIGN KEY (usuario_id) REFERENCES usuarios(id),
     FOREIGN KEY (juego_id) REFERENCES Juego(id)
 );
@@ -91,8 +95,7 @@ CREATE TABLE Amigos (
 CREATE TABLE Recarga (
     id SERIAL PRIMARY KEY,
     usuario_id INT NOT NULL,
-    monto DECIMAL(10, 2) NOT NULL,
+    monto DECIMAL(10, 2) NOT NULL CHECK (monto >= 100),
     fecha TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    UNIQUE (usuario_id, juego_id),
     FOREIGN KEY (usuario_id) REFERENCES usuarios(id)
 );

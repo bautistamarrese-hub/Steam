@@ -13,7 +13,7 @@ class JuegoService:
         self.db = db
 
     def crear(self, payload) -> Desarrollador:
-        desarrollador = Desarrollador(nombre=payload.nombre, pais=payload.pais)
+        desarrollador = Desarrollador(nombre=payload.nombre.strip(), pais=payload.pais)
         self.db.add(desarrollador)
         self.db.commit()
         self.db.refresh(desarrollador)
@@ -38,7 +38,7 @@ class JuegoService:
         ).first():
             raise ValueError("El desarrollador ya publicó un juego con ese título.")
         juego = Juego(
-            titulo=payload.titulo,
+            titulo=payload.titulo.strip(),
             desarrollador_id=payload.desarrollador_id,
             precio=payload.precio,
             fecha_lanzamiento=payload.fecha_lanzamiento,
@@ -78,7 +78,7 @@ class JuegoService:
             raise ValueError("Ya existe un logro con ese nombre para este juego.")
         logro = Logro(
             juego_id=juego_id,
-            nombre=payload.nombre,
+            nombre=payload.nombre.strip(),
             descripcion=payload.descripcion,
             puntos=payload.puntos,
         )

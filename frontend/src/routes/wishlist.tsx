@@ -3,12 +3,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { JuegoCard } from "@/components/JuegoCard";
 import { Button } from "@/components/ui/button";
-import {
-  ApiError,
-  comprarJuego,
-  obtenerWishlist,
-  quitarDeWishlist,
-} from "@/lib/api";
+import { ApiError, comprarJuego, obtenerWishlist, quitarDeWishlist } from "@/lib/api";
 import { useSesion, useUsuario } from "@/lib/sesion";
 
 export const Route = createFileRoute("/wishlist")({
