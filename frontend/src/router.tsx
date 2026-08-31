@@ -7,7 +7,7 @@ export const getRouter = () => {
     defaultOptions: {
       queries: {
         retry: 1,
-        throwOnError: true,
+        throwOnError: false,
       },
     },
   });
