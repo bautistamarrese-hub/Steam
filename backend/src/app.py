@@ -1,4 +1,4 @@
-from .routers import desarollador_router, juego_router, usuario_router
+from .routers import desarollador_router, juego_router, solicitudAmistad_router, usuario_router
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -18,6 +18,7 @@ app.add_middleware(
 app.include_router(desarollador_router.router, prefix="/api")
 app.include_router(usuario_router.router, prefix="/api")
 app.include_router(juego_router.router, prefix="/api")
+app.include_router(solicitudAmistad_router.router, prefix="/api")
 
 
 @app.get("/health")

@@ -1,6 +1,7 @@
 from passlib.context import CryptContext
 
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+# PBKDF2 avoids the passlib 1.7 incompatibility with recent bcrypt releases.
+pwd_context = CryptContext(schemes=["pbkdf2_sha256"], deprecated="auto")
 
 
 def hash_password(plain: str) -> str:
@@ -8,4 +9,8 @@ def hash_password(plain: str) -> str:
 
 
 def verify_password(plain: str, hashed: str) -> bool:
-    return pwd_context.verify(plain, hashed)
+    try:
+        return pwd_context.verify(plain, hashed)
+    except (TypeError, ValueError):
+        # Compatibilidad con cuentas antiguas que guardaban un marcador sin hash.
+        return False

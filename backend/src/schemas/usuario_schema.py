@@ -10,11 +10,19 @@ class CreateUsuarioSchema(BaseModel):
 
     email: EmailStr
     nickname: str = Field(min_length=3, max_length=50)
+    password: str = Field(min_length=6, max_length=128)
     rol: Literal["cliente", "admin"] = "cliente"
     estudio: str | None = Field(default=None, min_length=2, max_length=100)
 
+
+class LoginUsuarioSchema(BaseModel):
+    model_config = ConfigDict(str_strip_whitespace=True)
+
+    email: EmailStr
+    password: str = Field(min_length=6, max_length=128)
+
 class RecargarSaldoSchema(BaseModel):
-    monto: float = Field(ge=100.0)  # HU3: Mínimo 100
+    monto: float = Field(ge=100.0, le=30000.0)
 
 class GetUsuarioSchema(BaseModel):
     model_config = ConfigDict(from_attributes=True)

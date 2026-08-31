@@ -14,11 +14,15 @@ import type {
   Recarga,
   Resena,
   Rol,
+  SolicitudAmistad,
   Usuario,
   WishlistItem,
 } from "./types";
 
-const BASE_URL = (import.meta.env.VITE_API_URL ?? "http://localhost:8000/api").replace(/\/$/, "");
+const BASE_URL = (import.meta.env["VITE_API_URL"] ?? "http://localhost:8000/api").replace(
+  /\/$/,
+  "",
+);
 
 export class ApiError extends Error {
   constructor(
@@ -115,11 +119,13 @@ const query = (params: Record<string, string | undefined>) => {
 export async function registrarUsuario(
   email: string,
   nickname: string,
+  password: string,
   rol: Rol = "cliente",
   estudio?: string,
 ): Promise<Usuario> {
   const emailLimpio = textoRequerido(email, "El email").toLowerCase();
   const nicknameLimpio = textoRequerido(nickname, "El nickname");
+  if (password.length < 6) throw new ApiError("La contraseña debe tener al menos 6 caracteres.");
   const estudioLimpio = rol === "admin" ? textoRequerido(estudio ?? "", "El estudio") : undefined;
   return adaptarUsuario(
     await request<UsuarioApi>("/usuarios/", {
@@ -127,6 +133,7 @@ export async function registrarUsuario(
       body: JSON.stringify({
         email: emailLimpio,
         nickname: nicknameLimpio,
+        password,
         rol,
         ...(estudioLimpio ? { estudio: estudioLimpio } : {}),
       }),
@@ -134,11 +141,15 @@ export async function registrarUsuario(
   );
 }
 
-export async function iniciarSesion(email: string): Promise<Usuario> {
+export async function iniciarSesion(email: string, password: string): Promise<Usuario> {
   const emailLimpio = textoRequerido(email, "El email").toLowerCase();
-  const usuarios = await request<UsuarioApi[]>(`/usuarios/${query({ email: emailLimpio })}`);
-  if (!usuarios[0]) throw new ApiError("No existe ninguna cuenta con ese email.", 404);
-  return adaptarUsuario(usuarios[0]);
+  if (password.length < 6) throw new ApiError("La contraseña debe tener al menos 6 caracteres.");
+  return adaptarUsuario(
+    await request<UsuarioApi>("/usuarios/login", {
+      method: "POST",
+      body: JSON.stringify({ email: emailLimpio, password }),
+    }),
+  );
 }
 
 export const listarUsuarios = async (): Promise<Usuario[]> =>
@@ -310,6 +321,47 @@ export const agregarAmigo = (a: number, b: number): Promise<Amistad> =>
 export const eliminarAmigo = (a: number, b: number): Promise<void> =>
   request(`/usuarios/${a}/amigos/${b}`, { method: "DELETE" });
 
+export async function solicitudesRecibidas(
+  usuarioId: number,
+): Promise<Array<SolicitudAmistad & { autor?: Usuario }>> {
+  const solicitudes = await request<SolicitudAmistad[]>(
+    `/usuarios/${usuarioId}/solicitudes/recibidas`,
+  );
+  return Promise.all(
+    solicitudes.map(async (solicitud) => {
+      try {
+        return { ...solicitud, autor: await obtenerUsuario(solicitud.de) };
+      } catch {
+        return solicitud;
+      }
+    }),
+  );
+}
+
+export const solicitudesEnviadas = (usuarioId: number): Promise<SolicitudAmistad[]> =>
+  request(`/usuarios/${usuarioId}/solicitudes/enviadas`);
+
+export const enviarSolicitud = (de: number, para: number): Promise<SolicitudAmistad> =>
+  request("/solicitudes", {
+    method: "POST",
+    body: JSON.stringify({ de, para }),
+  });
+
+export const aceptarSolicitud = (id: number): Promise<SolicitudAmistad> =>
+  request(`/solicitudes/${id}`, {
+    method: "PUT",
+    body: JSON.stringify({ estado: "aceptada" }),
+  });
+
+export const rechazarSolicitud = (id: number): Promise<SolicitudAmistad> =>
+  request(`/solicitudes/${id}`, {
+    method: "PUT",
+    body: JSON.stringify({ estado: "rechazada" }),
+  });
+
+export const cancelarSolicitud = (id: number): Promise<void> =>
+  request(`/solicitudes/${id}`, { method: "DELETE" });
+
 export async function topVentas(genero?: Genero | "todos"): Promise<JuegoTop[]> {
   const filtro = genero === "todos" ? undefined : genero;
   const rows = await request<
@@ -372,3 +424,8 @@ export async function perfilPublico(usuarioId: number): Promise<PerfilPublico> {
 
 export const formatPrecio = (value: number) =>
   value === 0 ? "Gratis" : `$${value.toLocaleString("es-AR")}`;
+
+export const avatarDe = ({ nickname }: Pick<Usuario, "nickname">) =>
+  `https://api.dicebear.com/9.x/adventurer/svg?seed=${encodeURIComponent(
+    nickname.trim().toLowerCase(),
+  )}&backgroundColor=1f2937,312e81,164e63&radius=50`;

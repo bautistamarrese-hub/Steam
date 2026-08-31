@@ -10,6 +10,7 @@ from src.db.models.logros_model import Logro
 from src.db.models.recargarSaldo_model import Recarga
 from src.db.models.registroUsuario_model import Usuario
 from src.db.models.wishlist_model import Wishlist
+from src.utils.hash import hash_password, verify_password
 
 
 class UsuarioService:
@@ -46,7 +47,7 @@ class UsuarioService:
         usuario = Usuario(
             email=email,
             nickname=nickname,
-            password_hash="autenticacion-pendiente",
+            password_hash=hash_password(payload.password),
             rol=payload.rol,
             desarrollador_id=desarrollador_id,
         )
@@ -57,6 +58,17 @@ class UsuarioService:
             self.db.rollback()
             raise ValueError("El email o el nickname ya están registrados.") from exc
         self.db.refresh(usuario)
+        return usuario
+
+    def iniciar_sesion(self, payload) -> Usuario:
+        email = str(payload.email).strip().lower()
+        usuario = (
+            self.db.query(Usuario)
+            .filter(func.lower(Usuario.email) == email)
+            .first()
+        )
+        if not usuario or not verify_password(payload.password, usuario.password_hash):
+            raise ValueError("Email o contraseña incorrectos.")
         return usuario
 
     def listar(self, email: str | None = None) -> list[Usuario]:

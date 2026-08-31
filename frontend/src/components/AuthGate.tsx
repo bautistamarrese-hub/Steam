@@ -14,6 +14,8 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
   const [modo, setModo] = useState<"registro" | "login">("registro");
   const [email, setEmail] = useState("");
   const [nickname, setNickname] = useState("");
+  const [password, setPassword] = useState("");
+  const [confirmacion, setConfirmacion] = useState("");
   const [estudio, setEstudio] = useState("");
   const [rol, setRol] = useState<Rol>("cliente");
   const [enviando, setEnviando] = useState(false);
@@ -27,10 +29,11 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
     setEnviando(true);
     try {
       if (modo === "login") {
-        await login(email);
+        await login(email, password);
         toast.success("¡Bienvenido de vuelta!");
       } else {
-        await registrar(email, nickname, rol, estudio || undefined);
+        if (password !== confirmacion) throw new ApiError("Las contraseñas no coinciden.");
+        await registrar(email, nickname, password, rol, estudio || undefined);
         toast.success("Cuenta creada, ¡a jugar!");
       }
     } catch (e) {
@@ -53,7 +56,7 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
         <p className="mt-1 text-sm text-muted-foreground">
           {modo === "registro"
             ? "El email y el nickname son únicos. Tu saldo arranca en 0."
-            : "Ingresá con el email de tu cuenta."}
+            : "Ingresá con el email y la contraseña de tu cuenta."}
         </p>
 
         <form className="mt-6 space-y-4" onSubmit={enviar}>
@@ -69,6 +72,36 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
               placeholder="vos@mail.com"
             />
           </div>
+
+          <div className="space-y-1">
+            <Label htmlFor="password">Contraseña</Label>
+            <Input
+              id="password"
+              type="password"
+              autoComplete={modo === "login" ? "current-password" : "new-password"}
+              minLength={6}
+              required
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              placeholder="Mínimo 6 caracteres"
+            />
+          </div>
+
+          {modo === "registro" && (
+            <div className="space-y-1">
+              <Label htmlFor="password2">Confirmar contraseña</Label>
+              <Input
+                id="password2"
+                type="password"
+                autoComplete="new-password"
+                minLength={6}
+                required
+                value={confirmacion}
+                onChange={(e) => setConfirmacion(e.target.value)}
+                placeholder="Repetí la contraseña"
+              />
+            </div>
+          )}
 
           {modo === "registro" && (
             <>

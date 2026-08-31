@@ -39,6 +39,8 @@ function DetalleJuego() {
   const [texto, setTexto] = useState("");
   const [nombreLogro, setNombreLogro] = useState("");
   const [puntos, setPuntos] = useState("10");
+  const [principal, setPrincipal] = useState<string | null>(null);
+  const [ampliada, setAmpliada] = useState<string | null>(null);
 
   const { data: juego, isError } = useQuery({
     queryKey: ["juego", id],
@@ -110,19 +112,55 @@ function DetalleJuego() {
   const comprado = compras.some((item) => item.juego.id === id);
   const deseado = wishlist.some((item) => item.juego_id === id);
   const esMiJuego = esAdmin && usuario.desarrollador_id === juego.desarrollador_id;
+  const capturas = [juego.imagen, ...(juego.galeria ?? [])];
+  const imagenPrincipal = principal ?? juego.imagen;
 
   return (
     <div>
       <section className="bg-hero border-b border-border">
         <div className="mx-auto grid max-w-6xl gap-8 px-4 py-10 md:grid-cols-[1.4fr_1fr]">
-          <img
-            src={juego.imagen}
-            alt={`Portada de ${juego.titulo}`}
-            className="w-full rounded-lg border border-border object-cover"
-          />
+          <div className="space-y-3">
+            <button
+              type="button"
+              onClick={() => setAmpliada(imagenPrincipal)}
+              className="block w-full overflow-hidden rounded-lg border border-border"
+            >
+              <img
+                src={imagenPrincipal}
+                alt={`Imagen de ${juego.titulo}`}
+                className="aspect-video w-full object-cover"
+              />
+            </button>
+            <div className="flex flex-wrap gap-2">
+              {capturas.map((src, index) => (
+                <button
+                  key={src}
+                  type="button"
+                  onClick={() => setPrincipal(src)}
+                  className={`overflow-hidden rounded-md border transition-colors ${
+                    imagenPrincipal === src
+                      ? "border-primary"
+                      : "border-border hover:border-primary/60"
+                  }`}
+                >
+                  <img
+                    src={src}
+                    alt={`Captura ${index + 1} de ${juego.titulo}`}
+                    className="h-20 w-32 object-cover"
+                  />
+                </button>
+              ))}
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Hacé click en la imagen principal para ampliarla.
+            </p>
+          </div>
           <div>
             <h1 className="text-3xl font-bold">{juego.titulo}</h1>
-            <p className="mt-2 text-muted-foreground">{juego.descripcion}</p>
+            <p className="mt-2 font-medium">{juego.resumen ?? juego.descripcion}</p>
+            {juego.resumen && (
+              <p className="mt-2 text-sm text-muted-foreground">{juego.descripcion}</p>
+            )}
             <div className="mt-4 flex flex-wrap gap-2">
               <Badge variant="secondary">{juego.genero}</Badge>
               <Badge variant="outline">{desarrollador?.nombre ?? "Desarrollador"}</Badge>
@@ -277,6 +315,21 @@ function DetalleJuego() {
           )}
         </section>
       </div>
+      {ampliada && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-label={`Captura ampliada de ${juego.titulo}`}
+          className="fixed inset-0 z-50 flex items-center justify-center bg-background/90 p-6"
+          onClick={() => setAmpliada(null)}
+        >
+          <img
+            src={ampliada}
+            alt={`Captura ampliada de ${juego.titulo}`}
+            className="max-h-full max-w-5xl rounded-lg border border-border object-contain"
+          />
+        </div>
+      )}
     </div>
   );
 }

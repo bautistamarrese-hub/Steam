@@ -6,15 +6,18 @@ from src.schemas.amigo_schema import CreateAmigoSchema, GetAmigoSchema
 from src.schemas.compra_schema import GetCompraSchema, GetRecargaSchema
 from src.schemas.juego_schema import GetItemBibliotecaSchema
 from src.schemas.logro_schema import GetLogroDesbloqueadoSchema
+from src.schemas.solicitudAmistad_schema import GetSolicitudAmistadSchema
 from src.schemas.usuario_schema import (
     CreateUsuarioSchema,
     GetEstadisticasUsuarioSchema,
     GetUsuarioSchema,
+    LoginUsuarioSchema,
     RecargarSaldoSchema,
 )
 from src.schemas.wishlist_schema import CreateWishlistSchema, GetWishlistSchema
 from src.services.desbloquearLogro_service import DesbloqueoLogroService
 from src.services.registroUsuario_service import UsuarioService
+from src.services.solicitudAmistad_service import SolicitudAmistadService
 
 router = APIRouter(prefix="/usuarios", tags=["usuarios"])
 
@@ -22,6 +25,11 @@ router = APIRouter(prefix="/usuarios", tags=["usuarios"])
 @router.post("/", response_model=GetUsuarioSchema, status_code=status.HTTP_201_CREATED)
 def registrar_usuario(payload: CreateUsuarioSchema, db: Session = Depends(get_db)):
     return UsuarioService(db).registrar(payload)
+
+
+@router.post("/login", response_model=GetUsuarioSchema)
+def iniciar_sesion(payload: LoginUsuarioSchema, db: Session = Depends(get_db)):
+    return UsuarioService(db).iniciar_sesion(payload)
 
 
 @router.get("/", response_model=list[GetUsuarioSchema])
@@ -104,6 +112,20 @@ def agregar_amigo(id: int, payload: CreateAmigoSchema, db: Session = Depends(get
 @router.get("/{id}/amigos", response_model=list[GetUsuarioSchema])
 def obtener_amigos(id: int, db: Session = Depends(get_db)):
     return UsuarioService(db).obtener_amigos(id)
+
+
+@router.get(
+    "/{id}/solicitudes/recibidas", response_model=list[GetSolicitudAmistadSchema]
+)
+def solicitudes_recibidas(id: int, db: Session = Depends(get_db)):
+    return SolicitudAmistadService(db).recibidas(id)
+
+
+@router.get(
+    "/{id}/solicitudes/enviadas", response_model=list[GetSolicitudAmistadSchema]
+)
+def solicitudes_enviadas(id: int, db: Session = Depends(get_db)):
+    return SolicitudAmistadService(db).enviadas(id)
 
 
 @router.delete("/{id}/amigos/{amigo_id}", status_code=status.HTTP_204_NO_CONTENT)

@@ -16,6 +16,7 @@ def registrar(
     body = {
         "email": f"{suffix}@example.com",
         "nickname": f"nick_{suffix}",
+        "password": "secreto123",
         "rol": rol,
     }
     if estudio is not None:
@@ -58,6 +59,20 @@ def test_registro_login_y_rol_desarrollador_persistente(client: TestClient):
     assert jugador["saldo"] == 0
     assert jugador["rol"] == "cliente"
     assert jugador["desarrollador_id"] is None
+    assert_status(
+        client.post(
+            "/api/usuarios/login",
+            json={"email": "JUGADOR@example.com", "password": "secreto123"},
+        ),
+        200,
+    )
+    assert_status(
+        client.post(
+            "/api/usuarios/login",
+            json={"email": "jugador@example.com", "password": "incorrecta"},
+        ),
+        400,
+    )
 
     dev = registrar(client, "dev", rol="admin", estudio="Mate Studio")
     assert dev["rol"] == "admin"
@@ -90,13 +105,23 @@ def test_registro_rechaza_email_y_nickname_duplicados_sin_importar_mayusculas(
     registrar(client, "unico")
     duplicado_email = client.post(
         "/api/usuarios/",
-        json={"email": "UNICO@example.com", "nickname": "otro", "rol": "cliente"},
+        json={
+            "email": "UNICO@example.com",
+            "nickname": "otro",
+            "password": "secreto123",
+            "rol": "cliente",
+        },
     )
     assert_status(duplicado_email, 400)
 
     duplicado_nick = client.post(
         "/api/usuarios/",
-        json={"email": "otro@example.com", "nickname": "NICK_UNICO", "rol": "cliente"},
+        json={
+            "email": "otro@example.com",
+            "nickname": "NICK_UNICO",
+            "password": "secreto123",
+            "rol": "cliente",
+        },
     )
     assert_status(duplicado_nick, 400)
 
@@ -278,6 +303,62 @@ def test_amistad_bidireccional_sin_duplicados(client: TestClient):
     )
     assert_status(client.delete(f"/api/usuarios/{dos['id']}/amigos/{uno['id']}"), 204)
     assert assert_status(client.get(f"/api/usuarios/{uno['id']}/amigos"), 200) == []
+
+
+def test_solicitudes_de_amistad_se_pueden_aceptar_y_rechazar(client: TestClient):
+    uno = registrar(client, "solicitud_uno")
+    dos = registrar(client, "solicitud_dos")
+    tres = registrar(client, "solicitud_tres")
+
+    solicitud = assert_status(
+        client.post(
+            "/api/solicitudes",
+            json={"de": uno["id"], "para": dos["id"]},
+        ),
+        201,
+    )
+    assert_status(
+        client.post(
+            "/api/solicitudes",
+            json={"de": dos["id"], "para": uno["id"]},
+        ),
+        400,
+    )
+    recibidas = assert_status(
+        client.get(f"/api/usuarios/{dos['id']}/solicitudes/recibidas"), 200
+    )
+    assert [item["id"] for item in recibidas] == [solicitud["id"]]
+    assert_status(
+        client.put(
+            f"/api/solicitudes/{solicitud['id']}",
+            json={"estado": "aceptada"},
+        ),
+        200,
+    )
+    assert [
+        usuario["id"]
+        for usuario in assert_status(
+            client.get(f"/api/usuarios/{uno['id']}/amigos"), 200
+        )
+    ] == [dos["id"]]
+
+    rechazada = assert_status(
+        client.post(
+            "/api/solicitudes",
+            json={"de": tres["id"], "para": uno["id"]},
+        ),
+        201,
+    )
+    assert_status(
+        client.put(
+            f"/api/solicitudes/{rechazada['id']}",
+            json={"estado": "rechazada"},
+        ),
+        200,
+    )
+    assert assert_status(
+        client.get(f"/api/usuarios/{uno['id']}/solicitudes/recibidas"), 200
+    ) == []
 
 
 def test_rankings_incluyen_ventas_y_exigen_veinte_resenas(client: TestClient):

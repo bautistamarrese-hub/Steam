@@ -1,6 +1,7 @@
 import { Link } from "@tanstack/react-router";
 import { Gamepad2, LogOut, Wallet, Wrench } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { AvatarGamer } from "@/components/AvatarGamer";
 import { formatPrecio } from "@/lib/api";
 import { useSesion } from "@/lib/sesion";
 
@@ -15,9 +16,11 @@ const LINKS_CLIENTE = [
 
 const LINKS_ADMIN = [
   { to: "/", label: "Tienda" },
-  { to: "/desarrolladores", label: "Panel dev" },
+  { to: "/biblioteca", label: "Biblioteca" },
+  { to: "/wishlist", label: "Wishlist" },
+  { to: "/desarrolladores", label: "Panel" },
   { to: "/top", label: "Top" },
-  { to: "/amigos", label: "Comunidad" },
+  { to: "/amigos", label: "Amigos" },
   { to: "/perfil", label: "Perfil" },
 ] as const;
 
@@ -47,20 +50,24 @@ export function SiteHeader() {
           ))}
         </nav>
         <div className="ml-auto flex items-center gap-3 md:ml-0">
-          {esAdmin ? (
-            <Badge variant="secondary" className="gap-1">
+          {esAdmin && (
+            <Badge variant="secondary" className="hidden gap-1 lg:flex">
               <Wrench className="h-3.5 w-3.5" /> Desarrollador
             </Badge>
-          ) : (
-            <Link
-              to="/perfil"
-              className="flex items-center gap-2 rounded-md border border-border bg-card px-3 py-1.5 text-sm"
-            >
-              <Wallet className="h-4 w-4 text-accent" />
-              <span className="font-semibold">{formatPrecio(usuario.saldo)}</span>
-            </Link>
           )}
-          <span className="hidden text-sm text-muted-foreground sm:inline">{usuario.nickname}</span>
+          <Link
+            to="/perfil"
+            className="flex items-center gap-2 rounded-md border border-border bg-card px-3 py-1.5 text-sm"
+          >
+            <Wallet className="h-4 w-4 text-accent" />
+            <span className="font-semibold">{formatPrecio(usuario.saldo)}</span>
+          </Link>
+          <Link to="/perfil" className="flex items-center gap-2">
+            <AvatarGamer nickname={usuario.nickname} className="h-8 w-8" />
+            <span className="hidden text-sm text-muted-foreground sm:inline">
+              {usuario.nickname}
+            </span>
+          </Link>
           <button
             onClick={logout}
             aria-label="Cerrar sesión"

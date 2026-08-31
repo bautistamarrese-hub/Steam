@@ -1,17 +1,22 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { toast } from "sonner";
 import { useQueries, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Award, Gamepad2, Trophy, UserMinus, UserPlus } from "lucide-react";
+import { Award, Check, Clock, Gamepad2, Trophy, UserMinus, UserPlus, X } from "lucide-react";
+import { AvatarGamer } from "@/components/AvatarGamer";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import {
-  agregarAmigo,
+  aceptarSolicitud,
   amigosDe,
   ApiError,
   eliminarAmigo,
+  enviarSolicitud,
   estadisticas,
   listarUsuarios,
+  rechazarSolicitud,
+  solicitudesEnviadas,
+  solicitudesRecibidas,
 } from "@/lib/api";
 import { useSesion, useUsuario } from "@/lib/sesion";
 
@@ -40,6 +45,14 @@ function Amigos() {
     queryKey: ["usuarios"],
     queryFn: listarUsuarios,
   });
+  const { data: recibidas = [] } = useQuery({
+    queryKey: ["solicitudes-recibidas", yo.id],
+    queryFn: () => solicitudesRecibidas(yo.id),
+  });
+  const { data: enviadas = [] } = useQuery({
+    queryKey: ["solicitudes-enviadas", yo.id],
+    queryFn: () => solicitudesEnviadas(yo.id),
+  });
   const otros = usuarios.filter((u) => u.id !== yo.id);
   const estadisticasUsuarios = useQueries({
     queries: otros.map((usuario) => ({
@@ -54,6 +67,8 @@ function Amigos() {
       await fn();
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ["amigos", yo.id] }),
+        queryClient.invalidateQueries({ queryKey: ["solicitudes-recibidas", yo.id] }),
+        queryClient.invalidateQueries({ queryKey: ["solicitudes-enviadas", yo.id] }),
         refrescar(),
       ]);
       toast.success(ok);
@@ -69,17 +84,54 @@ function Amigos() {
         Tenés {amigos.length} amigo(s). Entrá a cualquier perfil para ver sus juegos y logros.
       </p>
 
+      {recibidas.length > 0 && (
+        <Card className="mt-8 p-5">
+          <h2 className="text-lg font-semibold">Solicitudes recibidas ({recibidas.length})</h2>
+          <ul className="mt-3 space-y-2">
+            {recibidas.map((solicitud) => (
+              <li key={solicitud.id} className="flex flex-wrap items-center gap-3">
+                <AvatarGamer
+                  nickname={solicitud.autor?.nickname ?? "Usuario"}
+                  className="h-9 w-9"
+                />
+                <div className="min-w-0 flex-1">
+                  <p className="truncate font-medium">{solicitud.autor?.nickname ?? "Usuario"}</p>
+                  <p className="text-xs text-muted-foreground">
+                    Te envió una solicitud · {solicitud.fecha}
+                  </p>
+                </div>
+                <Button
+                  size="sm"
+                  onClick={() => accion(() => aceptarSolicitud(solicitud.id), "Solicitud aceptada")}
+                >
+                  <Check className="h-4 w-4" /> Aceptar
+                </Button>
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  onClick={() =>
+                    accion(() => rechazarSolicitud(solicitud.id), "Solicitud rechazada")
+                  }
+                >
+                  <X className="h-4 w-4" /> Rechazar
+                </Button>
+              </li>
+            ))}
+          </ul>
+        </Card>
+      )}
+
       <div className="mt-8 grid gap-3 sm:grid-cols-2">
         {otros.map((u, index) => {
           const amigo = amigosIds.has(u.id);
+          const pendiente = enviadas.find((solicitud) => solicitud.para === u.id);
+          const meEnvio = recibidas.find((solicitud) => solicitud.de === u.id);
           // GET /usuarios/{id}/estadisticas
           const s = estadisticasUsuarios[index]?.data;
           return (
             <Card key={u.id} className="gap-3 p-4">
               <div className="flex items-center gap-3">
-                <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-secondary font-bold">
-                  {u.nickname.slice(0, 2).toUpperCase()}
-                </div>
+                <AvatarGamer nickname={u.nickname} />
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-2">
                     <Link
@@ -105,14 +157,28 @@ function Amigos() {
                   >
                     <UserMinus className="h-4 w-4" /> Amigos
                   </Button>
+                ) : meEnvio ? (
+                  <Button
+                    size="sm"
+                    onClick={() => accion(() => aceptarSolicitud(meEnvio.id), "Solicitud aceptada")}
+                  >
+                    <Check className="h-4 w-4" /> Aceptar
+                  </Button>
+                ) : pendiente ? (
+                  <Button size="sm" variant="secondary" disabled>
+                    <Clock className="h-4 w-4" /> Pendiente
+                  </Button>
                 ) : (
                   <Button
                     size="sm"
                     onClick={() =>
-                      accion(() => agregarAmigo(yo.id, u.id), `Ahora sos amigo de ${u.nickname}`)
+                      accion(
+                        () => enviarSolicitud(yo.id, u.id),
+                        `Solicitud enviada a ${u.nickname}`,
+                      )
                     }
                   >
-                    <UserPlus className="h-4 w-4" /> Agregar
+                    <UserPlus className="h-4 w-4" /> Enviar solicitud
                   </Button>
                 )}
               </div>

@@ -92,6 +92,18 @@ CREATE TABLE Amigos (
     CHECK (usuario_a != usuario_b) -- Evita que un usuario sea amigo de sí mismo
 );
 
+CREATE TABLE solicitudes_amistad (
+    id SERIAL PRIMARY KEY,
+    de INT NOT NULL,
+    para INT NOT NULL,
+    fecha TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    estado VARCHAR(20) NOT NULL DEFAULT 'pendiente',
+    FOREIGN KEY (de) REFERENCES usuarios(id),
+    FOREIGN KEY (para) REFERENCES usuarios(id),
+    CHECK (de != para),
+    CHECK (estado IN ('pendiente', 'aceptada', 'rechazada'))
+);
+
 CREATE TABLE Recarga (
     id SERIAL PRIMARY KEY,
     usuario_id INT NOT NULL,

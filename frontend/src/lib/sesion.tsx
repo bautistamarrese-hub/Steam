@@ -8,8 +8,14 @@ interface SesionCtx {
   usuario: Usuario | null;
   esAdmin: boolean;
   cargando: boolean;
-  login: (email: string) => Promise<void>;
-  registrar: (email: string, nickname: string, rol: Rol, estudio?: string) => Promise<void>;
+  login: (email: string, password: string) => Promise<void>;
+  registrar: (
+    email: string,
+    nickname: string,
+    password: string,
+    rol: Rol,
+    estudio?: string,
+  ) => Promise<void>;
   logout: () => void;
   refrescar: () => Promise<void>;
 }
@@ -58,9 +64,9 @@ export function SesionProvider({ children }: { children: React.ReactNode }) {
       usuario,
       esAdmin: usuario?.rol === "admin",
       cargando,
-      login: async (email) => guardar(await iniciarSesion(email)),
-      registrar: async (email, nickname, rol, estudio) =>
-        guardar(await registrarUsuario(email, nickname, rol, estudio)),
+      login: async (email, password) => guardar(await iniciarSesion(email, password)),
+      registrar: async (email, nickname, password, rol, estudio) =>
+        guardar(await registrarUsuario(email, nickname, password, rol, estudio)),
       logout: () => guardar(null),
       refrescar,
     }),

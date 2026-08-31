@@ -1,17 +1,31 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { toast } from "sonner";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Award, Coins, Gamepad2, Trophy, UserMinus, UserPlus, Users } from "lucide-react";
+import {
+  Award,
+  Check,
+  Clock,
+  Coins,
+  Gamepad2,
+  Trophy,
+  UserMinus,
+  UserPlus,
+  Users,
+} from "lucide-react";
+import { AvatarGamer } from "@/components/AvatarGamer";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import {
-  agregarAmigo,
+  aceptarSolicitud,
   amigosDe,
   ApiError,
   eliminarAmigo,
+  enviarSolicitud,
   formatPrecio,
   perfilPublico,
+  solicitudesEnviadas,
+  solicitudesRecibidas,
 } from "@/lib/api";
 import { useSesion, useUsuario } from "@/lib/sesion";
 
@@ -51,6 +65,14 @@ function PerfilUsuario() {
     queryKey: ["amigos", yo.id],
     queryFn: () => amigosDe(yo.id),
   });
+  const { data: recibidas = [] } = useQuery({
+    queryKey: ["solicitudes-recibidas", yo.id],
+    queryFn: () => solicitudesRecibidas(yo.id),
+  });
+  const { data: enviadas = [] } = useQuery({
+    queryKey: ["solicitudes-enviadas", yo.id],
+    queryFn: () => solicitudesEnviadas(yo.id),
+  });
 
   if (isPending) {
     return <p className="px-4 py-24 text-center text-muted-foreground">Cargando perfil...</p>;
@@ -70,12 +92,16 @@ function PerfilUsuario() {
   const { usuario, stats, juegos, logros, amigos } = perfil;
   const esYo = usuario.id === yo.id;
   const amigo = misAmigos.some((item) => item.id === usuario.id);
+  const pendiente = enviadas.find((solicitud) => solicitud.para === usuario.id);
+  const meEnvio = recibidas.find((solicitud) => solicitud.de === usuario.id);
 
   const accion = async (fn: () => Promise<unknown>, ok: string) => {
     try {
       await fn();
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ["amigos", yo.id] }),
+        queryClient.invalidateQueries({ queryKey: ["solicitudes-recibidas", yo.id] }),
+        queryClient.invalidateQueries({ queryKey: ["solicitudes-enviadas", yo.id] }),
         queryClient.invalidateQueries({ queryKey: ["perfil-publico", id] }),
         refrescar(),
       ]);
@@ -96,9 +122,7 @@ function PerfilUsuario() {
   return (
     <div className="mx-auto max-w-5xl px-4 py-10">
       <div className="flex flex-wrap items-center gap-4">
-        <div className="flex h-16 w-16 items-center justify-center rounded-full bg-secondary text-xl font-bold">
-          {usuario.nickname.slice(0, 2).toUpperCase()}
-        </div>
+        <AvatarGamer nickname={usuario.nickname} className="h-16 w-16" />
         <div className="flex-1">
           <div className="flex items-center gap-2">
             <h1 className="text-3xl font-bold">{usuario.nickname}</h1>
@@ -116,16 +140,26 @@ function PerfilUsuario() {
             >
               <UserMinus className="h-4 w-4" /> Amigos
             </Button>
+          ) : meEnvio ? (
+            <Button
+              onClick={() => accion(() => aceptarSolicitud(meEnvio.id), "Solicitud aceptada")}
+            >
+              <Check className="h-4 w-4" /> Aceptar solicitud
+            </Button>
+          ) : pendiente ? (
+            <Button variant="secondary" disabled>
+              <Clock className="h-4 w-4" /> Solicitud pendiente
+            </Button>
           ) : (
             <Button
               onClick={() =>
                 accion(
-                  () => agregarAmigo(yo.id, usuario.id),
-                  `Ahora sos amigo de ${usuario.nickname}`,
+                  () => enviarSolicitud(yo.id, usuario.id),
+                  `Solicitud enviada a ${usuario.nickname}`,
                 )
               }
             >
-              <UserPlus className="h-4 w-4" /> Agregar
+              <UserPlus className="h-4 w-4" /> Enviar solicitud
             </Button>
           ))}
       </div>
@@ -198,8 +232,9 @@ function PerfilUsuario() {
                 key={a.id}
                 to="/usuarios/$usuarioId"
                 params={{ usuarioId: String(a.id) }}
-                className="rounded-full border border-border px-3 py-1 text-sm hover:border-primary"
+                className="inline-flex items-center gap-2 rounded-full border border-border px-3 py-1 text-sm hover:border-primary"
               >
+                <AvatarGamer nickname={a.nickname} className="h-6 w-6" />
                 {a.nickname}
               </Link>
             ))}

@@ -3,6 +3,7 @@ import { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { Award, Coins, CreditCard, Gamepad2, Trophy, Users } from "lucide-react";
+import { AvatarGamer } from "@/components/AvatarGamer";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -15,6 +16,7 @@ import {
   formatPrecio,
   juegosDeDesarrollador,
   listarRecargas,
+  MONTO_MAXIMO_RECARGA,
   MONTO_MINIMO_RECARGA,
   obtenerDesarrollador,
   recargarSaldo,
@@ -80,25 +82,19 @@ function Perfil() {
     }
   };
 
-  const cards = esAdmin
-    ? [
-        { icon: Gamepad2, label: "Juegos publicados", value: misJuegos.length },
-        { icon: Users, label: "Amigos", value: stats.cantidad_amigos },
-      ]
-    : [
-        { icon: Coins, label: "Total gastado", value: formatPrecio(stats.total_gastado) },
-        { icon: Gamepad2, label: "Juegos", value: stats.cantidad_juegos },
-        { icon: Trophy, label: "Logros", value: stats.logros_desbloqueados },
-        { icon: Award, label: "Puntos", value: stats.puntos_totales },
-        { icon: Users, label: "Amigos", value: stats.cantidad_amigos },
-      ];
+  const cards = [
+    ...(esAdmin ? [{ icon: Gamepad2, label: "Juegos publicados", value: misJuegos.length }] : []),
+    { icon: Coins, label: "Total gastado", value: formatPrecio(stats.total_gastado) },
+    { icon: Gamepad2, label: "Juegos", value: stats.cantidad_juegos },
+    { icon: Trophy, label: "Logros", value: stats.logros_desbloqueados },
+    { icon: Award, label: "Puntos", value: stats.puntos_totales },
+    { icon: Users, label: "Amigos", value: stats.cantidad_amigos },
+  ];
 
   return (
     <div className="mx-auto max-w-5xl px-4 py-10">
       <div className="flex items-center gap-4">
-        <div className="flex h-16 w-16 items-center justify-center rounded-full bg-primary text-xl font-bold text-primary-foreground">
-          {usuario.nickname.slice(0, 2).toUpperCase()}
-        </div>
+        <AvatarGamer nickname={usuario.nickname} className="h-16 w-16" />
         <div>
           <div className="flex items-center gap-2">
             <h1 className="text-3xl font-bold">{usuario.nickname}</h1>
@@ -123,7 +119,7 @@ function Perfil() {
         ))}
       </div>
 
-      {esAdmin ? (
+      {esAdmin && (
         <Card className="mt-8 p-6">
           <h2 className="text-lg font-semibold">Mis juegos publicados</h2>
           <ul className="mt-3 space-y-2 text-sm">
@@ -140,94 +136,94 @@ function Perfil() {
             )}
           </ul>
         </Card>
-      ) : (
-        <div className="mt-8 grid gap-6 lg:grid-cols-2">
-          <Card className="p-6">
-            <h2 className="text-lg font-semibold">Top 5 juegos más completados</h2>
-            <div className="mt-4 space-y-4">
-              {stats.top_completados.map((t) => (
-                <div key={t.juego.id}>
-                  <div className="mb-1 flex justify-between text-sm">
-                    <span>{t.juego.titulo}</span>
-                    <span className="text-muted-foreground">
-                      {t.desbloqueados}/{t.total} · {t.porcentaje}%
-                    </span>
-                  </div>
-                  <Progress value={t.porcentaje} />
-                </div>
-              ))}
-              {stats.top_completados.length === 0 && (
-                <p className="text-sm text-muted-foreground">Todavía no tenés juegos.</p>
-              )}
-            </div>
-          </Card>
+      )}
 
-          <Card className="p-6">
-            <h2 className="text-lg font-semibold">Recargar saldo</h2>
-            <p className="mt-1 text-sm text-muted-foreground">
-              Saldo actual: <strong>{formatPrecio(usuario.saldo)}</strong>. Monto mínimo:{" "}
-              {MONTO_MINIMO_RECARGA}.
-            </p>
-            <div className="mt-4 space-y-3">
-              <div className="space-y-1">
-                <Label htmlFor="tarjeta">Número de tarjeta (16 cifras)</Label>
-                <div className="relative">
-                  <CreditCard className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                  <Input
-                    id="tarjeta"
-                    inputMode="numeric"
-                    className="pl-9 tracking-widest"
-                    placeholder="0000 0000 0000 0000"
-                    value={tarjeta}
-                    onChange={(e) =>
-                      setTarjeta(
-                        soloDigitos(e.target.value)
-                          .slice(0, 16)
-                          .replace(/(.{4})/g, "$1 ")
-                          .trim(),
-                      )
-                    }
-                  />
+      <div className="mt-8 grid gap-6 lg:grid-cols-2">
+        <Card className="p-6">
+          <h2 className="text-lg font-semibold">Top 5 juegos más completados</h2>
+          <div className="mt-4 space-y-4">
+            {stats.top_completados.map((t) => (
+              <div key={t.juego.id}>
+                <div className="mb-1 flex justify-between text-sm">
+                  <span>{t.juego.titulo}</span>
+                  <span className="text-muted-foreground">
+                    {t.desbloqueados}/{t.total} · {t.porcentaje}%
+                  </span>
                 </div>
-                <p className="text-xs text-muted-foreground">
-                  {soloDigitos(tarjeta).length}/16 dígitos
-                </p>
+                <Progress value={t.porcentaje} />
               </div>
-              <div className="space-y-1">
-                <Label htmlFor="monto">Monto</Label>
+            ))}
+            {stats.top_completados.length === 0 && (
+              <p className="text-sm text-muted-foreground">Todavía no tenés juegos.</p>
+            )}
+          </div>
+        </Card>
+
+        <Card className="p-6">
+          <h2 className="text-lg font-semibold">Recargar saldo</h2>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Saldo actual: <strong>{formatPrecio(usuario.saldo)}</strong>. Monto mínimo:{" "}
+            {MONTO_MINIMO_RECARGA} · máximo: {MONTO_MAXIMO_RECARGA}.
+          </p>
+          <div className="mt-4 space-y-3">
+            <div className="space-y-1">
+              <Label htmlFor="tarjeta">Número de tarjeta (16 cifras)</Label>
+              <div className="relative">
+                <CreditCard className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                 <Input
-                  id="monto"
-                  type="number"
-                  value={monto}
-                  onChange={(e) => setMonto(e.target.value)}
+                  id="tarjeta"
+                  inputMode="numeric"
+                  className="pl-9 tracking-widest"
+                  placeholder="0000 0000 0000 0000"
+                  value={tarjeta}
+                  onChange={(e) =>
+                    setTarjeta(
+                      soloDigitos(e.target.value)
+                        .slice(0, 16)
+                        .replace(/(.{4})/g, "$1 ")
+                        .trim(),
+                    )
+                  }
                 />
               </div>
-              {/* POST /usuarios/{id}/recargar  body: { monto, tarjeta } */}
-              <Button
-                className="w-full"
-                onClick={() =>
-                  accion(async () => {
-                    await recargarSaldo(usuario.id, Number(monto), tarjeta);
-                    setTarjeta("");
-                  }, "Saldo recargado con éxito")
-                }
-              >
-                Recargar
-              </Button>
+              <p className="text-xs text-muted-foreground">
+                {soloDigitos(tarjeta).length}/16 dígitos
+              </p>
             </div>
-            <h3 className="mt-6 text-sm font-semibold">Historial de recargas</h3>
-            <ul className="mt-2 space-y-1 text-sm text-muted-foreground">
-              {recargas.map((r) => (
-                <li key={r.id} className="flex justify-between border-b border-border py-1">
-                  <span>{r.fecha}</span>
-                  <span className="text-accent">+{formatPrecio(r.monto)}</span>
-                </li>
-              ))}
-              {recargas.length === 0 && <li>Todavía no hiciste recargas.</li>}
-            </ul>
-          </Card>
-        </div>
-      )}
+            <div className="space-y-1">
+              <Label htmlFor="monto">Monto</Label>
+              <Input
+                id="monto"
+                type="number"
+                value={monto}
+                onChange={(e) => setMonto(e.target.value)}
+              />
+            </div>
+            {/* POST /usuarios/{id}/recargar  body: { monto, tarjeta } */}
+            <Button
+              className="w-full"
+              onClick={() =>
+                accion(async () => {
+                  await recargarSaldo(usuario.id, Number(monto), tarjeta);
+                  setTarjeta("");
+                }, "Saldo recargado con éxito")
+              }
+            >
+              Recargar
+            </Button>
+          </div>
+          <h3 className="mt-6 text-sm font-semibold">Historial de recargas</h3>
+          <ul className="mt-2 space-y-1 text-sm text-muted-foreground">
+            {recargas.map((r) => (
+              <li key={r.id} className="flex justify-between border-b border-border py-1">
+                <span>{r.fecha}</span>
+                <span className="text-accent">+{formatPrecio(r.monto)}</span>
+              </li>
+            ))}
+            {recargas.length === 0 && <li>Todavía no hiciste recargas.</li>}
+          </ul>
+        </Card>
+      </div>
     </div>
   );
 }

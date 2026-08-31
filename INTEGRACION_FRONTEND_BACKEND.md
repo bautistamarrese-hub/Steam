@@ -21,7 +21,7 @@ porque esos campos no existen en el modelo actual de `Juego`.
 | Flujo | Endpoint del backend | Consumidor del frontend |
 | --- | --- | --- |
 | Registrar usuario | `POST /api/usuarios/` | `registrarUsuario` |
-| Buscar sesión por email | `GET /api/usuarios/?email=` | `iniciarSesion` |
+| Iniciar sesión | `POST /api/usuarios/login` | `iniciarSesion` |
 | Listar/obtener usuarios | `GET /api/usuarios/`, `GET /api/usuarios/{id}` | comunidad, sesión y autores de reseñas |
 | Crear/listar/obtener desarrolladores | `POST`, `GET /api/desarrolladores/`, `GET /api/desarrolladores/{id}` | registro admin y panel dev |
 | Publicar/listar/detallar juegos | `POST`, `GET /api/juegos/`, `GET /api/juegos/{id}` | tienda, panel dev y detalle |
@@ -34,18 +34,19 @@ porque esos campos no existen en el modelo actual de `Juego`.
 | Logros del juego | `GET`, `POST /api/juegos/{id}/logros` | detalle y panel dev |
 | Logros desbloqueados | `GET /api/usuarios/{id}/logros`, `POST /api/usuarios/{id}/logros/{logro_id}` | detalle y perfil público |
 | Amigos | `GET`, `POST /api/usuarios/{id}/amigos`; `DELETE /api/usuarios/{id}/amigos/{amigo_id}` | comunidad y perfil público |
+| Solicitudes de amistad | `POST /api/solicitudes`; `PUT`, `DELETE /api/solicitudes/{id}`; `GET /api/usuarios/{id}/solicitudes/{recibidas,enviadas}` | comunidad y perfil público |
 | Rankings | `GET /api/juegos/top-ventas`, `GET /api/juegos/mejor-valorados` | top |
 | Estadísticas | `GET /api/usuarios/{id}/estadisticas` | perfil y comunidad |
 
 ## Huecos pendientes
 
-### 1. Autenticación real
+### 1. Autorización de endpoints
 
-No existe `POST /api/auth/login`, contraseña en el formulario, emisión de JWT
-ni autorización por rol. Para conservar el flujo existente, el login busca el
-email con `GET /api/usuarios/?email=`. Esto sirve para desarrollo, pero no es
-seguro para producción. El backend guarda temporalmente
-`autenticacion-pendiente` en `password_hash` al registrar.
+El registro deriva la contraseña con PBKDF2-SHA256 y el login valida email y
+contraseña mediante `POST /api/usuarios/login`. Todavía no se emite un token ni
+se comprueba la identidad o el rol al mutar recursos: la sesión actual sólo se
+conserva en el navegador. Antes de producción hay que agregar tokens o cookies
+seguras y autorización en cada endpoint protegido.
 
 ### 2. Contenido editorial de juegos
 
@@ -70,10 +71,14 @@ repositorio todavía no contiene una revisión Alembic para hacerlo de forma
 automática. Para una base que ya usa `usuarios`, el script
 `src/db/migrations/20260831_usuario_rol.sql` agrega el rol y la relación con el
 estudio sin borrar datos.
+El script `src/db/migrations/20260831_auth_solicitudes.sql` crea las solicitudes
+de amistad. Las cuentas anteriores cuyo hash sea `autenticacion-pendiente`
+necesitan un restablecimiento de contraseña; las cuentas nuevas ya son compatibles.
 
 ## Verificación automatizada
 
 `backend/tests/test_flows.py` cubre registro y persistencia de rol, CORS,
 publicación, búsqueda, recargas, compra transaccional, wishlist, biblioteca,
-reseñas editables, logros, amistades bidireccionales, estadísticas y rankings.
+reseñas editables, logros, amistades bidireccionales, solicitudes, login con
+contraseña, estadísticas y rankings.
 Se ejecuta contra SQLite aislado con `pytest -q` y no modifica la base local.
