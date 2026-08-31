@@ -12,6 +12,19 @@ class ErrorHandlerMiddleware(BaseHTTPMiddleware):
                 status_code=getattr(exc, "status_code", status.HTTP_400_BAD_REQUEST),
                 content={"detail": exc.message if hasattr(exc, "message") else str(exc)}
             )
+        except UnicodeDecodeError:
+            # En Windows, PostgreSQL puede devolver errores de autenticacion en
+            # la pagina de codigos local y psycopg2 intenta leerlos como UTF-8.
+            # El resultado original oculta la causa real con un error de codec.
+            return JSONResponse(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                content={
+                    "detail": (
+                        "No se pudo autenticar con PostgreSQL. Revisá el usuario y la "
+                        "contraseña de DATABASE_URL en backend/.env."
+                    )
+                },
+            )
         except ValueError as exc:
             return JSONResponse(
                 status_code=status.HTTP_400_BAD_REQUEST,

@@ -29,7 +29,9 @@ Estructura base de un proyecto en capas (routers, services, repositories, models
 3) Activar el entorno virtual: `venv\Scripts\Activate.ps1`
 Recordatorio: Verificar de tener los permisos para poder hacerlo. Estos se habilitan ejecutando: `Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser`
 4) Una vez que estas dentro del (venv), instalar las dependencias: `pip install -r requirements.txt`
-5) Chequear de que el .env este completo y correcto
+5) Chequear que `.env` tenga las credenciales reales de PostgreSQL. El usuario
+   habitual de una instalación local es `postgres`; reemplazá
+   `TU_PASSWORD_DE_POSTGRES` por la contraseña elegida durante la instalación.
 6) Levantar la api con: `uvicorn src.app:app --reload`
 
 
