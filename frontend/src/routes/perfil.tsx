@@ -2,7 +2,16 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { Award, Coins, CreditCard, Gamepad2, Trophy, Users } from "lucide-react";
+import {
+  AlertTriangle,
+  Award,
+  Coins,
+  CreditCard,
+  Gamepad2,
+  RefreshCw,
+  Trophy,
+  Users,
+} from "lucide-react";
 import { AvatarGamer } from "@/components/AvatarGamer";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -23,6 +32,16 @@ import {
   soloDigitos,
 } from "@/lib/api";
 import { useSesion, useUsuario } from "@/lib/sesion";
+import type { EstadisticasUsuario } from "@/lib/types";
+
+const ESTADISTICAS_VACIAS: EstadisticasUsuario = {
+  total_gastado: 0,
+  cantidad_juegos: 0,
+  logros_desbloqueados: 0,
+  puntos_totales: 0,
+  cantidad_amigos: 0,
+  top_completados: [],
+};
 
 export const Route = createFileRoute("/perfil")({
   head: () => ({
@@ -46,27 +65,49 @@ function Perfil() {
   const [monto, setMonto] = useState("1000");
   const [tarjeta, setTarjeta] = useState("");
 
-  const { data: stats } = useQuery({
+  const statsQuery = useQuery({
     queryKey: ["estadisticas", usuario.id],
     queryFn: () => estadisticas(usuario.id),
+    throwOnError: false,
   });
-  const { data: recargas = [] } = useQuery({
+  const recargasQuery = useQuery({
     queryKey: ["recargas", usuario.id],
     queryFn: () => listarRecargas(usuario.id),
+    throwOnError: false,
   });
-  const { data: dev } = useQuery({
+  const devQuery = useQuery({
     queryKey: ["desarrollador", usuario.desarrollador_id],
     queryFn: () => obtenerDesarrollador(usuario.desarrollador_id!),
     enabled: Boolean(usuario.desarrollador_id),
+    throwOnError: false,
   });
-  const { data: misJuegos = [] } = useQuery({
+  const juegosQuery = useQuery({
     queryKey: ["juegos-desarrollador", usuario.desarrollador_id],
     queryFn: () => juegosDeDesarrollador(usuario.desarrollador_id!),
     enabled: Boolean(usuario.desarrollador_id),
+    throwOnError: false,
   });
 
-  if (!stats)
+  if (statsQuery.isPending)
     return <p className="px-4 py-24 text-center text-muted-foreground">Cargando perfil...</p>;
+
+  const stats = statsQuery.data ?? ESTADISTICAS_VACIAS;
+  const recargas = recargasQuery.data ?? [];
+  const dev = devQuery.data;
+  const misJuegos = juegosQuery.data ?? [];
+  const hayError =
+    statsQuery.isError || recargasQuery.isError || devQuery.isError || juegosQuery.isError;
+
+  const reintentarPerfil = async () => {
+    await Promise.all([
+      queryClient.invalidateQueries({ queryKey: ["estadisticas", usuario.id] }),
+      queryClient.invalidateQueries({ queryKey: ["recargas", usuario.id] }),
+      queryClient.invalidateQueries({ queryKey: ["desarrollador", usuario.desarrollador_id] }),
+      queryClient.invalidateQueries({
+        queryKey: ["juegos-desarrollador", usuario.desarrollador_id],
+      }),
+    ]);
+  };
 
   const accion = async (fn: () => Promise<unknown>, ok: string) => {
     try {
@@ -108,6 +149,19 @@ function Perfil() {
           </p>
         </div>
       </div>
+
+      {hayError && (
+        <Card className="mt-6 flex flex-row items-center gap-3 border-destructive/50 p-4">
+          <AlertTriangle className="h-5 w-5 shrink-0 text-destructive" />
+          <p className="flex-1 text-sm text-muted-foreground">
+            Algunos datos del perfil no pudieron actualizarse. Podés seguir navegando y volver a
+            cargarlos.
+          </p>
+          <Button variant="secondary" size="sm" onClick={reintentarPerfil}>
+            <RefreshCw className="h-4 w-4" /> Reintentar
+          </Button>
+        </Card>
+      )}
 
       <div className="mt-8 grid gap-3 sm:grid-cols-3 lg:grid-cols-5">
         {cards.map((c) => (
