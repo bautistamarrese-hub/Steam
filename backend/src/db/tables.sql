@@ -47,6 +47,13 @@ CREATE TABLE compra (
     FOREIGN KEY (juego_id) REFERENCES juego(id)
 );
 
+CREATE TABLE recarga (
+    id SERIAL PRIMARY KEY,
+    usuario_id INT NOT NULL REFERENCES usuarios(id) ON DELETE CASCADE,
+    monto NUMERIC(10, 2) NOT NULL CHECK (monto >= 100),
+    fecha TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
 CREATE TABLE logrodesbloqueado (
     usuario_id INT NOT NULL,
     logro_id INT NOT NULL,

@@ -60,6 +60,12 @@ psql -U postgres -d steamdb -f .\src\db\migrations\20260831_usuarios_auth.sql
 Corrige la tabla antigua `usuario` y agrega los campos necesarios para crear
 cuentas e iniciar sesion.
 
+Aplicá también el historial de recargas si tu base ya existía:
+
+```powershell
+psql -U postgres -d steamdb -f .\src\db\migrations\20260831_recarga.sql
+```
+
 Abrir http://localhost:8000/docs para ver Swagger.
 
 http://localhost:8080/
