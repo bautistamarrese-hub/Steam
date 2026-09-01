@@ -50,6 +50,16 @@ cp .env.example .env               # editá con tus credenciales
 uvicorn src.app:app --reload
 ```
 
+Si ya habias creado la base con una version anterior del proyecto, aplica una
+vez esta migracion antes de levantar la API:
+
+```powershell
+psql -U postgres -d steamdb -f .\src\db\migrations\20260831_usuarios_auth.sql
+```
+
+Corrige la tabla antigua `usuario` y agrega los campos necesarios para crear
+cuentas e iniciar sesion.
+
 Abrir http://localhost:8000/docs para ver Swagger.
 
 http://localhost:8080/
