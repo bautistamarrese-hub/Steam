@@ -35,6 +35,11 @@ export interface Juego {
   imagen: string;
   /** Capturas adicionales del juego. */
   galeria?: string[];
+  /** Archivo original enviado por el desarrollador. */
+  archivo_nombre?: string;
+  /** URL del index web que puede reproducirse dentro de la plataforma. */
+  archivo_url?: string;
+  es_jugable?: boolean;
 }
 
 export interface Compra {

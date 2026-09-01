@@ -19,6 +19,9 @@ class GetJuegoSchema(BaseModel):
     precio: float
     fecha_lanzamiento: date | None
     genero: str
+    archivo_nombre: str | None = None
+    archivo_url: str | None = None
+    es_jugable: bool = False
 
 
 class GetJuegoTopSchema(GetJuegoSchema):

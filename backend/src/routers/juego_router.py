@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, Query, status
+from fastapi import APIRouter, Depends, File, Query, UploadFile, status
 from sqlalchemy.orm import Session
 from src.db.connection import get_db
 
@@ -13,6 +13,13 @@ router = APIRouter(prefix="/juegos", tags=["juegos"])
 @router.post("/", response_model=GetJuegoSchema, status_code=status.HTTP_201_CREATED)
 def publicar_juego(payload: CreateJuegoSchema, db: Session = Depends(get_db)):
     return JuegoService(db).publicar(payload)
+
+
+@router.post("/{id}/archivo", response_model=GetJuegoSchema)
+async def subir_archivo_juego(
+    id: int, archivo: UploadFile = File(...), db: Session = Depends(get_db)
+):
+    return await JuegoService(db).guardar_archivo(id, archivo)
 
 @router.get("/", response_model=list[GetJuegoSchema])
 def listar_juegos(

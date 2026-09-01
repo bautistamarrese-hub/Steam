@@ -69,6 +69,28 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   return response.json() as Promise<T>;
 }
 
+async function requestArchivo<T>(path: string, archivo: File): Promise<T> {
+  let response: Response;
+  try {
+    const data = new FormData();
+    data.append("archivo", archivo);
+    response = await fetch(`${BASE_URL}${path}`, { method: "POST", body: data });
+  } catch {
+    throw new ApiError("No se pudo conectar con la API. Verificá que el backend esté iniciado.");
+  }
+  if (!response.ok) {
+    let message = `La API respondió ${response.status}.`;
+    try {
+      const body = (await response.json()) as { detail?: string };
+      if (body.detail) message = body.detail;
+    } catch {
+      // La respuesta de error no era JSON.
+    }
+    throw new ApiError(message, response.status);
+  }
+  return response.json() as Promise<T>;
+}
+
 type UsuarioApi = Omit<Usuario, "password" | "desarrollador_id"> & {
   desarrollador_id: number | null;
 };
@@ -100,6 +122,7 @@ const adaptarJuego = (juego: JuegoApi): Juego => {
   );
   return {
     ...juego,
+    ...(juego.archivo_url ? { archivo_url: new URL(juego.archivo_url, BASE_URL).toString() } : {}),
     fecha_lanzamiento: juego.fecha_lanzamiento ?? "",
     genero: juego.genero as Genero,
     descripcion: presentacion?.descripcion ?? "Sin descripción disponible.",
@@ -186,6 +209,9 @@ export async function publicarJuego(
     }),
   );
 }
+
+export const subirArchivoJuego = async (juegoId: number, archivo: File): Promise<Juego> =>
+  adaptarJuego(await requestArchivo<JuegoApi>(`/juegos/${juegoId}/archivo`, archivo));
 
 export async function listarJuegos(filtros?: {
   genero?: Genero | "todos";

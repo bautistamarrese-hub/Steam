@@ -1,3 +1,9 @@
+import shutil
+from pathlib import Path, PurePosixPath
+from urllib.parse import quote
+from zipfile import BadZipFile, ZipFile
+
+from fastapi import UploadFile
 from sqlalchemy import case, desc, func
 from sqlalchemy.orm import Session
 
@@ -68,6 +74,85 @@ class JuegoService:
         if not juego:
             raise ValueError("El juego no existe.")
         return juego
+
+    async def guardar_archivo(self, juego_id: int, archivo: UploadFile) -> Juego:
+        """Guarda un juego web y deja una URL segura para ejecutarlo en un iframe.
+
+        Solo se admiten HTML suelto o ZIP con un ``index.html``. Ejecutables de
+        escritorio no pueden correrse desde el navegador y no se aceptan para
+        evitar publicar binarios que la plataforma no puede jugar.
+        """
+        juego = self.obtener_juego(juego_id)
+        nombre = Path(archivo.filename or "").name
+        extension = Path(nombre).suffix.lower()
+        if extension not in {".html", ".htm", ".zip"}:
+            raise ValueError("Subí un archivo .html o un .zip que contenga index.html.")
+
+        raiz = Path(__file__).resolve().parents[2] / "storage" / "games" / str(juego_id)
+        if raiz.exists():
+            shutil.rmtree(raiz)
+        raiz.mkdir(parents=True, exist_ok=True)
+
+        try:
+            if extension in {".html", ".htm"}:
+                destino = raiz / "index.html"
+                await self._guardar_stream(archivo, destino)
+                ruta_inicio = "index.html"
+            else:
+                comprimido = raiz / "juego.zip"
+                await self._guardar_stream(archivo, comprimido)
+                ruta_inicio = self._extraer_zip_jugable(comprimido, raiz)
+        except ValueError:
+            shutil.rmtree(raiz, ignore_errors=True)
+            raise
+        except (BadZipFile, OSError) as exc:
+            shutil.rmtree(raiz, ignore_errors=True)
+            raise ValueError("No se pudo procesar el archivo del juego.") from exc
+        finally:
+            await archivo.close()
+
+        juego.archivo_nombre = nombre
+        juego.archivo_url = f"/uploads/games/{juego_id}/{quote(ruta_inicio)}"
+        juego.es_jugable = True
+        self.db.commit()
+        self.db.refresh(juego)
+        return juego
+
+    @staticmethod
+    async def _guardar_stream(archivo: UploadFile, destino: Path) -> None:
+        limite = 100 * 1024 * 1024
+        total = 0
+        with destino.open("wb") as salida:
+            while bloque := await archivo.read(1024 * 1024):
+                total += len(bloque)
+                if total > limite:
+                    raise ValueError("El archivo del juego no puede superar los 100 MB.")
+                salida.write(bloque)
+
+    @staticmethod
+    def _extraer_zip_jugable(comprimido: Path, raiz: Path) -> str:
+        with ZipFile(comprimido) as zip_file:
+            archivos = [item for item in zip_file.infolist() if not item.is_dir()]
+            if len(archivos) > 500:
+                raise ValueError("El ZIP contiene demasiados archivos.")
+            if sum(item.file_size for item in archivos) > 200 * 1024 * 1024:
+                raise ValueError("El contenido descomprimido no puede superar los 200 MB.")
+
+            inicio = None
+            for item in archivos:
+                ruta = PurePosixPath(item.filename.replace("\\", "/"))
+                if ruta.is_absolute() or ".." in ruta.parts:
+                    raise ValueError("El ZIP contiene rutas no permitidas.")
+                if ruta.name.lower() == "index.html" and inicio is None:
+                    inicio = ruta.as_posix()
+                destino = raiz.joinpath(*ruta.parts)
+                destino.parent.mkdir(parents=True, exist_ok=True)
+                with zip_file.open(item) as origen, destino.open("wb") as salida:
+                    shutil.copyfileobj(origen, salida)
+
+        if not inicio:
+            raise ValueError("El ZIP debe incluir un archivo index.html para poder jugarlo.")
+        return inicio
 
     def crear_logro(self, juego_id: int, payload) -> Logro:
         self.obtener_juego(juego_id)

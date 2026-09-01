@@ -66,6 +66,18 @@ Aplicá también el historial de recargas si tu base ya existía:
 psql -U postgres -d steamdb -f .\src\db\migrations\20260831_recarga.sql
 ```
 
+Para habilitar la subida y ejecución de juegos web, instalá las dependencias
+actualizadas y aplicá la migración correspondiente:
+
+```powershell
+pip install -r requirements.txt
+psql -U postgres -d steamdb -f .\src\db\migrations\20260831_juegos_archivos.sql
+```
+
+Los juegos reproducibles deben ser un archivo `.html` o un `.zip` que incluya
+un `index.html`. Los archivos subidos se guardan localmente en `backend/storage`
+y por eso no se incluyen en Git.
+
 Abrir http://localhost:8000/docs para ver Swagger.
 
 http://localhost:8080/

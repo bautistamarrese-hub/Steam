@@ -24,6 +24,9 @@ CREATE TABLE juego (
     precio DECIMAL(10, 2) NOT NULL,
     fecha_lanzamiento DATE,
     genero VARCHAR(50),
+    archivo_nombre VARCHAR(255),
+    archivo_url VARCHAR(500),
+    es_jugable BOOLEAN NOT NULL DEFAULT FALSE,
     FOREIGN KEY (desarrollador_id) REFERENCES desarrollador(id)
 );
 
