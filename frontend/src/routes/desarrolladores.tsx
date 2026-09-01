@@ -1,6 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState } from "react";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -21,10 +20,7 @@ export const Route = createFileRoute("/desarrolladores")({
   head: () => ({
     meta: [
       { title: "Panel de desarrollador — Steamn't" },
-      {
-        name: "description",
-        content: "Publicá y administrá los juegos de tu estudio en Steamn't.",
-      },
+      { name: "description", content: "Publicá y administrá los juegos de tu estudio en Steamn't." },
       { property: "og:title", content: "Panel de desarrollador — Steamn't" },
       { property: "og:description", content: "Publicá juegos bajo el nombre de tu estudio." },
       { property: "og:type", content: "website" },
@@ -48,31 +44,20 @@ const GENEROS: Genero[] = [
 function Desarrolladores() {
   const usuario = useUsuario();
   const { esAdmin } = useSesion();
-  const queryClient = useQueryClient();
+  const [tick, setTick] = useState(0);
   const [titulo, setTitulo] = useState("");
   const [precio, setPrecio] = useState("0");
   const [resumen, setResumen] = useState("");
   const [genero, setGenero] = useState<Genero>("Indie");
-  const [publicando, setPublicando] = useState(false);
-
-  const { data: dev } = useQuery({
-    queryKey: ["desarrollador", usuario.desarrollador_id],
-    queryFn: () => obtenerDesarrollador(usuario.desarrollador_id!),
-    enabled: Boolean(esAdmin && usuario.desarrollador_id),
-  });
-  const { data: misJuegos = [] } = useQuery({
-    queryKey: ["juegos-desarrollador", usuario.desarrollador_id],
-    queryFn: () => juegosDeDesarrollador(usuario.desarrollador_id!),
-    enabled: Boolean(esAdmin && usuario.desarrollador_id),
-  });
+  const [archivo, setArchivo] = useState<File | null>(null);
 
   if (!esAdmin || !usuario.desarrollador_id) {
     return (
       <div className="mx-auto max-w-2xl px-4 py-24 text-center">
         <h1 className="text-2xl font-bold">Panel exclusivo de desarrolladores</h1>
         <p className="mt-3 text-muted-foreground">
-          Esta sección es solo para cuentas de desarrollador. Con tu cuenta de jugador podés comprar
-          juegos, armar tu wishlist y desbloquear logros.
+          Esta sección es solo para cuentas de desarrollador. Con tu cuenta de jugador podés
+          comprar juegos, armar tu wishlist y desbloquear logros.
         </p>
         <Button asChild className="mt-6">
           <Link to="/">Ir a la tienda</Link>
@@ -81,15 +66,13 @@ function Desarrolladores() {
     );
   }
 
-  if (!dev)
-    return <p className="px-4 py-24 text-center text-muted-foreground">Cargando panel...</p>;
+  const dev = obtenerDesarrollador(usuario.desarrollador_id)!;
+  const misJuegos = juegosDeDesarrollador(dev.id); // GET /desarrolladores/{id}/juegos
 
-  const publicar = async () => {
-    if (publicando) return;
-    setPublicando(true);
+  const publicar = () => {
     try {
       // El estudio siempre es el de la sesión activa
-      await publicarJuego({
+      publicarJuego({
         titulo,
         desarrollador_id: dev.id,
         precio: Number(precio),
@@ -98,15 +81,18 @@ function Desarrolladores() {
         descripcion: resumen || "Nuevo lanzamiento publicado desde el panel de desarrolladores.",
         ...(resumen ? { resumen } : {}),
       });
+      // POST /juegos/{id}/archivo  (multipart/form-data: archivo del juego)
       setTitulo("");
       setResumen("");
-      setPrecio("0");
-      await queryClient.invalidateQueries({ queryKey: ["juegos-desarrollador", dev.id] });
-      toast.success(`Juego publicado como ${dev.nombre}`);
+      setArchivo(null);
+      setTick(tick + 1);
+      toast.success(
+        archivo
+          ? `Juego publicado como ${dev.nombre} (archivo: ${archivo.name})`
+          : `Juego publicado como ${dev.nombre}`,
+      );
     } catch (e) {
       toast.error(e instanceof ApiError ? e.message : "Ocurrió un error");
-    } finally {
-      setPublicando(false);
     }
   };
 
@@ -159,9 +145,23 @@ function Desarrolladores() {
             <Input id="resumen" value={resumen} onChange={(e) => setResumen(e.target.value)} />
           </div>
         </div>
+        <div className="mt-4 space-y-1">
+          <Label htmlFor="archivo">Archivo del juego</Label>
+          <Input
+            id="archivo"
+            type="file"
+            className="cursor-pointer"
+            onChange={(e) => setArchivo(e.target.files?.[0] ?? null)}
+          />
+          <p className="text-xs text-muted-foreground">
+            {archivo
+              ? `Seleccionado: ${archivo.name} (${(archivo.size / 1024 / 1024).toFixed(2)} MB)`
+              : "Subí el ejecutable o comprimido del juego (.zip, .exe, .apk)."}
+          </p>
+        </div>
         {/* POST /juegos  body: { titulo, desarrollador_id (de la sesión), precio, genero } */}
-        <Button className="mt-4 w-fit" onClick={publicar} disabled={publicando}>
-          {publicando ? "Publicando..." : "Publicar juego"}
+        <Button className="mt-4 w-fit" onClick={publicar}>
+          Publicar juego
         </Button>
       </Card>
 
