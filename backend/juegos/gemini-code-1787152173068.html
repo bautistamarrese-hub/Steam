@@ -1,0 +1,1394 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Mesa de Suerte — Balatro Style</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Silkscreen:wght@400;700&family=VT323&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg-felt: #1a4231;
+    --bg-dark: #0d1117;
+    --panel-bg: #1e262c;
+    --panel-border: #101418;
+    --card-bg: #28323a;
+    --gold: #f39c12;
+    --gold-bright: #ffcc00;
+    --red: #e63946;
+    --blue: #0066cc;
+    --green: #2a9d8f;
+    --orange: #ff8800;
+    --purple: #8e44ad;
+    --cream: #f4ecd8;
+    --shadow: rgba(0,0,0,0.8);
+  }
+
+  * { box-sizing: border-box; }
+  html, body { height: 100%; margin: 0; padding: 0; }
+  body {
+    background: radial-gradient(circle at 50% 50%, #1e4d3a 0%, #112d22 60%, #0a1c15 100%);
+    font-family: 'Silkscreen', 'Press Start 2P', monospace, sans-serif;
+    color: var(--cream);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 8px;
+    user-select: none;
+    overflow: hidden;
+  }
+
+  .num {
+    font-family: 'VT323', monospace !important;
+    font-weight: normal;
+    font-size: 1.4em;
+    line-height: 1;
+    letter-spacing: 1px;
+  }
+
+  .hidden { display: none !important; }
+
+  #app { width: 100%; max-width: 1180px; display: flex; flex-direction: column; gap: 8px; }
+
+  #gameLayout { display: flex; gap: 12px; align-items: stretch; height: 100%; }
+
+  #sidebar {
+    flex: 0 0 240px;
+    background: #182026;
+    border: 4px solid #0a0d10;
+    border-radius: 4px;
+    padding: 8px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    box-shadow: 4px 4px 0px rgba(0,0,0,0.6);
+  }
+
+  .shop-marquee {
+    background: #0d1114;
+    border: 3px solid var(--red);
+    border-radius: 4px;
+    padding: 6px;
+    text-align: center;
+    box-shadow: inset 0 0 8px rgba(0,0,0,0.9);
+  }
+  .shop-marquee .title-text {
+    font-family: 'Press Start 2P', monospace;
+    font-size: 18px; color: #ffea00;
+    text-shadow: 2px 2px 0 #b30000;
+    letter-spacing: 1px; margin: 0; line-height: 1.2;
+  }
+  .shop-marquee .sub-text { font-size: 10px; color: #ff8a80; margin-top: 4px; font-weight: 700; }
+
+  .sb-box {
+    background: #0f1418;
+    border-radius: 4px;
+    padding: 6px 8px;
+    border: 2px solid #28343e;
+  }
+  .sb-label { font-size: 9px; color: #8a9ba8; text-transform: uppercase; font-weight: 700; }
+
+  /* Boss Box Indicator */
+  .boss-box {
+    background: #22080a;
+    border: 2px solid var(--red);
+    border-radius: 4px;
+    padding: 6px;
+    text-align: center;
+    box-shadow: inset 0 0 6px rgba(230, 57, 70, 0.4);
+  }
+  .boss-box .boss-title { font-size: 9px; color: var(--red); font-weight: 800; text-transform: uppercase; margin-bottom: 2px; }
+  .boss-box .boss-desc { font-size: 10px; color: #fff; line-height: 1.2; }
+
+  .round-score-box { display: flex; justify-content: space-between; align-items: center; }
+  .chip-pill {
+    background: #1a232a; border-radius: 4px; padding: 2px 8px;
+    font-size: 22px; color: #fff; display: flex; align-items: center; gap: 4px;
+    border: 1px solid #3a4b58;
+  }
+
+  .chips-mult-container {
+    display: flex; gap: 4px; align-items: center; justify-content: center;
+  }
+  .box-chips {
+    flex: 1; background: var(--blue); color: #fff; text-align: center;
+    font-size: 32px; border-radius: 4px; padding: 4px 2px; border: 3px solid #003388;
+    box-shadow: inset 0 -4px 0 rgba(0,0,0,0.3);
+  }
+  .box-mult {
+    flex: 1; background: var(--red); color: #fff; text-align: center;
+    font-size: 32px; border-radius: 4px; padding: 4px 2px; border: 3px solid #880000;
+    box-shadow: inset 0 -4px 0 rgba(0,0,0,0.3);
+  }
+  .op-x { font-size: 18px; color: var(--red); font-weight: 800; }
+
+  .sb-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 6px; }
+  .grid-btn {
+    border: 2px solid #000; border-radius: 4px; font-family: inherit; font-weight: 700;
+    font-size: 10px; cursor: pointer; color: #fff; text-align: center;
+    padding: 8px 2px; display: flex; flex-direction: column; align-items: center; justify-content: center;
+    box-shadow: 0 3px 0 #000; transition: transform 0.05s;
+  }
+  .grid-btn:active { transform: translateY(2px); box-shadow: 0 1px 0 #000; }
+  .btn-run-info { background: var(--red); grid-row: span 2; font-size: 10px; line-height: 1.2; }
+  .btn-options { background: var(--orange); }
+  
+  .val-box {
+    background: #0f1418; border-radius: 4px; border: 2px solid #28343e;
+    display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 4px 2px;
+  }
+  .val-box.blue { border-color: var(--blue); }
+  .val-box.red { border-color: var(--red); }
+  .val-box.gold { border-color: var(--gold); }
+  .val-box .num { font-size: 26px; line-height: 1; }
+
+  .btn-debug-toggle {
+    background: var(--purple); color: #fff; border: 2px solid #000;
+    padding: 8px; border-radius: 4px; font-weight: 800; cursor: pointer;
+    text-align: center; font-size: 10px; margin-top: auto; box-shadow: 0 3px 0 #000;
+  }
+
+  #table { flex: 1; display: flex; flex-direction: column; gap: 8px; position: relative; }
+
+  .top-slots-container { display: flex; gap: 10px; min-height: 120px; }
+  .joker-slot-zone {
+    flex: 5; background: rgba(0,0,0,0.35); border: 2px dashed rgba(255,255,255,0.2);
+    border-radius: 4px; padding: 6px; display: flex; gap: 8px; align-items: center; position: relative;
+    overflow-x: auto;
+  }
+  .consumable-slot-zone {
+    flex: 2; background: rgba(0,0,0,0.35); border: 2px dashed rgba(255,255,255,0.2);
+    border-radius: 4px; padding: 6px; display: flex; gap: 8px; align-items: center; position: relative;
+    overflow-x: auto;
+  }
+  .slot-counter {
+    position: absolute; bottom: 4px; font-size: 14px; color: rgba(255,255,255,0.6);
+  }
+  .joker-slot-zone .slot-counter { left: 8px; }
+  .consumable-slot-zone .slot-counter { right: 8px; }
+
+  .joker-card {
+    width: 72px; height: 104px; background: #fff; color: #111;
+    border-radius: 4px; border: 2px solid #0a0a0a; position: relative;
+    display: flex; flex-direction: column; align-items: center; justify-content: space-between;
+    padding: 4px; box-shadow: 0 4px 0 rgba(0,0,0,0.5); cursor: pointer;
+    animation: jokerFloat 3s ease-in-out infinite; flex-shrink: 0;
+  }
+  .joker-card:nth-child(even) { animation-delay: 1.5s; }
+  @keyframes jokerFloat { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-3px)} }
+  
+  .joker-card.trigger { animation: jokerPop .3s ease-out !important; z-index: 20; }
+  @keyframes jokerPop {
+    0%{ transform:scale(1); }
+    50%{ transform:scale(1.2) translateY(-8px); filter:brightness(1.3); }
+    100%{ transform:scale(1); }
+  }
+
+  .joker-card .j-art {
+    width: 100%; height: 50px; background: #eef2f5; border-radius: 2px;
+    display: flex; align-items: center; justify-content: center; font-size: 28px;
+    border: 1px solid #ccc;
+  }
+  .joker-card .j-name { font-size: 8px; font-weight: 800; text-align: center; line-height: 1; color: #000; }
+  .joker-card .jsell {
+    font-size: 8px; background: #ffdddd; color: #cc0000; border: 1px solid #ffaa00;
+    padding: 1px 4px; border-radius: 2px; font-weight: 800;
+  }
+
+  .joker-card.tarot-card { background: #2a1f18; border-color: var(--gold); color: var(--cream); }
+  .joker-card.tarot-card .j-art { background: #16100b; border-color: #443322; }
+  .joker-card.tarot-card .j-name { color: var(--gold-bright); }
+  .joker-card.tarot-card .jsell { background: #443311; color: var(--gold-bright); border-color: var(--gold); }
+
+  .joker-card .jtooltip {
+    position: absolute; bottom: 110%; left: 50%; transform: translateX(-50%);
+    width: 150px; background: #0c1014; border: 2px solid var(--gold);
+    border-radius: 4px; padding: 6px; font-size: 9px; color: #fff;
+    pointer-events: none; opacity: 0; transition: opacity .1s; z-index: 30;
+    text-align: center; box-shadow: 0 4px 10px rgba(0,0,0,0.9);
+  }
+  .joker-card:hover .jtooltip { opacity: 1; }
+
+  .joker-floattag {
+    position: absolute; top: -10px; left: 50%; transform: translateX(-50%);
+    background: var(--gold-bright); color: #000; font-weight: 800; font-size: 10px;
+    padding: 2px 6px; border-radius: 2px; animation: floatTag .6s ease forwards;
+    pointer-events: none; white-space: nowrap; z-index: 25; border: 1px solid #000;
+  }
+  @keyframes floatTag { from{ opacity:1; top:-8px; } to{ opacity:0; top:-24px; } }
+
+  #shopContainer {
+    background: #182026; border: 4px solid #0a0d10; border-radius: 4px;
+    padding: 12px; display: flex; flex-direction: column; gap: 10px;
+    box-shadow: 4px 4px 0px rgba(0,0,0,0.6); min-height: 300px;
+  }
+
+  .shop-row-top { display: flex; gap: 12px; align-items: center; }
+  .shop-actions { display: flex; flex-direction: column; gap: 6px; width: 100px; }
+  .btn-shop-action {
+    height: 44px; border: 2px solid #000; border-radius: 4px; font-weight: 800;
+    font-size: 10px; cursor: pointer; color: #fff; box-shadow: 0 3px 0 #000;
+    font-family: inherit; display: flex; align-items: center; justify-content: center; text-align: center;
+  }
+  .btn-shop-action:active { transform: translateY(2px); box-shadow: 0 1px 0 #000; }
+  .btn-next-round { background: var(--red); }
+  .btn-reroll { background: var(--green); }
+
+  .shop-items-shelf {
+    flex: 1; background: #0d1114; border-radius: 4px; border: 2px solid #28343e;
+    padding: 10px; display: flex; gap: 12px; align-items: center; justify-content: center;
+    min-height: 120px;
+  }
+
+  .shop-item-wrapper { position: relative; }
+  .price-badge {
+    position: absolute; top: -10px; left: 50%; transform: translateX(-50%);
+    background: var(--gold); color: #000; border: 2px solid #000;
+    font-size: 18px; padding: 0px 6px; border-radius: 3px; z-index: 10;
+  }
+
+  .shop-row-bottom { display: flex; gap: 12px; }
+  .voucher-box {
+    width: 200px; background: #0d1114; border-radius: 4px; border: 2px solid #28343e;
+    padding: 8px; display: flex; align-items: center; gap: 8px; position: relative;
+  }
+  .voucher-tag {
+    writing-mode: vertical-rl; transform: rotate(180deg); font-size: 9px;
+    color: #5a6e7d; font-weight: 800; letter-spacing: 1px;
+  }
+
+  .booster-shelf {
+    flex: 1; background: #0d1114; border-radius: 4px; border: 2px solid #28343e;
+    padding: 8px; display: flex; gap: 12px; align-items: center; justify-content: center;
+  }
+
+  .booster-pack-card {
+    width: 76px; height: 100px; border-radius: 4px;
+    background: linear-gradient(135deg, #8e44ad, #2980b9);
+    border: 2px solid #000; box-shadow: 0 4px 0 rgba(0,0,0,0.5);
+    display: flex; flex-direction: column; align-items: center; justify-content: space-between;
+    padding: 4px; cursor: pointer; position: relative;
+  }
+  .booster-pack-card .pack-title { font-size: 8px; color: #fff; text-align: center; text-transform: uppercase; }
+  .booster-pack-card .pack-art { font-size: 28px; }
+
+  .voucher-card-item {
+    width: 64px; height: 88px; background: linear-gradient(135deg, #0066cc, #003366);
+    border: 2px solid #000; border-radius: 4px; display: flex; flex-direction: column;
+    align-items: center; justify-content: center; gap: 4px; cursor: pointer; position: relative;
+  }
+  .voucher-card-item .v-icon { font-size: 24px; }
+  .voucher-card-item .v-title { font-size: 7px; color: #fff; text-align: center; }
+
+  #handWrap {
+    flex: 1; background: rgba(0,0,0,0.3); border-radius: 4px; border: 2px solid rgba(255,255,255,0.05);
+    padding: 12px 6px 6px; display: flex; align-items: flex-end; justify-content: center; min-height: 180px;
+  }
+  #hand { display: flex; gap: 6px; justify-content: center; }
+  .card {
+    width: 72px; height: 104px; background: #ffffff;
+    border-radius: 4px; border: 2px solid #111; box-shadow: 0 4px 0 rgba(0,0,0,0.4);
+    position: relative; cursor: pointer; display: flex; flex-direction: column;
+    justify-content: space-between; padding: 4px; color: #111; transition: transform .1s;
+  }
+  .card:hover { transform: translateY(-8px); }
+  .card.red { color: var(--red); }
+  .card.muted { filter: grayscale(.8) opacity(.5); }
+  .card.selected { transform: translateY(-18px); box-shadow: 0 8px 0 rgba(0,0,0,0.6), 0 0 0 3px var(--gold-bright); }
+  
+  .card .rank { font-family: 'VT323', monospace; font-size: 26px; line-height: 0.9; }
+  .card .suit-big { position: absolute; top: 50%; left: 50%; transform: translate(-50%,-50%); font-size: 28px; }
+  .card .rank.bottom { align-self: flex-end; transform: rotate(180deg); }
+
+  .card.scoring { animation: cardScore .4s ease; }
+  @keyframes cardScore {
+    0%{ transform:translateY(-18px) scale(1); }
+    50%{ transform:translateY(-30px) scale(1.1); filter:brightness(1.3); }
+    100%{ transform:translateY(-18px) scale(1); }
+  }
+
+  .floatchip {
+    position: absolute; top: -10px; left: 50%; transform: translateX(-50%);
+    font-size: 22px; font-family: 'VT323', monospace; color: var(--blue); animation: floatUp .6s forwards;
+    text-shadow: 1px 1px 0 #000;
+  }
+  @keyframes floatUp { from{opacity:1; top:-10px;} to{opacity:0; top:-28px;} }
+
+  #deckPile { position: absolute; right: 10px; bottom: 10px; text-align: center; font-size: 10px; color: #8a9ba8; }
+  .card-deck-back {
+    width: 46px; height: 64px; border-radius: 3px; background: linear-gradient(135deg, #cc0000, #770000);
+    border: 2px solid #000; margin: 0 auto 2px; box-shadow: -2px 2px 0 #000;
+  }
+
+  #controls { display: flex; gap: 10px; justify-content: center; }
+  .btn-main {
+    font-family: inherit; font-size: 12px; border: 2px solid #000;
+    border-radius: 4px; padding: 10px 18px; cursor: pointer; color: #fff;
+    box-shadow: 0 4px 0 #000; transition: transform .05s;
+  }
+  .btn-main:active { transform: translateY(2px); box-shadow: 0 2px 0 #000; }
+  .btn-main:disabled { opacity: 0.4; cursor: not-allowed; filter: grayscale(.8); }
+  .btn-play-hand { background: var(--blue); }
+  .btn-discard-hand { background: var(--red); }
+  .btn-sort-hand { background: var(--green); }
+  .btn-skip-blind { background: var(--purple); }
+
+  .overlay {
+    position: fixed; inset: 0; background: rgba(5,8,12,0.92);
+    display: flex; align-items: center; justify-content: center; z-index: 100; padding: 12px;
+  }
+
+  #startOverlay {
+    background: radial-gradient(circle at 50% 50%, #b81424 0%, #004080 50%, #050a10 100%);
+    background-size: 200% 200%; animation: hypnoticSwirl 12s ease infinite;
+  }
+  @keyframes hypnoticSwirl { 0% { background-position: 0% 50%; } 50% { background-position: 100% 50%; } 100% { background-position: 0% 50%; } }
+
+  .balatro-menu-container {
+    width: 100%; max-width: 900px; height: 100%; max-height: 520px;
+    display: flex; flex-direction: column; justify-content: space-between;
+    align-items: center; position: relative; padding: 20px 0;
+  }
+
+  .balatro-logo-wrapper { display: flex; align-items: center; justify-content: center; margin-top: 20px; }
+  .balatro-title {
+    font-family: 'Press Start 2P', monospace; font-size: 48px; color: #ffffff;
+    text-shadow: 4px 4px 0 #000, -3px -3px 0 #000, 3px -3px 0 #000, -3px 3px 0 #000, 0 5px 0 #b30000;
+    letter-spacing: 4px; display: flex; align-items: center; gap: 8px;
+  }
+  .balatro-card-logo {
+    width: 50px; height: 72px; background: #fff; border: 3px solid #000; border-radius: 4px;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    color: #111; font-size: 24px; box-shadow: 3px 3px 0 #000; margin: 0 4px;
+  }
+
+  .balatro-bottom-bar {
+    background: #182026; border: 4px solid #0a0d10; border-radius: 6px;
+    padding: 8px; display: flex; gap: 10px; box-shadow: 0 8px 0 rgba(0,0,0,0.8);
+  }
+  .balatro-btn {
+    border: 3px solid #000; border-radius: 4px; font-family: 'Press Start 2P', monospace;
+    font-size: 14px; padding: 14px 20px; cursor: pointer; color: #fff; text-shadow: 2px 2px 0 #000;
+    box-shadow: 0 4px 0 #000; transition: transform .05s; min-width: 130px; text-align: center;
+  }
+  .balatro-btn:active { transform: translateY(2px); box-shadow: 0 2px 0 #000; }
+  .b-btn-blue { background: #0066cc; }
+  .b-btn-orange { background: #ff8800; }
+  .b-btn-red { background: #e63946; }
+  .b-btn-green { background: #2a9d8f; }
+
+  .top-right-version { position: absolute; top: 10px; right: 10px; font-size: 10px; color: rgba(255,255,255,0.7); }
+  .bottom-left-profile {
+    position: absolute; bottom: 10px; left: 10px; background: #182026;
+    border: 3px solid #000; border-radius: 4px; padding: 6px 12px; font-size: 10px;
+    display: flex; flex-direction: column; align-items: center; gap: 2px;
+  }
+  .bottom-right-lang { position: absolute; bottom: 10px; right: 10px; background: #182026; border: 3px solid #000; border-radius: 4px; padding: 6px 12px; font-size: 10px; }
+
+  .modal {
+    background: #182026; border: 4px solid var(--gold); border-radius: 4px;
+    padding: 20px; max-width: 480px; width: 100%; text-align: center; box-shadow: 0 10px 30px var(--shadow);
+  }
+  .modal h2 { color: var(--gold-bright); font-size: 20px; margin: 0 0 10px; font-family: 'Press Start 2P'; }
+  .modal p { color: #8a9ba8; font-size: 11px; margin-bottom: 20px; line-height: 1.4; }
+
+  .booster-stage { min-height: 140px; display: flex; align-items: center; justify-content: center; margin: 10px 0; }
+  .booster-pack-large {
+    width: 100px; height: 140px; border-radius: 4px; border: 3px solid #000;
+    background: linear-gradient(145deg,#8e44ad,#2980b9);
+    display: flex; align-items: center; justify-content: center; color: #fff;
+    font-size: 40px; animation: packFloat 1.2s ease-in-out infinite;
+  }
+  @keyframes packFloat { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-8px)} }
+  @keyframes packOpen { 0% { transform: scale(1); filter: brightness(1); } 50% { transform: scale(1.3) rotate(6deg); filter: brightness(2); } 100% { transform: scale(0); opacity: 0; } }
+  .booster-pack-large.opening { animation: packOpen 0.7s forwards !important; }
+  .booster-choice { display: none; gap: 10px; justify-content: center; flex-wrap: wrap; }
+  .booster-choice.visible { display: flex; }
+</style>
+</head>
+<body>
+
+<div id="app">
+  <div id="gameLayout" class="hidden">
+    <!-- Sidebar -->
+    <div id="sidebar">
+      <div class="shop-marquee">
+        <h1 class="title-text" id="marqueeTitle">SHOP</h1>
+        <div class="sub-text" id="marqueeSub">Improve your run!</div>
+      </div>
+
+      <!-- Indicador de Efecto de Jefe -->
+      <div class="boss-box hidden" id="bossBox">
+        <div class="boss-title" id="bossTitle">EFECTO JEFE</div>
+        <div class="boss-desc" id="bossDesc">...</div>
+      </div>
+
+      <div class="sb-box round-score-box">
+        <div class="sb-label">Round score</div>
+        <div class="chip-pill"><span style="color:var(--blue); font-size:14px;">🔴</span> <span class="num" id="roundScore">0</span></div>
+      </div>
+
+      <div class="chips-mult-container">
+        <div class="box-chips num" id="chipsDisplay">0</div>
+        <div class="op-x">X</div>
+        <div class="box-mult num" id="multDisplay">0</div>
+      </div>
+
+      <div class="sb-grid">
+        <button class="grid-btn btn-run-info" id="btnRunInfo">Run<br>Info</button>
+
+        <div class="val-box blue">
+          <div class="sb-label">Hands</div>
+          <div class="num" id="playsLeft">4</div>
+        </div>
+
+        <div class="val-box red">
+          <div class="sb-label">Discards</div>
+          <div class="num" id="discardsLeft">4</div>
+        </div>
+
+        <button class="grid-btn btn-options" id="btnOptions">Options</button>
+
+        <div class="val-box gold" style="grid-column: span 2;">
+          <div class="num" style="color:var(--gold-bright);" id="money">$10</div>
+        </div>
+
+        <div class="val-box" style="grid-column: span 3; display:flex; flex-direction:row; justify-content:space-around;">
+          <div><span class="sb-label">Ante</span> <span class="num" id="anteDisplay">1/8</span></div>
+          <div><span class="sb-label">Round</span> <span class="num" id="roundDisplay">2</span></div>
+        </div>
+      </div>
+
+      <button class="btn-debug-toggle hidden" id="btnDebugToggle">🛠️ Alternar Tienda/Ronda</button>
+    </div>
+
+    <!-- Central Table -->
+    <div id="table">
+      <div class="top-slots-container">
+        <div class="joker-slot-zone" id="jokerRow">
+          <div class="slot-counter num" id="jokerCount">0/5</div>
+        </div>
+        <div class="consumable-slot-zone" id="consumRow">
+          <div class="slot-counter num" id="consumCount">0/2</div>
+        </div>
+      </div>
+
+      <!-- Shop Container -->
+      <div id="shopContainer" class="hidden">
+        <div class="shop-row-top">
+          <div class="shop-actions">
+            <button class="btn-shop-action btn-next-round" id="btnNextRound">Next<br>Round</button>
+            <button class="btn-shop-action btn-reroll" id="btnRerollShop">Reroll<br>$2</button>
+          </div>
+          <div class="shop-items-shelf" id="shopItemsShelf"></div>
+        </div>
+
+        <div class="shop-row-bottom">
+          <div class="voucher-box">
+            <div class="voucher-tag" id="voucherTag">ANTE 1 VOUCHER</div>
+            <div id="voucherShelf" style="display:flex; justify-content:center; width:100%;"></div>
+          </div>
+          <div class="booster-shelf" id="boosterShelf"></div>
+        </div>
+      </div>
+
+      <!-- Hand Container -->
+      <div id="handArea">
+        <div id="handWrap">
+          <div id="hand"></div>
+          <div id="deckPile">
+            <div class="card-deck-back"></div>
+            <span class="num" id="deckCount">52/52</span>
+          </div>
+        </div>
+
+        <div style="text-align:center; margin-top: 6px; font-size:12px; color:var(--cream);" id="handTypeReadout">Elegí cartas</div>
+
+        <div id="controls" style="margin-top:8px;">
+          <button class="btn-main btn-skip-blind" id="btnSkip">Saltear (+$5)</button>
+          <button class="btn-main btn-discard-hand" id="btnDiscard">Descartar</button>
+          <button class="btn-main btn-sort-hand" id="btnSort">Ordenar ↓</button>
+          <button class="btn-main btn-play-hand" id="btnPlay">Jugar mano</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Menú Principal -->
+<div class="overlay" id="startOverlay">
+  <div class="balatro-menu-container">
+    <div class="top-right-version">1.0.1f-FULL</div>
+
+    <div class="balatro-logo-wrapper">
+      <div class="balatro-title">
+        BARA<div class="balatro-card-logo">♠</div>TO
+      </div>
+    </div>
+
+    <div class="balatro-bottom-bar">
+      <button class="balatro-btn b-btn-blue" id="btnContinue">PLAY</button>
+      <button class="balatro-btn b-btn-orange" id="btnNewGame">NUEVA</button>
+      <button class="balatro-btn b-btn-red" id="btnDebugGame">DEBUG 🛠️</button>
+      <button class="balatro-btn b-btn-green hidden" id="btnDeleteSave">BORRAR</button>
+    </div>
+
+    <div class="bottom-left-profile">
+      <span style="color:#8a9ba8; font-size:8px;">Profile</span>
+      <span style="font-weight:bold;">P1</span>
+    </div>
+
+    <div class="bottom-right-lang">
+      <span>Español</span>
+    </div>
+  </div>
+</div>
+
+<!-- Booster Overlay -->
+<div class="overlay hidden" id="boosterOverlay">
+  <div class="modal" style="max-width:540px;">
+    <h2 id="boosterTitle">Elegí una carta</h2>
+    <p id="boosterSub">Elegí 1 gratis.</p>
+    <div class="booster-stage" id="boosterStage">
+      <div class="booster-pack-large" id="boosterPack">★</div>
+    </div>
+    <div class="booster-choice" id="boosterItems"></div>
+  </div>
+</div>
+
+<!-- Game Over Overlay -->
+<div class="overlay hidden" id="gameOverOverlay">
+  <div class="modal">
+    <h2 id="gameOverTitle">Fin de la partida</h2>
+    <p id="gameOverText"></p>
+    <button class="btn-main btn-play-hand" id="btnRestart">Volver al menú</button>
+  </div>
+</div>
+
+<script>
+(function(){
+  "use strict";
+
+  const SAVE_KEY = 'mesaDeSuerteSave_v3';
+
+  const RANKS = ['2','3','4','5','6','7','8','9','10','J','Q','K','A'];
+  const SUITS = [
+    {sym:'♠', color:'black'}, {sym:'♥', color:'red'},
+    {sym:'♦', color:'red'},   {sym:'♣', color:'black'}
+  ];
+
+  const HAND_TABLE = {
+    'Carta alta':     {chips:5,   mult:1, key:'High Card'},
+    'Par':            {chips:10,  mult:2, key:'Pair'},
+    'Doble par':      {chips:20,  mult:2, key:'Two Pair'},
+    'Trío':           {chips:30,  mult:3, key:'Three of a Kind'},
+    'Escalera':       {chips:30,  mult:4, key:'Straight'},
+    'Color':          {chips:35,  mult:4, key:'Flush'},
+    'Full':           {chips:40,  mult:4, key:'Full House'},
+    'Póker':          {chips:60,  mult:7, key:'Four of a Kind'},
+    'Escalera color': {chips:100, mult:8, key:'Straight Flush'},
+  };
+
+  const JOKER_POOL = [
+    {id:'bolsillo', name:'Bolsillo Extra', icon:'🎒', desc:'Otorga +2 espacios máximos de comodines.', cost:7, apply:()=>({})},
+    {id:'moneda', name:'Moneda Suerte', icon:'🪙', desc:'+4 Multiplicador en toda mano.', cost:5, apply:()=>({multAdd:4, msg:'+4 Mult'})},
+    {id:'fichononota', name:'Fichón', icon:'🎰', desc:'+30 Fichas en toda mano.', cost:5, apply:()=>({chipsAdd:30, msg:'+30 Fichas'})},
+    {id:'parcero', name:'Parcero', icon:'👯', desc:'+3 Multiplicador si la mano es Par o mejor.', cost:4, apply:(ctx)=> ctx.handKey!=='High Card' ? {multAdd:3, msg:'+3 Mult'} : {}},
+    {id:'colorista', name:'Colorista', icon:'🎨', desc:'+30 Fichas cuando jugás un Color.', cost:6, apply:(ctx)=> ctx.handKey.includes('Flush') ? {chipsAdd:30, msg:'+30 Fichas'} : {}},
+    {id:'escalador', name:'Escalador', icon:'🧗', desc:'+5 Multiplicador en Escaleras.', cost:6, apply:(ctx)=> ctx.handKey.includes('Straight') ? {multAdd:5, msg:'+5 Mult'} : {}},
+    {id:'as_alto', name:'As Alto', icon:'🦅', desc:'+2 Mult por cada As que puntúa.', cost:6, apply:(ctx)=>{
+      const count = ctx.scoringCards.filter(c=>c.rank==='A').length;
+      return count>0 ? {multAdd: count*2, msg:`+${count*2} Mult`} : {};
+    }},
+    {id:'figuritas', name:'Figuritas', icon:'👑', desc:'+2 Mult por cada figura (J/Q/K).', cost:6, apply:(ctx)=>{
+      const count = ctx.scoringCards.filter(c=>['J','Q','K'].includes(c.rank)).length;
+      return count>0 ? {multAdd: count*2, msg:`+${count*2} Mult`} : {};
+    }},
+    {id:'doble_apuesta', name:'Doble Apuesta', icon:'🔥', desc:'×1.5 Multiplicador en Trío o mejor.', cost:8, apply:(ctx)=>{
+      const fuertes=['Three of a Kind','Full House','Four of a Kind','Straight Flush'];
+      return fuertes.includes(ctx.handKey) ? {multMul:1.5, msg:'x1.5 Mult'} : {};
+    }},
+    {id:'comodin_salvaje', name:'Comodín Salvaje', icon:'🃏', desc:'×2 Multiplicador en Póker o Escalera Color.', cost:9, apply:(ctx)=> ['Four of a Kind','Straight Flush'].includes(ctx.handKey) ? {multMul:2, msg:'x2 Mult'} : {}},
+    {id:'apilador', name:'Apilador', icon:'🧱', desc:'+3 Fichas por cada carta que puntúa.', cost:5, apply:(ctx)=> ({chipsAdd: ctx.scoringCards.length*3, msg:`+${ctx.scoringCards.length*3} Fichas`})},
+  ];
+
+  const TAROT_POOL = [
+    {id:'juicio', name:'El Juicio', icon:'⚖️', desc:'Aumenta +1 espacio de comodines permanente.', cost:5, maxSel:0, use:()=>{ state.maxJokers += 1; }},
+    {id:'carro', name:'El Carro', icon:'🛒', desc:'Aumenta +1 espacio de consumibles permanente.', cost:4, maxSel:0, use:()=>{ state.maxConsumables += 1; }},
+    {id:'mago', name:'El Mago', icon:'☀️', desc:'Convierte hasta 3 cartas en Ases.', cost:3, maxSel:3, use:(cards)=>{ cards.forEach(c=>{ c.rank='A'; }); }},
+    {id:'emperatriz', name:'La Emperatriz', icon:'🪐', desc:'Ganás $10 al instante.', cost:3, maxSel:0, use:()=>{ state.money += 10; }},
+    {id:'estrella', name:'La Estrella', icon:'⭐', desc:'Convierte hasta 3 cartas en Diamantes ♦.', cost:3, maxSel:3, use:(cards)=>{ cards.forEach(c=>{ c.suit='♦'; c.color='red'; }); }},
+    {id:'sol', name:'El Sol', icon:'🌞', desc:'Convierte hasta 3 cartas en Corazones ♥.', cost:3, maxSel:3, use:(cards)=>{ cards.forEach(c=>{ c.suit='♥'; c.color='red'; }); }},
+    {id:'mundo', name:'El Mundo', icon:'🌍', desc:'Convierte hasta 3 cartas en Picas ♠.', cost:3, maxSel:3, use:(cards)=>{ cards.forEach(c=>{ c.suit='♠'; c.color='black'; }); }},
+    {id:'luna', name:'La Luna', icon:'🌙', desc:'Convierte hasta 3 cartas en Tréboles ♣.', cost:3, maxSel:3, use:(cards)=>{ cards.forEach(c=>{ c.suit='♣'; c.color='black'; }); }},
+  ];
+
+  const VOUCHER_POOL = [
+    {id:'manoplaza', name:'Voucher Jugada', icon:'✋', desc:'+1 Jugada permanente por ronda.', cost:10, apply:()=>{ state.bonusPlays += 1; }},
+    {id:'descarton', name:'Voucher Descarte', icon:'♻️', desc:'+1 Descarte permanente por ronda.', cost:10, apply:()=>{ state.bonusDiscards += 1; }},
+    {id:'descuento', name:'Oferta Especial', icon:'🏷️', desc:'Tirar la tienda (Reroll) cuesta $1.', cost:8, apply:()=>{ state.rerollBaseCost = 1; }},
+  ];
+
+  const BOOSTER_POOL = [
+    {id:'arcano', name:'Arcana Pack', icon:'🔮', desc:'Elegí 1 de 2 tarots gratis.', cost:4, kind:'tarot', count:2},
+    {id:'jumbo', name:'Jumbo Arcana', icon:'✨', desc:'Elegí 1 de 2 comodines gratis.', cost:6, kind:'joker', count:2},
+  ];
+
+  const BOSS_POOL = [
+    {id:'palo_muerto', name:'El Ahogado', desc:'Los corazones ♥ no dan fichas.', pickSuit:'♥'},
+    {id:'palo_negro', name:'El Sepulturero', desc:'Las picas ♠ no dan fichas.', pickSuit:'♠'},
+    {id:'sin_figuras', name:'El Iconoclasta', desc:'Las figuras (J/Q/K) no dan fichas.', noFaces:true},
+    {id:'menos_jugada', name:'El Verdugo', desc:'Empezás con 1 jugada menos.', minusPlay:true},
+    {id:'menos_descarte', name:'El Avaro', desc:'Empezás con 1 descarte menos.', minusDiscard:true},
+  ];
+
+  const BLIND_NAMES = ['Apuesta chica', 'Apuesta grande', 'Apuesta jefe'];
+  const BLIND_MULT = [1, 1.6, 2.4];
+
+  let state = null;
+
+  function freshState(isDebug=false){
+    return {
+      deck: [], hand: [], money: 10, ante: 1, round: 1, blindIndex: 0,
+      blindTarget: 0, roundScore: 0, playsLeft: 4, discardsLeft: 4,
+      bonusPlays: 0, bonusDiscards: 0, rerollBaseCost: 2,
+      maxJokers: 5, maxConsumables: 2,
+      jokers: [], consumables: [], boughtVouchers: [],
+      busy: false, bossEffect: null, sortDir: 'desc', isDebug: isDebug,
+      inShopView: false
+    };
+  }
+
+  function getMaxJokers(){
+    const extra = (state.jokers && state.jokers.some(j=>j.id==='bolsillo')) ? 2 : 0;
+    return (state.maxJokers || 5) + extra;
+  }
+
+  function getMaxConsumables(){
+    return state.maxConsumables || 2;
+  }
+
+  function blindTargetFor(ante, blindIndex){
+    const base = 120 * Math.pow(1.7, ante-1);
+    return Math.round(base * BLIND_MULT[blindIndex] / 5) * 5;
+  }
+
+  function pickBossEffect(){ return BOSS_POOL[Math.floor(Math.random()*BOSS_POOL.length)]; }
+
+  function chipValue(rank, suit){
+    const boss = state.bossEffect;
+    if(boss){
+      if(boss.pickSuit && suit===boss.pickSuit) return 0;
+      if(boss.noFaces && ['J','Q','K'].includes(rank)) return 0;
+    }
+    if(rank==='A') return 11;
+    if(['J','Q','K'].includes(rank)) return 10;
+    return parseInt(rank,10);
+  }
+
+  function rankOrder(rank){ return RANKS.indexOf(rank); }
+
+  function buildDeck(){
+    const d=[]; let id=0;
+    for(const s of SUITS){
+      for(const r of RANKS){
+        d.push({id:id++, rank:r, suit:s.sym, color:s.color, selected:false});
+      }
+    }
+    return shuffle(d);
+  }
+
+  function shuffle(arr){
+    for(let i=arr.length-1;i>0;i--){
+      const j=Math.floor(Math.random()*(i+1));
+      [arr[i],arr[j]]=[arr[j],arr[i]];
+    }
+    return arr;
+  }
+
+  function draw(n){
+    const out=[];
+    for(let i=0;i<n && state.deck.length>0;i++) out.push(state.deck.pop());
+    return out;
+  }
+
+  function saveGame(){
+    if(state.isDebug) return;
+    try{
+      const snap = JSON.parse(JSON.stringify(state));
+      snap.busy = false;
+      localStorage.setItem(SAVE_KEY, JSON.stringify(snap));
+    }catch(e){}
+  }
+
+  function loadGame(){
+    try{
+      const raw = localStorage.getItem(SAVE_KEY);
+      return raw ? JSON.parse(raw) : null;
+    }catch(e){ return null; }
+  }
+
+  function clearSave(){ try{ localStorage.removeItem(SAVE_KEY); }catch(e){} }
+  function hasSave(){ return !!loadGame(); }
+
+  function evaluateHand(cards){
+    const byRank = {};
+    cards.forEach(c=>{ (byRank[c.rank]=byRank[c.rank]||[]).push(c); });
+    const groups = Object.values(byRank).sort((a,b)=> b.length-a.length || rankOrder(b[0].rank)-rankOrder(a[0].rank));
+    const isFlush = cards.length===5 && cards.every(c=>c.suit===cards[0].suit);
+
+    let isStraight=false;
+    if(cards.length===5){
+      const orders = cards.map(c=>rankOrder(c.rank)).sort((a,b)=>a-b);
+      const uniq = [...new Set(orders)];
+      if(uniq.length===5){
+        if(uniq[4]-uniq[0]===4) isStraight=true;
+        else if(JSON.stringify(uniq)===JSON.stringify([0,1,2,3,12])) isStraight=true;
+      }
+    }
+
+    let handName, scoringCards;
+    if(isStraight && isFlush){ handName='Escalera color'; scoringCards=cards; }
+    else if(groups[0].length===4){ handName='Póker'; scoringCards=groups[0]; }
+    else if(groups[0].length===3 && groups[1] && groups[1].length===2){ handName='Full'; scoringCards=cards; }
+    else if(isFlush){ handName='Color'; scoringCards=cards; }
+    else if(isStraight){ handName='Escalera'; scoringCards=cards; }
+    else if(groups[0].length===3){ handName='Trío'; scoringCards=groups[0]; }
+    else if(groups[0].length===2 && groups[1] && groups[1].length===2){ handName='Doble par'; scoringCards=[...groups[0],...groups[1]]; }
+    else if(groups[0].length===2){ handName='Par'; scoringCards=groups[0]; }
+    else {
+      handName='Carta alta';
+      const best = [...cards].sort((a,b)=> rankOrder(b.rank)-rankOrder(a.rank))[0];
+      scoringCards=[best];
+    }
+    return {handName, handKey: HAND_TABLE[handName].key, scoringCards};
+  }
+
+  function computeScore(handName, handKey, scoringCards){
+    const base = HAND_TABLE[handName];
+    let chips = base.chips + scoringCards.reduce((s,c)=> s+chipValue(c.rank, c.suit), 0);
+    let mult = base.mult;
+    let mulFactor = 1;
+
+    state.jokers.forEach(j=>{
+      const def = JOKER_POOL.find(p=>p.id===j.id);
+      if(def){
+        const eff = def.apply({handKey, scoringCards});
+        if(eff.chipsAdd) chips += eff.chipsAdd;
+        if(eff.multAdd) mult += eff.multAdd;
+        if(eff.multMul) mulFactor *= eff.multMul;
+      }
+    });
+
+    mult = mult*mulFactor;
+    return {chips, mult, total: Math.round(chips*mult)};
+  }
+
+  const el = {
+    gameLayout: document.getElementById('gameLayout'),
+    marqueeTitle: document.getElementById('marqueeTitle'),
+    marqueeSub: document.getElementById('marqueeSub'),
+    bossBox: document.getElementById('bossBox'),
+    bossDesc: document.getElementById('bossDesc'),
+    roundScore: document.getElementById('roundScore'),
+    money: document.getElementById('money'),
+    playsLeft: document.getElementById('playsLeft'),
+    discardsLeft: document.getElementById('discardsLeft'),
+    anteDisplay: document.getElementById('anteDisplay'),
+    roundDisplay: document.getElementById('roundDisplay'),
+    chipsDisplay: document.getElementById('chipsDisplay'),
+    multDisplay: document.getElementById('multDisplay'),
+    handTypeReadout: document.getElementById('handTypeReadout'),
+    jokerRow: document.getElementById('jokerRow'),
+    consumRow: document.getElementById('consumRow'),
+    jokerCount: document.getElementById('jokerCount'),
+    consumCount: document.getElementById('consumCount'),
+    hand: document.getElementById('hand'),
+    handArea: document.getElementById('handArea'),
+    shopContainer: document.getElementById('shopContainer'),
+    shopItemsShelf: document.getElementById('shopItemsShelf'),
+    voucherShelf: document.getElementById('voucherShelf'),
+    voucherTag: document.getElementById('voucherTag'),
+    boosterShelf: document.getElementById('boosterShelf'),
+    btnNextRound: document.getElementById('btnNextRound'),
+    btnRerollShop: document.getElementById('btnRerollShop'),
+    deckCount: document.getElementById('deckCount'),
+    btnPlay: document.getElementById('btnPlay'),
+    btnDiscard: document.getElementById('btnDiscard'),
+    btnSort: document.getElementById('btnSort'),
+    btnSkip: document.getElementById('btnSkip'),
+    btnRunInfo: document.getElementById('btnRunInfo'),
+    btnOptions: document.getElementById('btnOptions'),
+    btnDebugToggle: document.getElementById('btnDebugToggle'),
+    startOverlay: document.getElementById('startOverlay'),
+    btnContinue: document.getElementById('btnContinue'),
+    btnNewGame: document.getElementById('btnNewGame'),
+    btnDebugGame: document.getElementById('btnDebugGame'),
+    btnDeleteSave: document.getElementById('btnDeleteSave'),
+    boosterOverlay: document.getElementById('boosterOverlay'),
+    boosterTitle: document.getElementById('boosterTitle'),
+    boosterSub: document.getElementById('boosterSub'),
+    boosterItems: document.getElementById('boosterItems'),
+    boosterStage: document.getElementById('boosterStage'),
+    boosterPack: document.getElementById('boosterPack'),
+    gameOverOverlay: document.getElementById('gameOverOverlay'),
+    gameOverTitle: document.getElementById('gameOverTitle'),
+    gameOverText: document.getElementById('gameOverText'),
+    btnRestart: document.getElementById('btnRestart'),
+  };
+
+  function estimatedReward(){
+    return 3 + state.playsLeft + (state.blindIndex===2 ? 4 : (state.blindIndex===1 ? 1 : 0));
+  }
+
+  function renderHUD(){
+    if(state.inShopView){
+      el.marqueeTitle.textContent = 'SHOP';
+      el.marqueeSub.textContent = 'Improve your run!';
+      el.bossBox.classList.add('hidden');
+    } else {
+      el.marqueeTitle.textContent = BLIND_NAMES[state.blindIndex].toUpperCase();
+      el.marqueeSub.textContent = `Goal: ${state.blindTarget}`;
+
+      if(state.blindIndex === 2 && state.bossEffect) {
+        el.bossBox.classList.remove('hidden');
+        el.bossDesc.textContent = state.bossEffect.desc;
+      } else {
+        el.bossBox.classList.add('hidden');
+      }
+    }
+
+    el.roundScore.textContent = state.roundScore;
+    el.money.textContent = '$' + state.money;
+    el.playsLeft.textContent = state.playsLeft;
+    el.discardsLeft.textContent = state.discardsLeft;
+    el.anteDisplay.textContent = `${state.ante}/8`;
+    el.roundDisplay.textContent = state.round;
+    el.deckCount.textContent = `${state.deck.length}/52`;
+
+    if(state.isDebug){
+      el.btnDebugToggle.classList.remove('hidden');
+    } else {
+      el.btnDebugToggle.classList.add('hidden');
+    }
+  }
+
+  function selectedCards(){ return state.hand.filter(c=>c.selected); }
+
+  function renderPreview(){
+    const sel = selectedCards();
+    if(sel.length===0){
+      el.chipsDisplay.textContent='0'; el.multDisplay.textContent='0';
+      el.handTypeReadout.textContent='Elegí cartas'; return;
+    }
+    const {handName, handKey, scoringCards} = evaluateHand(sel);
+    const {chips, mult} = computeScore(handName, handKey, scoringCards);
+    el.chipsDisplay.textContent = chips; el.multDisplay.textContent = mult;
+    el.handTypeReadout.innerHTML = `${handName} <span style="color:#8a9ba8;font-size:10px;">(${scoringCards.length} puntúan)</span>`;
+  }
+
+  function isMuted(c){
+    const boss = state.bossEffect;
+    if(!boss) return false;
+    if(boss.pickSuit && c.suit===boss.pickSuit) return true;
+    if(boss.noFaces && ['J','Q','K'].includes(c.rank)) return true;
+    return false;
+  }
+
+  function renderHand(){
+    el.hand.innerHTML='';
+    state.hand.forEach(c=>{
+      const d=document.createElement('div');
+      d.className='card'+(c.color==='red'?' red':'')+(c.selected?' selected':'')+(isMuted(c)?' muted':'');
+      d.dataset.id=c.id;
+      d.innerHTML = `<div class="rank">${c.rank}</div><div class="suit-big">${c.suit}</div><div class="rank bottom">${c.rank}</div>`;
+      d.addEventListener('click', ()=> toggleSelect(c.id));
+      el.hand.appendChild(d);
+    });
+  }
+
+  function renderJokers(){
+    el.jokerRow.innerHTML = `<div class="slot-counter num" id="jokerCount">${state.jokers.length}/${getMaxJokers()}</div>`;
+    state.jokers.forEach(j=>{
+      const def = JOKER_POOL.find(p=>p.id===j.id);
+      if(!def) return;
+      const sellValue = Math.max(1, Math.floor(def.cost/2));
+      const d=document.createElement('div');
+      d.className='joker-card';
+      d.dataset.id = j.id;
+      d.innerHTML = `
+        <div class="j-art">${def.icon}</div>
+        <div class="j-name">${def.name}</div>
+        <div class="jsell">Sell $${sellValue}</div>
+        <div class="jtooltip">${def.desc}</div>
+      `;
+      d.querySelector('.jsell').addEventListener('click', (ev)=>{
+        ev.stopPropagation(); sellJoker(j.id, sellValue);
+      });
+      el.jokerRow.appendChild(d);
+    });
+  }
+
+  function renderConsumables(){
+    el.consumRow.innerHTML = `<div class="slot-counter num" id="consumCount">${state.consumables.length}/${getMaxConsumables()}</div>`;
+    state.consumables.forEach((t, idx)=>{
+      const def = TAROT_POOL.find(p=>p.id===t.id);
+      if(!def) return;
+      const sel = selectedCards();
+      const canUse = !state.busy && (def.maxSel===0 || sel.length>=1);
+      const d=document.createElement('div');
+      d.className='joker-card tarot-card';
+      d.innerHTML = `
+        <div class="j-art">${def.icon}</div>
+        <div class="j-name">${def.name}</div>
+        <div class="jsell" style="opacity:${canUse?1:0.4}">Usar</div>
+        <div class="jtooltip">${def.desc}</div>
+      `;
+      d.addEventListener('click', ()=>{ if(canUse) useTarot(idx); });
+      el.consumRow.appendChild(d);
+    });
+  }
+
+  function useTarot(idx){
+    const t = state.consumables[idx];
+    if(!t) return;
+    const def = TAROT_POOL.find(p=>p.id===t.id);
+    let cards = [];
+    if(def.maxSel>0){
+      cards = selectedCards().slice(0, def.maxSel);
+      if(cards.length===0) return;
+    }
+    def.use(cards);
+    state.consumables.splice(idx,1);
+    state.hand.forEach(c=> c.selected=false);
+    renderHUD(); renderHand(); renderJokers(); renderConsumables(); renderPreview(); updateButtons(); saveGame();
+  }
+
+  function sellJoker(id, value){
+    if(state.busy) return;
+    const idx = state.jokers.findIndex(j=>j.id===id);
+    if(idx===-1) return;
+    state.jokers.splice(idx,1);
+    state.money += value;
+    renderHUD(); renderJokers(); renderPreview(); saveGame();
+  }
+
+  function toggleSelect(id){
+    if(state.busy) return;
+    const c = state.hand.find(c=>c.id===id);
+    if(!c) return;
+    const selCount = state.hand.filter(x=>x.selected).length;
+    if(!c.selected && selCount>=5) return;
+    c.selected = !c.selected;
+    renderHand(); renderPreview(); renderConsumables(); updateButtons();
+  }
+
+  function sortHand(){
+    state.sortDir = state.sortDir==='desc' ? 'asc' : 'desc';
+    state.hand.sort((a,b)=> state.sortDir==='desc'
+      ? rankOrder(b.rank)-rankOrder(a.rank)
+      : rankOrder(a.rank)-rankOrder(b.rank));
+    el.btnSort.textContent = state.sortDir==='desc' ? 'Ordenar ↓' : 'Ordenar ↑';
+    renderHand();
+  }
+
+  function skipBlind(){
+    if(state.busy || state.blindIndex === 2 || state.inShopView) return;
+    state.money += 5; // Recompensa de etiqueta por saltear
+    openShop();
+  }
+
+  function updateButtons(){
+    const n = selectedCards().length;
+    el.btnPlay.disabled = state.busy || n<1 || n>5 || state.playsLeft<=0;
+    el.btnDiscard.disabled = state.busy || n<1 || n>5 || state.discardsLeft<=0;
+    
+    // El botón saltear solo está habilitado si no es Boss y no jugaste ninguna mano aún
+    const maxPlays = 4 + state.bonusPlays - (state.bossEffect && state.bossEffect.minusPlay ? 1 : 0);
+    const canSkip = state.blindIndex < 2 && state.playsLeft === maxPlays && !state.inShopView;
+    el.btnSkip.disabled = state.busy || !canSkip;
+    el.btnSkip.style.display = (state.blindIndex === 2 || state.inShopView) ? 'none' : 'inline-block';
+  }
+
+  function delay(ms){ return new Promise(res=>setTimeout(res,ms)); }
+
+  function newRound(){
+    state.deck = buildDeck();
+    state.hand = draw(8);
+    state.roundScore = 0;
+    state.playsLeft = 4 + state.bonusPlays;
+    state.discardsLeft = 4 + state.bonusDiscards;
+
+    if(state.blindIndex===2){
+      state.bossEffect = pickBossEffect();
+      if(state.bossEffect.minusPlay) state.playsLeft = Math.max(1, state.playsLeft-1);
+      if(state.bossEffect.minusDiscard) state.discardsLeft = Math.max(0, state.discardsLeft-1);
+    } else {
+      state.bossEffect = null;
+    }
+
+    state.blindTarget = blindTargetFor(state.ante, state.blindIndex);
+    state.inShopView = false;
+    renderAll();
+    saveGame();
+  }
+
+  function renderAll(){
+    if(state.inShopView){
+      el.handArea.classList.add('hidden');
+      el.shopContainer.classList.remove('hidden');
+      renderShopOffers();
+    } else {
+      el.shopContainer.classList.add('hidden');
+      el.handArea.classList.remove('hidden');
+      renderHand(); renderPreview();
+    }
+    renderHUD(); renderJokers(); renderConsumables(); updateButtons();
+  }
+
+  async function playHand(){
+    if(state.busy) return;
+    const sel = selectedCards();
+    if(sel.length<1) return;
+    state.busy = true; updateButtons();
+
+    const {handName, handKey, scoringCards} = evaluateHand(sel);
+    const {total} = computeScore(handName, handKey, scoringCards);
+
+    const cardEls = [...el.hand.children];
+    for(const sc of scoringCards){
+      const ce = cardEls.find(ce=> parseInt(ce.dataset.id,10)===sc.id);
+      if(ce){
+        ce.classList.add('scoring');
+        const chip = document.createElement('div');
+        chip.className='floatchip'; chip.textContent = '+'+chipValue(sc.rank, sc.suit);
+        ce.appendChild(chip);
+        await delay(120);
+      }
+    }
+
+    for(const j of state.jokers){
+      const def = JOKER_POOL.find(p=>p.id===j.id);
+      if(!def) continue;
+      const eff = def.apply({handKey, scoringCards});
+      if(eff.chipsAdd || eff.multAdd || eff.multMul){
+        const jokerEl = document.querySelector(`.joker-card[data-id="${j.id}"]`);
+        if(jokerEl){
+          jokerEl.classList.add('trigger');
+          const tag = document.createElement('div');
+          tag.className = 'joker-floattag';
+          tag.textContent = eff.msg || '¡Activo!';
+          jokerEl.appendChild(tag);
+          await delay(350);
+          jokerEl.classList.remove('trigger');
+        }
+      }
+    }
+
+    await delay(200);
+    state.playsLeft -= 1;
+    state.roundScore += total;
+    renderHUD();
+
+    const playedIds = new Set(sel.map(c=>c.id));
+    state.hand = state.hand.filter(c=>!playedIds.has(c.id));
+    state.hand = state.hand.concat(draw(sel.length));
+
+    if(state.roundScore >= state.blindTarget){
+      state.busy=false; await delay(200); winBlind(); return;
+    }
+    if(state.playsLeft<=0){
+      state.busy=false; await delay(200); loseGame(); return;
+    }
+
+    renderHand(); renderPreview(); renderConsumables();
+    state.busy=false; updateButtons(); saveGame();
+  }
+
+  async function discardCards(){
+    if(state.busy) return;
+    const sel = selectedCards();
+    if(sel.length<1 || state.discardsLeft<=0) return;
+    state.busy = true; updateButtons();
+
+    const cardEls = [...el.hand.children];
+    sel.forEach(sc=>{
+      const ce = cardEls.find(ce=> parseInt(ce.dataset.id,10)===sc.id);
+      if(ce) ce.classList.add('discarded');
+    });
+    await delay(300);
+
+    state.discardsLeft -= 1;
+    const discardedIds = new Set(sel.map(c=>c.id));
+    state.hand = state.hand.filter(c=>!discardedIds.has(c.id));
+    state.hand = state.hand.concat(draw(sel.length));
+
+    renderHUD(); renderHand(); renderPreview(); renderConsumables();
+    state.busy=false; updateButtons(); saveGame();
+  }
+
+  function winBlind(){
+    const reward = estimatedReward();
+    state.money += reward;
+    openShop();
+  }
+
+  function advanceBlind(){
+    state.blindIndex += 1; state.round += 1;
+    if(state.blindIndex>2){
+      state.blindIndex = 0; state.ante += 1;
+      if(state.ante>8){ winGame(); return; }
+    }
+    newRound();
+  }
+
+  function openShop(){
+    state.inShopView = true;
+    renderAll();
+    saveGame();
+  }
+
+  function renderShopOffers(){
+    el.btnRerollShop.innerHTML = `Reroll<br>$${state.rerollBaseCost}`;
+
+    el.shopItemsShelf.innerHTML = '';
+    const ownedJ = new Set(state.jokers.map(j=>j.id));
+    let availJ = shuffle(JOKER_POOL.filter(j=>!ownedJ.has(j.id)));
+    let availT = shuffle([...TAROT_POOL]);
+
+    const comboType = Math.floor(Math.random() * 3);
+    let itemsToDraw = [];
+
+    if(comboType === 0) itemsToDraw = ['joker', 'joker'];
+    else if(comboType === 1) itemsToDraw = ['tarot', 'tarot'];
+    else itemsToDraw = Math.random() < 0.5 ? ['joker', 'tarot'] : ['tarot', 'joker'];
+
+    itemsToDraw.forEach(type => {
+      if(type === 'joker') {
+        if(availJ.length > 0) {
+          const j = availJ.pop();
+          renderShopJokerCard(j);
+        } else if(availT.length > 0) {
+          const t = availT.pop();
+          renderShopTarotCard(t);
+        }
+      } else {
+        if(availT.length > 0) {
+          const t = availT.pop();
+          renderShopTarotCard(t);
+        } else if(availJ.length > 0) {
+          const j = availJ.pop();
+          renderShopJokerCard(j);
+        }
+      }
+    });
+
+    el.voucherShelf.innerHTML = '';
+    el.voucherTag.textContent = `ANTE ${state.ante} VOUCHER`;
+    const availV = VOUCHER_POOL.filter(v=>!state.boughtVouchers.includes(v.id));
+    if(availV.length>0){
+      const v = availV[0];
+      const wrap = document.createElement('div');
+      wrap.className = 'shop-item-wrapper';
+      wrap.innerHTML = `
+        <div class="price-badge num">$${v.cost}</div>
+        <div class="voucher-card-item">
+          <div class="v-icon">${v.icon}</div>
+          <div class="v-title">${v.name}</div>
+        </div>
+      `;
+      wrap.addEventListener('click', ()=> buyVoucher(v.id));
+      el.voucherShelf.appendChild(wrap);
+    }
+
+    el.boosterShelf.innerHTML = '';
+    BOOSTER_POOL.forEach(b=>{
+      const wrap = document.createElement('div');
+      wrap.className = 'shop-item-wrapper';
+      wrap.innerHTML = `
+        <div class="price-badge num">$${b.cost}</div>
+        <div class="booster-pack-card">
+          <div class="pack-title">${b.name}</div>
+          <div class="pack-art">${b.icon}</div>
+        </div>
+      `;
+      wrap.addEventListener('click', ()=> buyBooster(b.id));
+      el.boosterShelf.appendChild(wrap);
+    });
+  }
+
+  function renderShopJokerCard(j){
+    const wrap = document.createElement('div');
+    wrap.className = 'shop-item-wrapper';
+    wrap.innerHTML = `
+      <div class="price-badge num">$${j.cost}</div>
+      <div class="joker-card">
+        <div class="j-art">${j.icon}</div>
+        <div class="j-name">${j.name}</div>
+        <div class="jtooltip">${j.desc}</div>
+      </div>
+    `;
+    wrap.addEventListener('click', ()=> buyJoker(j.id));
+    el.shopItemsShelf.appendChild(wrap);
+  }
+
+  function renderShopTarotCard(t){
+    const wrap = document.createElement('div');
+    wrap.className = 'shop-item-wrapper';
+    wrap.innerHTML = `
+      <div class="price-badge num">$${t.cost}</div>
+      <div class="joker-card tarot-card">
+        <div class="j-art">${t.icon}</div>
+        <div class="j-name">${t.name}</div>
+        <div class="jtooltip">${t.desc}</div>
+      </div>
+    `;
+    wrap.addEventListener('click', ()=> buyTarot(t.id));
+    el.shopItemsShelf.appendChild(wrap);
+  }
+
+  function buyJoker(id){
+    const def = JOKER_POOL.find(p=>p.id===id);
+    if(state.jokers.length >= getMaxJokers() || state.money < def.cost) return;
+    state.money -= def.cost;
+    state.jokers.push({id});
+    renderShopOffers(); renderHUD(); renderJokers(); saveGame();
+  }
+
+  function buyTarot(id){
+    const def = TAROT_POOL.find(p=>p.id===id);
+    if(state.consumables.length >= getMaxConsumables() || state.money < def.cost) return;
+    state.money -= def.cost;
+    state.consumables.push({id});
+    renderShopOffers(); renderHUD(); renderConsumables(); saveGame();
+  }
+
+  function buyVoucher(id){
+    const def = VOUCHER_POOL.find(p=>p.id===id);
+    if(state.money<def.cost) return;
+    state.money -= def.cost;
+    state.boughtVouchers.push(id);
+    def.apply();
+    renderShopOffers(); renderHUD(); saveGame();
+  }
+
+  function rerollShop(){
+    if(state.money < state.rerollBaseCost) return;
+    state.money -= state.rerollBaseCost;
+    renderShopOffers(); renderHUD(); saveGame();
+  }
+
+  function buyBooster(id){
+    const def = BOOSTER_POOL.find(p=>p.id===id);
+    if(state.money<def.cost) return;
+    state.money -= def.cost;
+    renderHUD(); saveGame(); openBoosterPicker(def);
+  }
+
+  async function openBoosterPicker(def){
+    const pool = def.kind==='tarot' ? TAROT_POOL : JOKER_POOL;
+    let offers = shuffle([...pool]).slice(0, def.count);
+
+    el.boosterTitle.textContent = def.name;
+    el.boosterItems.innerHTML='';
+    el.boosterItems.classList.remove('visible');
+    el.boosterStage.classList.remove('hidden');
+    el.boosterOverlay.classList.remove('hidden');
+
+    el.boosterPack.classList.add('opening');
+    await delay(700);
+    el.boosterPack.classList.remove('opening');
+
+    el.boosterStage.classList.add('hidden');
+
+    offers.forEach(o=>{
+      const d=document.createElement('div');
+      d.className='joker-card'+(def.kind==='tarot'?' tarot-card':'');
+      d.style.width='80px'; d.style.height='115px';
+      d.innerHTML = `
+        <div class="j-art">${o.icon}</div>
+        <div class="j-name">${o.name}</div>
+        <div class="jsell">Elegir</div>
+        <div class="jtooltip">${o.desc}</div>
+      `;
+      d.addEventListener('click', ()=>{
+        if(def.kind==='tarot'){ if(state.consumables.length < getMaxConsumables()) state.consumables.push({id:o.id}); }
+        else { if(state.jokers.length < getMaxJokers()) state.jokers.push({id:o.id}); }
+        el.boosterOverlay.classList.add('hidden');
+        renderHUD(); renderJokers(); renderConsumables(); renderShopOffers(); saveGame();
+      });
+      el.boosterItems.appendChild(d);
+    });
+    el.boosterItems.classList.add('visible');
+  }
+
+  function winGame(){
+    clearSave(); el.gameLayout.classList.add('hidden');
+    el.gameOverTitle.textContent = '¡Ganaste la partida! 🏆';
+    el.gameOverText.textContent = `Superaste las 8 Antes con $${state.money} en mano. ¡Gran estratega!`;
+    el.gameOverOverlay.classList.remove('hidden');
+  }
+
+  function loseGame(){
+    clearSave(); el.gameLayout.classList.add('hidden');
+    el.gameOverTitle.textContent = 'Sin jugadas restantes';
+    el.gameOverText.textContent = `Llegaste a la Ante ${state.ante} (${BLIND_NAMES[state.blindIndex]}) sumando ${state.roundScore} de ${state.blindTarget} puntos.`;
+    el.gameOverOverlay.classList.remove('hidden');
+  }
+
+  function goToMenu(){
+    el.gameLayout.classList.add('hidden');
+    el.boosterOverlay.classList.add('hidden'); el.gameOverOverlay.classList.add('hidden');
+    refreshMenu(); el.startOverlay.classList.remove('hidden');
+  }
+
+  function refreshMenu(){
+    const save = hasSave();
+    el.btnContinue.textContent = save ? 'PLAY' : 'PLAY';
+    el.btnDeleteSave.classList.toggle('hidden', !save);
+  }
+
+  function startNewGame(isDebug=false){
+    if(!isDebug) clearSave();
+    state = freshState(isDebug);
+    el.startOverlay.classList.add('hidden'); el.gameOverOverlay.classList.add('hidden');
+    el.gameLayout.classList.remove('hidden'); newRound();
+  }
+
+  function continueGame(){
+    const saved = loadGame();
+    if(!saved){ startNewGame(false); return; }
+    state = saved; state.busy = false;
+    el.startOverlay.classList.add('hidden'); el.gameOverOverlay.classList.add('hidden');
+    el.gameLayout.classList.remove('hidden'); renderAll();
+  }
+
+  function toggleDebugView(){
+    state.inShopView = !state.inShopView;
+    renderAll();
+  }
+
+  // Bind Events
+  el.btnPlay.addEventListener('click', playHand);
+  el.btnDiscard.addEventListener('click', discardCards);
+  el.btnSort.addEventListener('click', sortHand);
+  el.btnSkip.addEventListener('click', skipBlind);
+  el.btnContinue.addEventListener('click', continueGame);
+  el.btnNewGame.addEventListener('click', ()=> startNewGame(false));
+  el.btnDebugGame.addEventListener('click', ()=> startNewGame(true));
+  el.btnDebugToggle.addEventListener('click', toggleDebugView);
+  el.btnDeleteSave.addEventListener('click', ()=>{ if(confirm('¿Borrar guardado?')){ clearSave(); refreshMenu(); } });
+  el.btnRerollShop.addEventListener('click', rerollShop);
+  el.btnNextRound.addEventListener('click', advanceBlind);
+  el.btnRestart.addEventListener('click', goToMenu);
+  el.btnRunInfo.addEventListener('click', ()=>{
+    alert(`Ante ${state.ante}/8 · Ronda ${state.round}\nComodines: ${state.jokers.length}/${getMaxJokers()}\nTarots: ${state.consumables.length}/${getMaxConsumables()}\nCupones: ${state.boughtVouchers.length}`);
+  });
+  el.btnOptions.addEventListener('click', ()=>{ if(confirm('¿Volver al menú? Tu partida se guardará.')){ saveGame(); goToMenu(); } });
+
+  refreshMenu();
+  el.startOverlay.classList.remove('hidden');
+})();
+</script>
+</body>
+</html>
