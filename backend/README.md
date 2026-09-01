@@ -39,6 +39,10 @@ Recordatorio: Verificar de tener los permisos para poder hacerlo. Estos se habil
 - Si queres borrar el venv lo que tenes que hacer primero es desactivarlo de la terminal con el comnado  `deactivate` y luego borrar la carpeta
 
 
+front end
+cd f (tab)
+npm.cmd run dev
+
 ```bash
 python -m venv venv
 source venv/bin/activate          # Linux/Mac
@@ -80,7 +84,7 @@ y por eso no se incluyen en Git.
 
 Abrir http://localhost:8000/docs para ver Swagger.
 
-http://localhost:8080/
+http://localhost: 8080/
 ---
 
 ## Estructura de carpetas
