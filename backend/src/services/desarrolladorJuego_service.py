@@ -15,6 +15,8 @@ from src.db.models.registroUsuario_model import Usuario
 
 
 class JuegoService:
+    STORAGE_ROOT = Path(__file__).resolve().parents[2] / "storage"
+
     def __init__(self, db: Session):
         self.db = db
 
@@ -88,7 +90,7 @@ class JuegoService:
         if extension not in {".html", ".htm", ".zip"}:
             raise ValueError("Subí un archivo .html o un .zip que contenga index.html.")
 
-        raiz = Path(__file__).resolve().parents[2] / "storage" / "games" / str(juego_id)
+        raiz = self.STORAGE_ROOT / "games" / str(juego_id)
         if raiz.exists():
             shutil.rmtree(raiz)
         raiz.mkdir(parents=True, exist_ok=True)

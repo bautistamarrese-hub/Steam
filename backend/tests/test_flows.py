@@ -1,5 +1,7 @@
 from fastapi.testclient import TestClient
 
+from src.services.desarrolladorJuego_service import JuegoService
+
 
 def assert_status(response, expected: int):
     assert response.status_code == expected, response.text
@@ -171,6 +173,45 @@ def test_publicacion_busqueda_y_validaciones_de_juego(client: TestClient):
         ),
         422,
     )
+
+
+def test_publicacion_completa_con_archivo_y_logro(
+    client: TestClient, tmp_path, monkeypatch
+):
+    monkeypatch.setattr(JuegoService, "STORAGE_ROOT", tmp_path)
+    dev = registrar(client, "publicador_completo", rol="admin", estudio="Web Games")
+    juego = publicar_juego(
+        client,
+        dev["desarrollador_id"],
+        "Juego HTML",
+        precio=67,
+        genero="Accion",
+    )
+
+    publicado = assert_status(
+        client.post(
+            f"/api/juegos/{juego['id']}/archivo",
+            files={"archivo": ("index.html", b"<h1>Juego listo</h1>", "text/html")},
+        ),
+        200,
+    )
+    assert publicado["archivo_nombre"] == "index.html"
+    assert publicado["archivo_url"].endswith(f"/{juego['id']}/index.html")
+    assert publicado["es_jugable"] is True
+    assert (tmp_path / "games" / str(juego["id"]) / "index.html").is_file()
+
+    logro = assert_status(
+        client.post(
+            f"/api/juegos/{juego['id']}/logros",
+            json={
+                "nombre": "Primer logro",
+                "descripcion": "Completar la prueba",
+                "puntos": 10,
+            },
+        ),
+        201,
+    )
+    assert logro["juego_id"] == juego["id"]
 
 
 def test_recarga_wishlist_compra_biblioteca_y_estadisticas(client: TestClient):
