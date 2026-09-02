@@ -12,6 +12,8 @@ export interface Usuario {
   saldo: number;
   fecha_registro: string;
   rol: Rol;
+  /** Foto de perfil subida por el usuario. */
+  avatar?: string;
   /** Solo para rol "admin": estudio al que pertenece. */
   desarrollador_id?: number;
 }

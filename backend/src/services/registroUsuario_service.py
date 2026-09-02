@@ -1,3 +1,7 @@
+from pathlib import Path
+from urllib.parse import quote
+
+from fastapi import UploadFile
 from sqlalchemy import func, or_
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
@@ -19,6 +23,8 @@ class UsuarioService:
     Los routers reciben schemas de Pydantic; este servicio trabaja únicamente
     con sus atributos y con modelos SQLAlchemy.
     """
+
+    STORAGE_ROOT = Path(__file__).resolve().parents[2] / "storage"
 
     def __init__(self, db: Session):
         self.db = db
@@ -81,6 +87,47 @@ class UsuarioService:
         usuario = self.db.query(Usuario).filter(Usuario.id == usuario_id).first()
         if not usuario:
             raise ValueError("El usuario no existe.")
+        return usuario
+
+    async def guardar_avatar(self, usuario_id: int, archivo: UploadFile) -> Usuario:
+        usuario = self.obtener(usuario_id)
+        extensiones = {
+            "image/jpeg": ".jpg",
+            "image/png": ".png",
+            "image/webp": ".webp",
+            "image/gif": ".gif",
+        }
+        extension = extensiones.get(archivo.content_type or "")
+        if not extension:
+            raise ValueError("La foto debe ser JPG, PNG, WebP o GIF.")
+
+        raiz = self.STORAGE_ROOT / "avatars" / str(usuario_id)
+        raiz.mkdir(parents=True, exist_ok=True)
+        destino = raiz / f"avatar{extension}"
+        temporal = raiz / f".avatar{extension}.tmp"
+
+        total = 0
+        try:
+            with temporal.open("wb") as salida:
+                while bloque := await archivo.read(1024 * 1024):
+                    total += len(bloque)
+                    if total > 5 * 1024 * 1024:
+                        raise ValueError("La imagen no puede superar los 5 MB.")
+                    salida.write(bloque)
+        except (OSError, ValueError):
+            temporal.unlink(missing_ok=True)
+            raise
+        finally:
+            await archivo.close()
+
+        for avatar_anterior in raiz.glob("avatar.*"):
+            if avatar_anterior != destino:
+                avatar_anterior.unlink(missing_ok=True)
+        temporal.replace(destino)
+
+        usuario.avatar = f"/uploads/avatars/{usuario_id}/{quote(destino.name)}"
+        self.db.commit()
+        self.db.refresh(usuario)
         return usuario
 
     def recargar_saldo(self, usuario_id: int, payload) -> Recarga:

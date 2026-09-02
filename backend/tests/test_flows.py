@@ -1,6 +1,7 @@
 from fastapi.testclient import TestClient
 
 from src.services.desarrolladorJuego_service import JuegoService
+from src.services.registroUsuario_service import UsuarioService
 
 
 def assert_status(response, expected: int):
@@ -212,6 +213,66 @@ def test_publicacion_completa_con_archivo_y_logro(
         201,
     )
     assert logro["juego_id"] == juego["id"]
+
+
+def test_avatar_y_contenido_editorial_de_juegos(client: TestClient, tmp_path, monkeypatch):
+    monkeypatch.setattr(UsuarioService, "STORAGE_ROOT", tmp_path)
+    usuario = registrar(client, "con_avatar")
+    actualizado = assert_status(
+        client.put(
+            f"/api/usuarios/{usuario['id']}/avatar",
+            files={"archivo": ("avatar.png", b"imagen-de-prueba", "image/png")},
+        ),
+        200,
+    )
+    assert actualizado["avatar"].endswith(f"/{usuario['id']}/avatar.png")
+    assert (tmp_path / "avatars" / str(usuario["id"]) / "avatar.png").is_file()
+
+    dev = registrar(client, "editor", rol="admin", estudio="Editor Studio")
+    juego = assert_status(
+        client.post(
+            "/api/juegos/",
+            json={
+                "titulo": "Juego ilustrado",
+                "desarrollador_id": dev["desarrollador_id"],
+                "precio": 120,
+                "genero": "Indie",
+                "descripcion": "Descripción original",
+                "resumen": "Resumen original",
+                "imagen": "data:image/png;base64,portada",
+                "galeria": ["data:image/png;base64,captura"],
+            },
+        ),
+        201,
+    )
+    assert juego["imagen"].startswith("data:image/png")
+    assert len(juego["galeria"]) == 1
+
+    editado = assert_status(
+        client.put(
+            f"/api/juegos/{juego['id']}",
+            json={
+                "desarrollador_id": dev["desarrollador_id"],
+                "titulo": "Juego ilustrado definitivo",
+                "precio": 200,
+                "resumen": "Resumen actualizado",
+            },
+        ),
+        200,
+    )
+    assert editado["titulo"] == "Juego ilustrado definitivo"
+    assert editado["precio"] == 200
+    assert editado["resumen"] == "Resumen actualizado"
+    assert editado["imagen"] == juego["imagen"]
+
+    otro = registrar(client, "otro_editor", rol="admin", estudio="Otro Studio")
+    assert_status(
+        client.put(
+            f"/api/juegos/{juego['id']}",
+            json={"desarrollador_id": otro["desarrollador_id"], "precio": 1},
+        ),
+        400,
+    )
 
 
 def test_recarga_wishlist_compra_biblioteca_y_estadisticas(client: TestClient):

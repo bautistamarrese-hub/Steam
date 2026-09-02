@@ -51,6 +51,10 @@ class JuegoService:
             precio=payload.precio,
             fecha_lanzamiento=payload.fecha_lanzamiento,
             genero=payload.genero,
+            descripcion=payload.descripcion,
+            resumen=payload.resumen,
+            imagen=payload.imagen,
+            galeria=payload.galeria,
         )
         self.db.add(juego)
         self.db.commit()
@@ -75,6 +79,31 @@ class JuegoService:
         juego = self.db.query(Juego).filter(Juego.id == juego_id).first()
         if not juego:
             raise ValueError("El juego no existe.")
+        return juego
+
+    def actualizar_juego(self, juego_id: int, payload) -> Juego:
+        juego = self.obtener_juego(juego_id)
+        if juego.desarrollador_id != payload.desarrollador_id:
+            raise ValueError("El juego no pertenece a este desarrollador.")
+
+        if payload.titulo is not None:
+            titulo = payload.titulo.strip()
+            duplicado = self.db.query(Juego).filter(
+                Juego.id != juego_id,
+                Juego.desarrollador_id == payload.desarrollador_id,
+                func.lower(Juego.titulo) == titulo.lower(),
+            ).first()
+            if duplicado:
+                raise ValueError("El desarrollador ya publicó un juego con ese título.")
+            juego.titulo = titulo
+
+        for campo in ("precio", "genero", "descripcion", "resumen", "imagen", "galeria"):
+            valor = getattr(payload, campo)
+            if valor is not None:
+                setattr(juego, campo, valor)
+
+        self.db.commit()
+        self.db.refresh(juego)
         return juego
 
     async def guardar_archivo(self, juego_id: int, archivo: UploadFile) -> Juego:

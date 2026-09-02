@@ -67,6 +67,8 @@ class Usuario(Base):
         unique=True,
     )
 
+    avatar: Mapped[Optional[str]] = mapped_column(String(500), nullable=True)
+
     # Logros desbloqueados por el usuario
     logros_desbloqueados: Mapped[list["LogroDesbloqueado"]] = relationship(
         "LogroDesbloqueado",

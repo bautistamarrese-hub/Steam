@@ -2,7 +2,12 @@ from fastapi import APIRouter, Depends, File, Query, UploadFile, status
 from sqlalchemy.orm import Session
 from src.db.connection import get_db
 
-from src.schemas.juego_schema import CreateJuegoSchema, GetJuegoSchema, GetJuegoTopSchema
+from src.schemas.juego_schema import (
+    CreateJuegoSchema,
+    GetJuegoSchema,
+    GetJuegoTopSchema,
+    UpdateJuegoSchema,
+)
 from src.schemas.logro_schema import CreateLogroSchema, GetLogroSchema
 from src.schemas.resena_schema import CreateResenaSchema, GetResenaSchema
 from src.services.desarrolladorJuego_service import JuegoService
@@ -42,6 +47,11 @@ def mejor_valorados(genero: str | None = None, db: Session = Depends(get_db)):
 @router.get("/{id}", response_model=GetJuegoSchema)
 def obtener_juego(id: int, db: Session = Depends(get_db)):
     return JuegoService(db).obtener_juego(id)
+
+
+@router.put("/{id}", response_model=GetJuegoSchema)
+def actualizar_juego(id: int, payload: UpdateJuegoSchema, db: Session = Depends(get_db)):
+    return JuegoService(db).actualizar_juego(id, payload)
 
 # HU8 — Definir logro
 @router.post("/{id}/logros", response_model=GetLogroSchema, status_code=status.HTTP_201_CREATED)

@@ -9,6 +9,23 @@ class CreateJuegoSchema(BaseModel):
     precio: float = Field(ge=0.0)  # HU2: Mayor o igual a 0
     fecha_lanzamiento: date | None = None
     genero: str = Field(min_length=1)
+    descripcion: str | None = None
+    resumen: str | None = Field(default=None, max_length=500)
+    imagen: str | None = None
+    galeria: list[str] | None = Field(default=None, max_length=12)
+
+
+class UpdateJuegoSchema(BaseModel):
+    model_config = ConfigDict(str_strip_whitespace=True)
+
+    desarrollador_id: int
+    titulo: str | None = Field(default=None, min_length=1)
+    precio: float | None = Field(default=None, ge=0.0)
+    genero: str | None = Field(default=None, min_length=1)
+    descripcion: str | None = None
+    resumen: str | None = Field(default=None, max_length=500)
+    imagen: str | None = None
+    galeria: list[str] | None = Field(default=None, max_length=12)
 
 class GetJuegoSchema(BaseModel):
     model_config = ConfigDict(from_attributes=True)
@@ -19,6 +36,10 @@ class GetJuegoSchema(BaseModel):
     precio: float
     fecha_lanzamiento: date | None
     genero: str
+    descripcion: str | None = None
+    resumen: str | None = None
+    imagen: str | None = None
+    galeria: list[str] | None = None
     archivo_nombre: str | None = None
     archivo_url: str | None = None
     es_jugable: bool = False

@@ -69,12 +69,16 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   return response.json() as Promise<T>;
 }
 
-async function requestArchivo<T>(path: string, archivo: File): Promise<T> {
+async function requestArchivo<T>(
+  path: string,
+  archivo: File,
+  method: "POST" | "PUT" = "POST",
+): Promise<T> {
   let response: Response;
   try {
     const data = new FormData();
     data.append("archivo", archivo);
-    response = await fetch(`${BASE_URL}${path}`, { method: "POST", body: data });
+    response = await fetch(`${BASE_URL}${path}`, { method, body: data });
   } catch {
     throw new ApiError("No se pudo conectar con la API. Verificá que el backend esté iniciado.");
   }
@@ -94,12 +98,18 @@ async function requestArchivo<T>(path: string, archivo: File): Promise<T> {
 type UsuarioApi = Omit<Usuario, "password" | "desarrollador_id"> & {
   desarrollador_id: number | null;
 };
-type JuegoApi = Omit<Juego, "descripcion" | "imagen" | "resumen" | "galeria">;
+type JuegoApi = Omit<Juego, "descripcion" | "imagen" | "resumen" | "galeria"> & {
+  descripcion?: string | null;
+  resumen?: string | null;
+  imagen?: string | null;
+  galeria?: string[] | null;
+};
 
 const adaptarUsuario = (usuario: UsuarioApi): Usuario => {
   const { desarrollador_id, ...datos } = usuario;
   return {
     ...datos,
+    ...(usuario.avatar ? { avatar: new URL(usuario.avatar, BASE_URL).toString() } : {}),
     password: "",
     ...(desarrollador_id === null ? {} : { desarrollador_id }),
   };
@@ -117,18 +127,21 @@ const numeroFinito = (value: number, campo: string) => {
 };
 
 const adaptarJuego = (juego: JuegoApi): Juego => {
+  const { descripcion, resumen, imagen, galeria, ...datos } = juego;
   const presentacion = mock.juegos.find(
     (item) => item.id === juego.id || item.titulo.toLowerCase() === juego.titulo.toLowerCase(),
   );
   return {
-    ...juego,
+    ...datos,
     ...(juego.archivo_url ? { archivo_url: new URL(juego.archivo_url, BASE_URL).toString() } : {}),
     fecha_lanzamiento: juego.fecha_lanzamiento ?? "",
     genero: juego.genero as Genero,
-    descripcion: presentacion?.descripcion ?? "Sin descripción disponible.",
-    imagen: presentacion?.imagen ?? "/favicon.ico",
-    ...(presentacion?.resumen ? { resumen: presentacion.resumen } : {}),
-    ...(presentacion?.galeria ? { galeria: presentacion.galeria } : {}),
+    descripcion: descripcion || presentacion?.descripcion || "Sin descripción disponible.",
+    imagen: imagen || presentacion?.imagen || "/favicon.ico",
+    ...(resumen || presentacion?.resumen ? { resumen: resumen || presentacion?.resumen } : {}),
+    ...(galeria?.length || presentacion?.galeria
+      ? { galeria: galeria?.length ? galeria : presentacion?.galeria }
+      : {}),
   };
 };
 
@@ -181,6 +194,9 @@ export const listarUsuarios = async (): Promise<Usuario[]> =>
 export const obtenerUsuario = async (id: number): Promise<Usuario> =>
   adaptarUsuario(await request<UsuarioApi>(`/usuarios/${id}`));
 
+export const actualizarAvatar = async (usuarioId: number, archivo: File): Promise<Usuario> =>
+  adaptarUsuario(await requestArchivo<UsuarioApi>(`/usuarios/${usuarioId}/avatar`, archivo, "PUT"));
+
 export const listarDesarrolladores = (): Promise<Desarrollador[]> => request("/desarrolladores/");
 
 export const obtenerDesarrollador = (id: number): Promise<Desarrollador> =>
@@ -192,7 +208,17 @@ export const juegosDeDesarrollador = async (id: number): Promise<Juego[]> =>
 export async function publicarJuego(
   input: Omit<Juego, "id" | "imagen"> & { imagen?: string },
 ): Promise<Juego> {
-  const { titulo, desarrollador_id, precio, fecha_lanzamiento, genero } = input;
+  const {
+    titulo,
+    desarrollador_id,
+    precio,
+    fecha_lanzamiento,
+    genero,
+    descripcion,
+    resumen,
+    imagen,
+    galeria,
+  } = input;
   const tituloLimpio = textoRequerido(titulo, "El título");
   numeroFinito(precio, "El precio");
   if (precio < 0) throw new ApiError("El precio no puede ser negativo.");
@@ -205,7 +231,31 @@ export async function publicarJuego(
         precio,
         fecha_lanzamiento,
         genero,
+        descripcion,
+        resumen,
+        imagen,
+        galeria,
       }),
+    }),
+  );
+}
+
+export async function actualizarJuego(
+  juegoId: number,
+  desarrolladorId: number,
+  cambios: Partial<
+    Pick<Juego, "titulo" | "precio" | "genero" | "descripcion" | "resumen" | "imagen" | "galeria">
+  >,
+): Promise<Juego> {
+  if (cambios.titulo !== undefined) textoRequerido(cambios.titulo, "El título");
+  if (cambios.precio !== undefined) {
+    numeroFinito(cambios.precio, "El precio");
+    if (cambios.precio < 0) throw new ApiError("El precio no puede ser negativo.");
+  }
+  return adaptarJuego(
+    await request<JuegoApi>(`/juegos/${juegoId}`, {
+      method: "PUT",
+      body: JSON.stringify({ desarrollador_id: desarrolladorId, ...cambios }),
     }),
   );
 }
@@ -230,13 +280,16 @@ export const MONTO_MINIMO_RECARGA = 100;
 export const MONTO_MAXIMO_RECARGA = 30000;
 export const soloDigitos = (value: string) => value.replace(/\D/g, "");
 export const tarjetaValida = (tarjeta: string) => soloDigitos(tarjeta).length === 16;
+export const cvvValido = (cvv: string) => soloDigitos(cvv).length === 3;
 
 export async function recargarSaldo(
   usuarioId: number,
   monto: number,
   tarjeta: string,
+  cvv: string,
 ): Promise<Recarga> {
   if (!tarjetaValida(tarjeta)) throw new ApiError("La tarjeta debe tener 16 cifras.");
+  if (!cvvValido(cvv)) throw new ApiError("El CVV debe tener 3 cifras.");
   numeroFinito(monto, "El monto");
   if (monto < MONTO_MINIMO_RECARGA)
     throw new ApiError(`El monto mínimo de recarga es ${MONTO_MINIMO_RECARGA}.`);
@@ -451,7 +504,8 @@ export async function perfilPublico(usuarioId: number): Promise<PerfilPublico> {
 export const formatPrecio = (value: number) =>
   value === 0 ? "Gratis" : `$${value.toLocaleString("es-AR")}`;
 
-export const avatarDe = ({ nickname }: Pick<Usuario, "nickname">) =>
+export const avatarDe = ({ nickname, avatar }: Pick<Usuario, "nickname" | "avatar">) =>
+  avatar ||
   `https://api.dicebear.com/9.x/adventurer/svg?seed=${encodeURIComponent(
     nickname.trim().toLowerCase(),
   )}&backgroundColor=1f2937,312e81,164e63&radius=50`;

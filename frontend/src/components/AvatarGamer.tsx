@@ -1,11 +1,19 @@
 import { avatarDe } from "@/lib/api";
 import { cn } from "@/lib/utils";
 
-/** Avatar de caricatura determinista generado a partir del nickname. */
-export function AvatarGamer({ nickname, className }: { nickname: string; className?: string }) {
+/** Avatar del usuario: su foto subida o un personaje generado a partir del nickname. */
+export function AvatarGamer({
+  nickname,
+  avatar,
+  className,
+}: {
+  nickname: string;
+  avatar?: string;
+  className?: string;
+}) {
   return (
     <img
-      src={avatarDe({ nickname })}
+      src={avatarDe({ nickname, avatar })}
       alt={`Avatar de ${nickname}`}
       loading="lazy"
       className={cn(

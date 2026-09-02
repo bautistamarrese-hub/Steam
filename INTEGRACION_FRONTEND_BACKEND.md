@@ -23,8 +23,10 @@ porque esos campos no existen en el modelo actual de `Juego`.
 | Registrar usuario | `POST /api/usuarios/` | `registrarUsuario` |
 | Iniciar sesión | `POST /api/usuarios/login` | `iniciarSesion` |
 | Listar/obtener usuarios | `GET /api/usuarios/`, `GET /api/usuarios/{id}` | comunidad, sesión y autores de reseñas |
+| Actualizar avatar | `PUT /api/usuarios/{id}/avatar` | perfil, cabecera y comunidad |
 | Crear/listar/obtener desarrolladores | `POST`, `GET /api/desarrolladores/`, `GET /api/desarrolladores/{id}` | registro admin y panel dev |
 | Publicar/listar/detallar juegos | `POST`, `GET /api/juegos/`, `GET /api/juegos/{id}` | tienda, panel dev y detalle |
+| Editar juego | `PUT /api/juegos/{id}` | panel dev |
 | Juegos de un desarrollador | `GET /api/desarrolladores/{id}/juegos` | panel y perfil dev |
 | Recargar y ver historial | `POST /api/usuarios/{id}/recargar`, `GET /api/usuarios/{id}/recargas` | perfil |
 | Comprar | `POST /api/usuarios/{id}/comprar/{juego_id}` | tienda, detalle y wishlist |
@@ -48,12 +50,13 @@ se comprueba la identidad o el rol al mutar recursos: la sesión actual sólo se
 conserva en el navegador. Antes de producción hay que agregar tokens o cookies
 seguras y autorización en cada endpoint protegido.
 
-### 2. Contenido editorial de juegos
+### 2. Almacenamiento de imágenes
 
-El backend no guarda `descripcion`, `resumen`, `imagen`, `galeria` ni trailer.
-El adaptador del frontend reutiliza esos campos de `mock-data.ts` cuando
-encuentra el mismo id o título y usa valores neutros para juegos nuevos. Estos
-campos deberían agregarse al modelo, schema y migración de `Juego`.
+El backend ya guarda `descripcion`, `resumen`, `imagen` y `galeria`; el frontend
+mantiene las imágenes de muestra como fallback para registros anteriores. Las
+portadas y capturas nuevas se guardan como data URLs para simplificar el entorno
+académico. En producción conviene moverlas a almacenamiento de objetos y guardar
+solo sus URLs. Los avatares sí se almacenan como archivos bajo `backend/storage`.
 
 ### 3. Datos de tarjeta
 
@@ -74,6 +77,8 @@ estudio sin borrar datos.
 El script `src/db/migrations/20260831_auth_solicitudes.sql` crea las solicitudes
 de amistad. Las cuentas anteriores cuyo hash sea `autenticacion-pendiente`
 necesitan un restablecimiento de contraseña; las cuentas nuevas ya son compatibles.
+El script `src/db/migrations/20260902_perfiles_imagenes.sql` agrega el avatar y
+los campos editoriales sin borrar los datos existentes.
 
 ## Verificación automatizada
 

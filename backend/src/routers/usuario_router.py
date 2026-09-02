@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, Query, Response, status
+from fastapi import APIRouter, Depends, File, Query, Response, UploadFile, status
 from sqlalchemy.orm import Session
 
 from src.db.connection import get_db
@@ -40,6 +40,13 @@ def listar_usuarios(email: str | None = Query(default=None), db: Session = Depen
 @router.get("/{id}", response_model=GetUsuarioSchema)
 def obtener_usuario(id: int, db: Session = Depends(get_db)):
     return UsuarioService(db).obtener(id)
+
+
+@router.put("/{id}/avatar", response_model=GetUsuarioSchema)
+async def actualizar_avatar(
+    id: int, archivo: UploadFile = File(...), db: Session = Depends(get_db)
+):
+    return await UsuarioService(db).guardar_avatar(id, archivo)
 
 
 @router.post("/{id}/recargar", response_model=GetRecargaSchema)

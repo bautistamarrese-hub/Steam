@@ -200,11 +200,23 @@ function DetalleJuego() {
         {jugando && juego.archivo_url && (
           <section>
             <div className="flex items-center justify-between gap-4">
-              <div><h2 className="text-xl font-semibold">Jugando: {juego.titulo}</h2><p className="text-sm text-muted-foreground">El juego se ejecuta dentro de la plataforma.</p></div>
-              <Button variant="ghost" onClick={() => setJugando(false)}>Cerrar</Button>
+              <div>
+                <h2 className="text-xl font-semibold">Jugando: {juego.titulo}</h2>
+                <p className="text-sm text-muted-foreground">
+                  El juego se ejecuta dentro de la plataforma.
+                </p>
+              </div>
+              <Button variant="ghost" onClick={() => setJugando(false)}>
+                Cerrar
+              </Button>
             </div>
             <Card className="mt-4 overflow-hidden p-0">
-              <iframe title={`Juego: ${juego.titulo}`} src={juego.archivo_url} className="aspect-video w-full bg-black" sandbox="allow-scripts allow-pointer-lock" />
+              <iframe
+                title={`Juego: ${juego.titulo}`}
+                src={juego.archivo_url}
+                className="aspect-video w-full bg-black"
+                sandbox="allow-scripts allow-pointer-lock"
+              />
             </Card>
           </section>
         )}

@@ -63,7 +63,7 @@ export function SiteHeader() {
             <span className="font-semibold">{formatPrecio(usuario.saldo)}</span>
           </Link>
           <Link to="/perfil" className="flex items-center gap-2">
-            <AvatarGamer nickname={usuario.nickname} className="h-8 w-8" />
+            <AvatarGamer nickname={usuario.nickname} avatar={usuario.avatar} className="h-8 w-8" />
             <span className="hidden text-sm text-muted-foreground 2xl:inline">
               {usuario.nickname}
             </span>

@@ -1,7 +1,7 @@
 from datetime import date
 from typing import List, Optional, TYPE_CHECKING
 
-from sqlalchemy import Boolean, Date, Float, ForeignKey, Integer, String, UniqueConstraint
+from sqlalchemy import Boolean, Date, Float, ForeignKey, Integer, JSON, String, Text, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from src.db.connection import Base
@@ -40,6 +40,10 @@ class Juego(Base):
     precio: Mapped[float] = mapped_column(Float(precision=2), nullable=False)
     fecha_lanzamiento: Mapped[Optional[date]] = mapped_column(Date, nullable=True)
     genero: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
+    descripcion: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    resumen: Mapped[Optional[str]] = mapped_column(String(500), nullable=True)
+    imagen: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    galeria: Mapped[Optional[list[str]]] = mapped_column(JSON, nullable=True)
     archivo_nombre: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
     archivo_url: Mapped[Optional[str]] = mapped_column(String(500), nullable=True)
     es_jugable: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)

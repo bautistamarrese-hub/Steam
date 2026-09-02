@@ -34,6 +34,7 @@ class GetUsuarioSchema(BaseModel):
     fecha_registro: datetime
     rol: Literal["cliente", "admin"]
     desarrollador_id: int | None
+    avatar: str | None = None
 
 class ProgresoJuegoSchema(BaseModel):
     juego: GetJuegoSchema

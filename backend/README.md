@@ -38,9 +38,12 @@ Recordatorio: Verificar de tener los permisos para poder hacerlo. Estos se habil
 ### Comentarios utiles
 - Si queres borrar el venv lo que tenes que hacer primero es desactivarlo de la terminal con el comnado  `deactivate` y luego borrar la carpeta
 
+powershell:
+& "C:\Program Files\PostgreSQL\18\bin\psql.exe" -U postgres -d steamdb -f "C:\Steam\backend\src\db\migrations\20260902_perfiles_imagenes.sql"
 
 front end
 cd f (tab)
+python -m venv venv
 npm.cmd run dev
 
 ```bash
@@ -76,11 +79,16 @@ actualizadas y aplicá la migración correspondiente:
 ```powershell
 pip install -r requirements.txt
 psql -U postgres -d steamdb -f .\src\db\migrations\20260831_juegos_archivos.sql
+psql -U postgres -d steamdb -f .\src\db\migrations\20260902_perfiles_imagenes.sql
 ```
 
 Los juegos reproducibles deben ser un archivo `.html` o un `.zip` que incluya
 un `index.html`. Los archivos subidos se guardan localmente en `backend/storage`
 y por eso no se incluyen en Git.
+
+La migración `20260902_perfiles_imagenes.sql` agrega avatares y los campos
+editoriales de los juegos (descripción, resumen, portada y galería), necesarios
+para las pantallas de perfil y el panel de desarrolladores.
 
 Abrir http://localhost:8000/docs para ver Swagger.
 

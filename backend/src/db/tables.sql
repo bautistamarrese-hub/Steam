@@ -13,7 +13,8 @@ CREATE TABLE usuarios (
     saldo DECIMAL(10, 2) NOT NULL DEFAULT 0.00,
     fecha_registro TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     rol VARCHAR(20) NOT NULL DEFAULT 'cliente',
-    desarrollador_id INT UNIQUE REFERENCES desarrollador(id)
+    desarrollador_id INT UNIQUE REFERENCES desarrollador(id),
+    avatar VARCHAR(500)
 );
 
 -- 2. Entidades con dependencias simples
@@ -24,6 +25,10 @@ CREATE TABLE juego (
     precio DECIMAL(10, 2) NOT NULL,
     fecha_lanzamiento DATE,
     genero VARCHAR(50),
+    descripcion TEXT,
+    resumen VARCHAR(500),
+    imagen TEXT,
+    galeria JSON,
     archivo_nombre VARCHAR(255),
     archivo_url VARCHAR(500),
     es_jugable BOOLEAN NOT NULL DEFAULT FALSE,

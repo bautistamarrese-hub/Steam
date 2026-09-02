@@ -122,7 +122,7 @@ function PerfilUsuario() {
   return (
     <div className="mx-auto max-w-5xl px-4 py-10">
       <div className="flex flex-wrap items-center gap-4">
-        <AvatarGamer nickname={usuario.nickname} className="h-16 w-16" />
+        <AvatarGamer nickname={usuario.nickname} avatar={usuario.avatar} className="h-16 w-16" />
         <div className="flex-1">
           <div className="flex items-center gap-2">
             <h1 className="text-3xl font-bold">{usuario.nickname}</h1>
@@ -234,7 +234,7 @@ function PerfilUsuario() {
                 params={{ usuarioId: String(a.id) }}
                 className="inline-flex items-center gap-2 rounded-full border border-border px-3 py-1 text-sm hover:border-primary"
               >
-                <AvatarGamer nickname={a.nickname} className="h-6 w-6" />
+                <AvatarGamer nickname={a.nickname} avatar={a.avatar} className="h-6 w-6" />
                 {a.nickname}
               </Link>
             ))}

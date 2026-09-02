@@ -20,6 +20,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Progress } from "@/components/ui/progress";
 import {
+  actualizarAvatar,
   ApiError,
   estadisticas,
   formatPrecio,
@@ -31,6 +32,7 @@ import {
   recargarSaldo,
   soloDigitos,
 } from "@/lib/api";
+import { leerImagen } from "@/lib/imagen";
 import { useSesion, useUsuario } from "@/lib/sesion";
 import type { EstadisticasUsuario } from "@/lib/types";
 
@@ -64,6 +66,8 @@ function Perfil() {
   const queryClient = useQueryClient();
   const [monto, setMonto] = useState("1000");
   const [tarjeta, setTarjeta] = useState("");
+  const [cvv, setCvv] = useState("");
+  const [subiendoAvatar, setSubiendoAvatar] = useState(false);
 
   const statsQuery = useQuery({
     queryKey: ["estadisticas", usuario.id],
@@ -135,7 +139,7 @@ function Perfil() {
   return (
     <div className="mx-auto max-w-5xl px-4 py-10">
       <div className="flex items-center gap-4">
-        <AvatarGamer nickname={usuario.nickname} className="h-16 w-16" />
+        <AvatarGamer nickname={usuario.nickname} avatar={usuario.avatar} className="h-16 w-16" />
         <div>
           <div className="flex items-center gap-2">
             <h1 className="text-3xl font-bold">{usuario.nickname}</h1>
@@ -147,6 +151,36 @@ function Perfil() {
             {usuario.email} · miembro desde {usuario.fecha_registro}
             {dev ? ` · ${dev.nombre}` : ""}
           </p>
+          <div className="mt-2 flex flex-wrap items-center gap-2">
+            <Label htmlFor="foto" className="text-xs text-muted-foreground">
+              Cambiar foto de perfil
+            </Label>
+            <Input
+              id="foto"
+              type="file"
+              accept="image/*"
+              disabled={subiendoAvatar}
+              className="h-8 w-56 cursor-pointer text-xs"
+              onChange={async (event) => {
+                const file = event.target.files?.[0];
+                if (!file) return;
+                setSubiendoAvatar(true);
+                try {
+                  await leerImagen(file);
+                  await actualizarAvatar(usuario.id, file);
+                  await refrescar();
+                  toast.success("Foto de perfil actualizada");
+                } catch (error) {
+                  toast.error(
+                    error instanceof Error ? error.message : "No se pudo actualizar la foto",
+                  );
+                } finally {
+                  setSubiendoAvatar(false);
+                  event.target.value = "";
+                }
+              }}
+            />
+          </div>
         </div>
       </div>
 
@@ -245,6 +279,17 @@ function Perfil() {
               </p>
             </div>
             <div className="space-y-1">
+              <Label htmlFor="cvv">CVV (3 cifras)</Label>
+              <Input
+                id="cvv"
+                inputMode="numeric"
+                className="w-28 tracking-widest"
+                placeholder="123"
+                value={cvv}
+                onChange={(event) => setCvv(soloDigitos(event.target.value).slice(0, 3))}
+              />
+            </div>
+            <div className="space-y-1">
               <Label htmlFor="monto">Monto</Label>
               <Input
                 id="monto"
@@ -253,13 +298,14 @@ function Perfil() {
                 onChange={(e) => setMonto(e.target.value)}
               />
             </div>
-            {/* POST /usuarios/{id}/recargar  body: { monto, tarjeta } */}
+            {/* Los datos de tarjeta se validan en el navegador; la API recibe solo el monto. */}
             <Button
               className="w-full"
               onClick={() =>
                 accion(async () => {
-                  await recargarSaldo(usuario.id, Number(monto), tarjeta);
+                  await recargarSaldo(usuario.id, Number(monto), tarjeta, cvv);
                   setTarjeta("");
+                  setCvv("");
                 }, "Saldo recargado con éxito")
               }
             >

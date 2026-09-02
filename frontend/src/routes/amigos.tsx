@@ -92,6 +92,7 @@ function Amigos() {
               <li key={solicitud.id} className="flex flex-wrap items-center gap-3">
                 <AvatarGamer
                   nickname={solicitud.autor?.nickname ?? "Usuario"}
+                  avatar={solicitud.autor?.avatar}
                   className="h-9 w-9"
                 />
                 <div className="min-w-0 flex-1">
@@ -131,7 +132,7 @@ function Amigos() {
           return (
             <Card key={u.id} className="gap-3 p-4">
               <div className="flex items-center gap-3">
-                <AvatarGamer nickname={u.nickname} />
+                <AvatarGamer nickname={u.nickname} avatar={u.avatar} />
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-2">
                     <Link
