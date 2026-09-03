@@ -8,6 +8,10 @@ interface SesionCtx {
   usuario: Usuario | null;
   esAdmin: boolean;
   cargando: boolean;
+  accesoAbierto: boolean;
+  motivoAcceso: string;
+  abrirAcceso: (motivo?: string) => void;
+  cerrarAcceso: () => void;
   login: (email: string, password: string) => Promise<void>;
   registrar: (
     email: string,
@@ -35,6 +39,10 @@ const leerSesion = (): Usuario | null => {
 export function SesionProvider({ children }: { children: React.ReactNode }) {
   const [usuario, setUsuario] = useState<Usuario | null>(null);
   const [cargando, setCargando] = useState(true);
+  const [accesoAbierto, setAccesoAbierto] = useState(false);
+  const [motivoAcceso, setMotivoAcceso] = useState(
+    "Iniciá sesión o creá una cuenta para usar esta función.",
+  );
 
   const guardar = useCallback((nuevo: Usuario | null) => {
     if (nuevo) localStorage.setItem(CLAVE, JSON.stringify(nuevo));
@@ -60,18 +68,43 @@ export function SesionProvider({ children }: { children: React.ReactNode }) {
     guardar(actual);
   }, [guardar, usuario]);
 
+  const abrirAcceso = useCallback((motivo?: string) => {
+    setMotivoAcceso(motivo ?? "Iniciá sesión o creá una cuenta para usar esta función.");
+    setAccesoAbierto(true);
+  }, []);
+
+  const cerrarAcceso = useCallback(() => setAccesoAbierto(false), []);
+
   const value = useMemo<SesionCtx>(
     () => ({
       usuario,
       esAdmin: usuario?.rol === "admin",
       cargando,
-      login: async (email, password) => guardar(await iniciarSesion(email, password)),
-      registrar: async (email, nickname, password, confirmacion, rol, estudio) =>
-        guardar(await registrarUsuario(email, nickname, password, confirmacion, rol, estudio)),
+      accesoAbierto,
+      motivoAcceso,
+      abrirAcceso,
+      cerrarAcceso,
+      login: async (email, password) => {
+        guardar(await iniciarSesion(email, password));
+        cerrarAcceso();
+      },
+      registrar: async (email, nickname, password, confirmacion, rol, estudio) => {
+        guardar(await registrarUsuario(email, nickname, password, confirmacion, rol, estudio));
+        cerrarAcceso();
+      },
       logout: () => guardar(null),
       refrescar,
     }),
-    [cargando, guardar, refrescar, usuario],
+    [
+      accesoAbierto,
+      abrirAcceso,
+      cargando,
+      cerrarAcceso,
+      guardar,
+      motivoAcceso,
+      refrescar,
+      usuario,
+    ],
   );
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
@@ -85,5 +118,6 @@ export function useSesion() {
 
 export function useUsuario(): Usuario {
   const { usuario } = useSesion();
-  return usuario!;
+  if (!usuario) throw new Error("Esta pantalla requiere una sesión iniciada");
+  return usuario;
 }

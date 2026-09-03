@@ -1,33 +1,41 @@
 import { Link } from "@tanstack/react-router";
-import { Gamepad2, LogOut, Wallet, Wrench } from "lucide-react";
+import { Gamepad2, LogIn, LogOut, Wallet, Wrench } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { AvatarGamer } from "@/components/AvatarGamer";
 import { formatPrecio } from "@/lib/api";
 import { useSesion } from "@/lib/sesion";
 
 const LINKS_CLIENTE = [
-  { to: "/", label: "Tienda" },
-  { to: "/biblioteca", label: "Biblioteca" },
-  { to: "/wishlist", label: "Wishlist" },
-  { to: "/top", label: "Top" },
-  { to: "/amigos", label: "Amigos" },
-  { to: "/perfil", label: "Perfil" },
+  { to: "/", label: "Tienda", requiereSesion: false },
+  { to: "/biblioteca", label: "Biblioteca", requiereSesion: true },
+  { to: "/wishlist", label: "Wishlist", requiereSesion: true },
+  { to: "/top", label: "Top", requiereSesion: false },
+  { to: "/amigos", label: "Amigos", requiereSesion: true },
+  { to: "/perfil", label: "Perfil", requiereSesion: true },
 ] as const;
 
 const LINKS_ADMIN = [
-  { to: "/", label: "Tienda" },
-  { to: "/biblioteca", label: "Biblioteca" },
-  { to: "/wishlist", label: "Wishlist" },
-  { to: "/desarrolladores", label: "Panel" },
-  { to: "/top", label: "Top" },
-  { to: "/amigos", label: "Amigos" },
-  { to: "/perfil", label: "Perfil" },
+  { to: "/", label: "Tienda", requiereSesion: false },
+  { to: "/biblioteca", label: "Biblioteca", requiereSesion: true },
+  { to: "/wishlist", label: "Wishlist", requiereSesion: true },
+  { to: "/desarrolladores", label: "Panel", requiereSesion: true },
+  { to: "/top", label: "Top", requiereSesion: false },
+  { to: "/amigos", label: "Amigos", requiereSesion: true },
+  { to: "/perfil", label: "Perfil", requiereSesion: true },
 ] as const;
 
 export function SiteHeader() {
-  const { usuario, esAdmin, logout } = useSesion();
-  if (!usuario) return null;
+  const { usuario, esAdmin, abrirAcceso, logout } = useSesion();
   const links = esAdmin ? LINKS_ADMIN : LINKS_CLIENTE;
+  const interceptarPrivado = (
+    event: React.MouseEvent<HTMLAnchorElement>,
+    requiereSesion: boolean,
+  ) => {
+    if (usuario || !requiereSesion) return;
+    event.preventDefault();
+    abrirAcceso("Iniciá sesión o creá una cuenta para acceder a esta sección.");
+  };
 
   return (
     <header className="sticky top-0 z-40 border-b border-border/80 bg-sidebar/95 backdrop-blur">
@@ -42,6 +50,7 @@ export function SiteHeader() {
               key={l.to}
               to={l.to}
               activeOptions={{ exact: l.to === "/" }}
+              onClick={(event) => interceptarPrivado(event, l.requiereSesion)}
               className="whitespace-nowrap rounded-md px-2.5 py-1.5 text-sm text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
               activeProps={{ className: "bg-secondary text-foreground" }}
             >
@@ -55,26 +64,43 @@ export function SiteHeader() {
               <Wrench className="h-3.5 w-3.5" /> Desarrollador
             </Badge>
           )}
-          <Link
-            to="/perfil"
-            className="flex items-center gap-2 rounded-md border border-border bg-card px-3 py-1.5 text-sm"
-          >
-            <Wallet className="h-4 w-4 text-accent" />
-            <span className="font-semibold">{formatPrecio(usuario.saldo)}</span>
-          </Link>
-          <Link to="/perfil" className="flex items-center gap-2">
-            <AvatarGamer nickname={usuario.nickname} avatar={usuario.avatar} className="h-8 w-8" />
-            <span className="hidden text-sm text-muted-foreground 2xl:inline">
-              {usuario.nickname}
-            </span>
-          </Link>
-          <button
-            onClick={logout}
-            aria-label="Cerrar sesión"
-            className="rounded-md border border-border p-2 text-muted-foreground hover:text-foreground"
-          >
-            <LogOut className="h-4 w-4" />
-          </button>
+          {usuario ? (
+            <>
+              <Link
+                to="/perfil"
+                className="flex items-center gap-2 rounded-md border border-border bg-card px-3 py-1.5 text-sm"
+              >
+                <Wallet className="h-4 w-4 text-accent" />
+                <span className="font-semibold">{formatPrecio(usuario.saldo)}</span>
+              </Link>
+              <Link to="/perfil" className="flex items-center gap-2">
+                <AvatarGamer
+                  nickname={usuario.nickname}
+                  avatar={usuario.avatar}
+                  className="h-8 w-8"
+                />
+                <span className="hidden text-sm text-muted-foreground 2xl:inline">
+                  {usuario.nickname}
+                </span>
+              </Link>
+              <button
+                onClick={logout}
+                aria-label="Cerrar sesión"
+                className="rounded-md border border-border p-2 text-muted-foreground hover:text-foreground"
+              >
+                <LogOut className="h-4 w-4" />
+              </button>
+            </>
+          ) : (
+            <Button
+              size="sm"
+              className="gap-2"
+              onClick={() => abrirAcceso("Iniciá sesión o creá una cuenta para continuar.")}
+            >
+              <LogIn className="h-4 w-4" />
+              Iniciar sesión
+            </Button>
+          )}
         </div>
       </div>
       <nav
@@ -86,6 +112,7 @@ export function SiteHeader() {
             key={l.to}
             to={l.to}
             activeOptions={{ exact: l.to === "/" }}
+            onClick={(event) => interceptarPrivado(event, l.requiereSesion)}
             className="whitespace-nowrap rounded-md px-3 py-1 text-sm text-muted-foreground"
             activeProps={{ className: "bg-secondary text-foreground" }}
           >

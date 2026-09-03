@@ -5,13 +5,28 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { ApiError, LARGO_MINIMO_PASSWORD } from "@/lib/api";
 import { useSesion } from "@/lib/sesion";
 import type { Rol } from "@/lib/types";
 
 export function AuthGate({ children }: { children: React.ReactNode }) {
-  const { usuario, cargando, login, registrar } = useSesion();
-  const [modo, setModo] = useState<"registro" | "login">("registro");
+  const {
+    usuario,
+    cargando,
+    accesoAbierto,
+    motivoAcceso,
+    cerrarAcceso,
+    login,
+    registrar,
+  } = useSesion();
+  const [modo, setModo] = useState<"registro" | "login">("login");
   const [email, setEmail] = useState("");
   const [nickname, setNickname] = useState("");
   const [password, setPassword] = useState("");
@@ -19,9 +34,6 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
   const [estudio, setEstudio] = useState("");
   const [rol, setRol] = useState<Rol>("cliente");
   const [enviando, setEnviando] = useState(false);
-
-  if (cargando) return null;
-  if (usuario) return <>{children}</>;
 
   const enviar = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -43,22 +55,33 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
   };
 
   return (
-    <div className="bg-hero flex min-h-screen items-center justify-center px-4 py-12">
-      <Card className="w-full max-w-lg p-8">
-        <div className="flex items-center gap-2 text-xl font-bold">
-          <Gamepad2 className="h-6 w-6 text-primary" />
-          Steamn&apos;t
-        </div>
-        <h1 className="mt-4 text-2xl font-bold">
-          {modo === "registro" ? "Creá tu cuenta" : "Iniciá sesión"}
-        </h1>
-        <p className="mt-1 text-sm text-muted-foreground">
+    <>
+      {children}
+      <Dialog
+        open={!cargando && !usuario && accesoAbierto}
+        onOpenChange={(abierto) => {
+          if (!abierto) cerrarAcceso();
+        }}
+      >
+        <DialogContent className="max-h-[90dvh] overflow-y-auto sm:max-w-lg">
+          <DialogHeader>
+            <div className="flex items-center gap-2 text-xl font-bold">
+              <Gamepad2 className="h-6 w-6 text-primary" />
+              Steamn&apos;t
+            </div>
+            <DialogTitle className="pt-2 text-2xl">
+              {modo === "registro" ? "Creá tu cuenta" : "Iniciá sesión"}
+            </DialogTitle>
+            <DialogDescription>{motivoAcceso}</DialogDescription>
+          </DialogHeader>
+          <Card className="border-0 p-0 shadow-none">
+        <p className="text-sm text-muted-foreground">
           {modo === "registro"
             ? "El email y el nickname son únicos. Tu saldo arranca en 0."
             : "Ingresá con el email y la contraseña de tu cuenta."}
         </p>
 
-        <form className="mt-6 space-y-4" onSubmit={enviar}>
+        <form className="mt-4 space-y-4" onSubmit={enviar}>
           <div className="space-y-1">
             <Label htmlFor="email">Email</Label>
             <Input
@@ -182,7 +205,9 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
               : "No tengo cuenta, quiero registrarme"}
           </button>
         </form>
-      </Card>
-    </div>
+          </Card>
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }

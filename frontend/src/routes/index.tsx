@@ -15,7 +15,7 @@ import {
   listarJuegos,
   obtenerWishlist,
 } from "@/lib/api";
-import { useSesion, useUsuario } from "@/lib/sesion";
+import { useSesion } from "@/lib/sesion";
 import type { Genero } from "@/lib/types";
 
 export const Route = createFileRoute("/")({
@@ -50,8 +50,7 @@ const GENEROS: Array<Genero | "todos"> = [
 ];
 
 function Tienda() {
-  const usuario = useUsuario();
-  const { refrescar } = useSesion();
+  const { usuario, abrirAcceso, refrescar } = useSesion();
   const [q, setQ] = useState("");
   const [genero, setGenero] = useState<Genero | "todos">("todos");
   const queryClient = useQueryClient();
@@ -60,19 +59,25 @@ function Tienda() {
     queryFn: () => listarJuegos({ genero, q }),
   });
   const { data: comprados = [] } = useQuery({
-    queryKey: ["biblioteca", usuario.id],
-    queryFn: () => biblioteca(usuario.id),
+    queryKey: ["biblioteca", usuario?.id],
+    queryFn: () => biblioteca(usuario!.id),
+    enabled: Boolean(usuario),
   });
   const { data: deseados = [] } = useQuery({
-    queryKey: ["wishlist", usuario.id],
-    queryFn: () => obtenerWishlist(usuario.id),
+    queryKey: ["wishlist", usuario?.id],
+    queryFn: () => obtenerWishlist(usuario!.id),
+    enabled: Boolean(usuario),
   });
   const compradosIds = new Set(comprados.map((item) => item.juego.id));
   const deseadosIds = new Set(deseados.map((item) => item.juego_id));
 
-  const accion = async (fn: () => Promise<unknown>, ok: string) => {
+  const accion = async (fn: (usuarioId: number) => Promise<unknown>, ok: string) => {
+    if (!usuario) {
+      abrirAcceso("Tenés que iniciar sesión para comprar juegos o usar la wishlist.");
+      return;
+    }
     try {
-      await fn();
+      await fn(usuario.id);
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ["biblioteca", usuario.id] }),
         queryClient.invalidateQueries({ queryKey: ["wishlist", usuario.id] }),
@@ -153,7 +158,7 @@ function Tienda() {
                       disabled={comprado}
                       onClick={() =>
                         accion(
-                          () => comprarJuego(usuario.id, juego.id),
+                          (usuarioId) => comprarJuego(usuarioId, juego.id),
                           `Compraste ${juego.titulo}`,
                         )
                       }
@@ -166,7 +171,7 @@ function Tienda() {
                       disabled={comprado || deseado}
                       onClick={() =>
                         accion(
-                          () => agregarAWishlist(usuario.id, juego.id),
+                          (usuarioId) => agregarAWishlist(usuarioId, juego.id),
                           "Agregado a tu wishlist",
                         )
                       }
