@@ -1,0 +1,890 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Angry Birds HTML5 - Con Gravedad & Física Realista</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            user-select: none;
+        }
+        body {
+            margin: 0;
+            background: #111;
+            color: #fff;
+            font-family: 'Arial Black', Gadget, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            overflow: hidden;
+        }
+        #game-container {
+            position: relative;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.8);
+            border-radius: 12px;
+            overflow: hidden;
+            border: 4px solid #fff;
+        }
+        canvas {
+            background: #70c5ce;
+            display: block;
+            cursor: pointer;
+        }
+        /* Interfaz de usuario superior */
+        #top-bar {
+            position: absolute;
+            top: 12px;
+            left: 15px;
+            right: 15px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            pointer-events: none;
+            z-index: 5;
+        }
+        .ui-card {
+            background: rgba(0, 0, 0, 0.6);
+            padding: 8px 16px;
+            border-radius: 20px;
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            font-size: 18px;
+            text-shadow: 2px 2px 4px #000;
+        }
+        .btn {
+            background: #ff4757;
+            color: white;
+            border: 2px solid #fff;
+            padding: 8px 16px;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            pointer-events: auto;
+            transition: transform 0.1s, background 0.2s;
+            box-shadow: 0 4px 0 #b31217;
+        }
+        .btn:hover {
+            background: #ff6b81;
+            transform: translateY(-2px);
+        }
+        .btn:active {
+            transform: translateY(2px);
+            box-shadow: 0 1px 0 #b31217;
+        }
+
+        /* Modales / Menús */
+        .modal {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0, 0, 0, 0.85);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 10;
+        }
+        .hidden {
+            display: none !important;
+        }
+        .modal h1 {
+            font-size: 42px;
+            margin: 0 0 10px 0;
+            color: #f1c40f;
+            text-shadow: 3px 3px 0 #000;
+        }
+        .stars-container {
+            font-size: 50px;
+            margin: 15px 0;
+        }
+        .star {
+            color: #555;
+            text-shadow: 0 0 5px #000;
+        }
+        .star.active {
+            color: #f1c40f;
+            text-shadow: 0 0 10px #f39c12;
+        }
+
+        /* Selector de Niveles */
+        .level-grid {
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            gap: 15px;
+            margin-top: 20px;
+        }
+        .level-btn {
+            width: 80px;
+            height: 80px;
+            background: #2ed573;
+            border: 3px solid #fff;
+            border-radius: 12px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+            cursor: pointer;
+            box-shadow: 0 5px 0 #1e824c;
+            transition: transform 0.1s;
+        }
+        .level-btn:hover {
+            transform: scale(1.08);
+        }
+        .level-btn .mini-stars {
+            font-size: 14px;
+            margin-top: 4px;
+        }
+    </style>
+</head>
+<body>
+
+<div id="game-container">
+    <div id="top-bar">
+        <div class="ui-card" id="level-display">Nivel 1</div>
+        <div class="ui-card" id="score-display">Puntos: 0</div>
+        <button class="btn" onclick="openLevelSelect()">Niveles</button>
+    </div>
+
+    <canvas id="gameCanvas" width="900" height="450"></canvas>
+
+    <!-- Modal Menú de Niveles -->
+    <div id="menu-modal" class="modal">
+        <h1>SELECCIONAR NIVEL</h1>
+        <div class="level-grid" id="level-grid"></div>
+    </div>
+
+    <!-- Modal Fin de Nivel -->
+    <div id="result-modal" class="modal hidden">
+        <h1 id="result-title">¡NIVEL COMPLETADO!</h1>
+        <div class="stars-container" id="result-stars">
+            <span class="star">★</span>
+            <span class="star">★</span>
+            <span class="star">★</span>
+        </div>
+        <p id="result-score" style="font-size: 22px; margin-bottom: 20px;">Puntuación: 0</p>
+        <div style="display: flex; gap: 15px;">
+            <button class="btn" onclick="retryLevel()">Reintentar</button>
+            <button class="btn" id="next-btn" onclick="nextLevel()">Siguiente</button>
+            <button class="btn" onclick="openLevelSelect()">Menú</button>
+        </div>
+    </div>
+</div>
+
+<script>
+const canvas = document.getElementById('gameCanvas');
+const ctx = canvas.getContext('2d');
+
+// --- SINTETIZADOR DE SONIDO ---
+const AudioContext = window.AudioContext || window.webkitAudioContext;
+let audioCtx = null;
+
+function initAudio() {
+    if (!audioCtx) audioCtx = new AudioContext();
+}
+
+function playSfx(type) {
+    if (!audioCtx) return;
+    const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+    osc.connect(gain);
+    gain.connect(audioCtx.destination);
+    const now = audioCtx.currentTime;
+
+    if (type === 'launch') {
+        osc.frequency.setValueAtTime(150, now);
+        osc.frequency.exponentialRampToValueAtTime(450, now + 0.15);
+        gain.gain.setValueAtTime(0.3, now);
+        gain.gain.linearRampToValueAtTime(0.01, now + 0.15);
+        osc.start(now); osc.stop(now + 0.15);
+    } else if (type === 'pop') {
+        osc.frequency.setValueAtTime(600, now);
+        osc.frequency.exponentialRampToValueAtTime(120, now + 0.1);
+        gain.gain.setValueAtTime(0.4, now);
+        gain.gain.linearRampToValueAtTime(0.01, now + 0.1);
+        osc.start(now); osc.stop(now + 0.1);
+    } else if (type === 'hit') {
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(120, now);
+        osc.frequency.exponentialRampToValueAtTime(30, now + 0.12);
+        gain.gain.setValueAtTime(0.3, now);
+        gain.gain.linearRampToValueAtTime(0.01, now + 0.12);
+        osc.start(now); osc.stop(now + 0.12);
+    } else if (type === 'win') {
+        [261, 329, 392, 523].forEach((f, i) => {
+            const o = audioCtx.createOscillator();
+            const g = audioCtx.createGain();
+            o.connect(g); g.connect(audioCtx.destination);
+            o.frequency.value = f;
+            g.gain.setValueAtTime(0.2, now + i*0.1);
+            g.gain.linearRampToValueAtTime(0.01, now + i*0.1 + 0.2);
+            o.start(now + i*0.1); o.stop(now + i*0.1 + 0.2);
+        });
+    }
+}
+
+// --- CONFIGURACIÓN Y FÍSICA GLOBAL ---
+const gravity = 0.28;
+const groundY = 380;
+const sling = { x: 140, y: 300 };
+const speedMultiplier = 0.32;
+
+let currentLevelIdx = 0;
+let score = 0;
+let levelStars = JSON.parse(localStorage.getItem('ab_stars')) || Array(10).fill(0);
+
+// Definición de los 10 Niveles
+const levels = [
+    {
+        blocks: [{ x: 620, y: groundY - 80, w: 25, h: 80, type: 'wood', hp: 1 }],
+        pigs: [{ x: 690, y: groundY - 18, r: 18, hp: 1 }]
+    },
+    {
+        blocks: [
+            { x: 580, y: groundY - 80, w: 20, h: 80, type: 'wood', hp: 1 },
+            { x: 670, y: groundY - 80, w: 20, h: 80, type: 'wood', hp: 1 }
+        ],
+        pigs: [
+            { x: 580, y: groundY - 100, r: 16, hp: 1 },
+            { x: 670, y: groundY - 100, r: 16, hp: 1 }
+        ]
+    },
+    {
+        blocks: [
+            { x: 590, y: groundY - 90, w: 20, h: 90, type: 'wood', hp: 1 },
+            { x: 690, y: groundY - 90, w: 20, h: 90, type: 'wood', hp: 1 },
+            { x: 570, y: groundY - 110, w: 140, h: 20, type: 'stone', hp: 2 }
+        ],
+        pigs: [{ x: 640, y: groundY - 18, r: 18, hp: 1 }]
+    },
+    {
+        blocks: [
+            { x: 560, y: groundY - 60, w: 20, h: 60, type: 'ice', hp: 1 },
+            { x: 630, y: groundY - 60, w: 20, h: 60, type: 'ice', hp: 1 },
+            { x: 700, y: groundY - 60, w: 20, h: 60, type: 'ice', hp: 1 },
+            { x: 550, y: groundY - 80, w: 170, h: 20, type: 'wood', hp: 1 }
+        ],
+        pigs: [
+            { x: 595, y: groundY - 20, r: 16, hp: 1 },
+            { x: 665, y: groundY - 20, r: 16, hp: 1 }
+        ]
+    },
+    {
+        blocks: [
+            { x: 600, y: groundY - 40, w: 110, h: 40, type: 'stone', hp: 2 },
+            { x: 610, y: groundY - 120, w: 20, h: 80, type: 'wood', hp: 1 },
+            { x: 680, y: groundY - 120, w: 20, h: 80, type: 'wood', hp: 1 },
+            { x: 590, y: groundY - 140, w: 130, h: 20, type: 'wood', hp: 1 }
+        ],
+        pigs: [
+            { x: 650, y: groundY - 60, r: 16, hp: 1 },
+            { x: 650, y: groundY - 160, r: 16, hp: 1 }
+        ]
+    },
+    {
+        blocks: [
+            { x: 620, y: groundY - 100, w: 25, h: 100, type: 'stone', hp: 2 },
+            { x: 700, y: groundY - 100, w: 25, h: 100, type: 'stone', hp: 2 },
+            { x: 610, y: groundY - 120, w: 125, h: 20, type: 'wood', hp: 1 },
+            { x: 655, y: groundY - 200, w: 25, h: 80, type: 'ice', hp: 1 }
+        ],
+        pigs: [
+            { x: 660, y: groundY - 20, r: 18, hp: 1 },
+            { x: 660, y: groundY - 140, r: 16, hp: 1 }
+        ]
+    },
+    {
+        blocks: [
+            { x: 540, y: groundY - 70, w: 20, h: 70, type: 'ice', hp: 1 },
+            { x: 620, y: groundY - 90, w: 20, h: 90, type: 'wood', hp: 1 },
+            { x: 700, y: groundY - 110, w: 20, h: 110, type: 'stone', hp: 2 }
+        ],
+        pigs: [
+            { x: 580, y: groundY - 18, r: 16, hp: 1 },
+            { x: 660, y: groundY - 18, r: 16, hp: 1 },
+            { x: 740, y: groundY - 18, r: 16, hp: 1 }
+        ]
+    },
+    {
+        blocks: [
+            { x: 550, y: groundY - 80, w: 20, h: 80, type: 'stone', hp: 2 },
+            { x: 610, y: groundY - 80, w: 20, h: 80, type: 'stone', hp: 2 },
+            { x: 680, y: groundY - 80, w: 20, h: 80, type: 'stone', hp: 2 },
+            { x: 740, y: groundY - 80, w: 20, h: 80, type: 'stone', hp: 2 },
+            { x: 540, y: groundY - 100, w: 100, h: 20, type: 'wood', hp: 1 },
+            { x: 670, y: groundY - 100, w: 100, h: 20, type: 'wood', hp: 1 }
+        ],
+        pigs: [
+            { x: 580, y: groundY - 20, r: 16, hp: 1 },
+            { x: 710, y: groundY - 20, r: 16, hp: 1 },
+            { x: 645, y: groundY - 20, r: 18, hp: 1 }
+        ]
+    },
+    {
+        blocks: [
+            { x: 580, y: groundY - 120, w: 20, h: 120, type: 'wood', hp: 1 },
+            { x: 680, y: groundY - 120, w: 20, h: 120, type: 'wood', hp: 1 },
+            { x: 560, y: groundY - 140, w: 160, h: 20, type: 'stone', hp: 2 },
+            { x: 610, y: groundY - 210, w: 20, h: 70, type: 'ice', hp: 1 },
+            { x: 650, y: groundY - 210, w: 20, h: 70, type: 'ice', hp: 1 }
+        ],
+        pigs: [
+            { x: 630, y: groundY - 20, r: 16, hp: 1 },
+            { x: 630, y: groundY - 160, r: 16, hp: 1 },
+            { x: 630, y: groundY - 230, r: 16, hp: 1 }
+        ]
+    },
+    {
+        blocks: [
+            { x: 550, y: groundY - 100, w: 25, h: 100, type: 'stone', hp: 2 },
+            { x: 730, y: groundY - 100, w: 25, h: 100, type: 'stone', hp: 2 },
+            { x: 540, y: groundY - 120, w: 225, h: 20, type: 'wood', hp: 1 },
+            { x: 600, y: groundY - 200, w: 20, h: 80, type: 'stone', hp: 2 },
+            { x: 680, y: groundY - 200, w: 20, h: 80, type: 'stone', hp: 2 },
+            { x: 580, y: groundY - 220, w: 140, h: 20, type: 'ice', hp: 1 }
+        ],
+        pigs: [
+            { x: 590, y: groundY - 20, r: 16, hp: 1 },
+            { x: 690, y: groundY - 20, r: 16, hp: 1 },
+            { x: 640, y: groundY - 160, r: 24, hp: 2, isKing: true }
+        ]
+    }
+];
+
+let birdsQueue = [];
+let currentBird = null;
+let activeBlocks = [];
+let activePigs = [];
+
+function initLevel(idx) {
+    currentLevelIdx = idx;
+    document.getElementById('level-display').innerText = `Nivel ${idx + 1}`;
+    
+    const lvl = levels[idx];
+    // Asignar propiedades dinámicas de física (vx, vy) a cada elemento
+    activeBlocks = JSON.parse(JSON.stringify(lvl.blocks)).map(b => ({ ...b, vx: 0, vy: 0 }));
+    activePigs = JSON.parse(JSON.stringify(lvl.pigs)).map(p => ({ ...p, vx: 0, vy: 0 }));
+
+    birdsQueue = [
+        { x: sling.x, y: sling.y, r: 15, vx: 0, vy: 0, isDragging: false, isLaunched: false, settled: false },
+        { x: sling.x - 40, y: groundY - 15, r: 15, vx: 0, vy: 0, isDragging: false, isLaunched: false, settled: false },
+        { x: sling.x - 70, y: groundY - 15, r: 15, vx: 0, vy: 0, isDragging: false, isLaunched: false, settled: false }
+    ];
+    currentBird = birdsQueue[0];
+
+    document.getElementById('result-modal').classList.add('hidden');
+    document.getElementById('menu-modal').classList.add('hidden');
+}
+
+// --- DIBUJO CON CANVAS ---
+
+function drawBird(b) {
+    ctx.save();
+    ctx.translate(b.x, b.y);
+    const angle = b.isLaunched ? Math.atan2(b.vy, b.vx) : 0;
+    ctx.rotate(angle);
+
+    // Plumas
+    ctx.fillStyle = '#222';
+    ctx.beginPath();
+    ctx.moveTo(-b.r, 0); ctx.lineTo(-b.r - 10, -5); ctx.lineTo(-b.r - 8, 0); ctx.lineTo(-b.r - 10, 5);
+    ctx.closePath(); ctx.fill();
+
+    // Cuerpo
+    ctx.fillStyle = '#e74c3c';
+    ctx.beginPath(); ctx.arc(0, 0, b.r, 0, Math.PI * 2); ctx.fill();
+    ctx.lineWidth = 2; ctx.strokeStyle = '#962d22'; ctx.stroke();
+
+    // Pecho
+    ctx.fillStyle = '#f5e6ca';
+    ctx.beginPath(); ctx.arc(0, 3, b.r * 0.6, 0.2, Math.PI - 0.2); ctx.fill();
+
+    // Ojos
+    ctx.fillStyle = '#fff';
+    ctx.beginPath(); ctx.arc(b.r * 0.2, -b.r * 0.2, 4.5, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.arc(b.r * 0.55, -b.r * 0.2, 4.5, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#000';
+    ctx.beginPath(); ctx.arc(b.r * 0.28, -b.r * 0.2, 2, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.arc(b.r * 0.63, -b.r * 0.2, 2, 0, Math.PI * 2); ctx.fill();
+
+    // Cejas
+    ctx.fillStyle = '#222';
+    ctx.beginPath();
+    ctx.moveTo(b.r * 0.05, -b.r * 0.45);
+    ctx.lineTo(b.r * 0.75, -b.r * 0.25);
+    ctx.lineTo(b.r * 0.75, -b.r * 0.4);
+    ctx.lineTo(b.r * 0.05, -b.r * 0.55);
+    ctx.closePath(); ctx.fill();
+
+    // Pico
+    ctx.fillStyle = '#f1c40f';
+    ctx.beginPath();
+    ctx.moveTo(b.r * 0.3, -b.r * 0.05);
+    ctx.lineTo(b.r * 0.95, b.r * 0.1);
+    ctx.lineTo(b.r * 0.3, b.r * 0.3);
+    ctx.closePath(); ctx.fill();
+
+    ctx.restore();
+}
+
+function drawPig(p) {
+    ctx.save();
+    ctx.translate(p.x, p.y);
+
+    // Orejas
+    ctx.fillStyle = '#2ecc71';
+    ctx.beginPath(); ctx.arc(-p.r * 0.7, -p.r * 0.7, p.r * 0.35, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.arc(p.r * 0.7, -p.r * 0.7, p.r * 0.35, 0, Math.PI * 2); ctx.fill();
+
+    // Cuerpo
+    ctx.fillStyle = '#2ecc71';
+    ctx.beginPath(); ctx.arc(0, 0, p.r, 0, Math.PI * 2); ctx.fill();
+    ctx.lineWidth = 2; ctx.strokeStyle = '#27ae60'; ctx.stroke();
+
+    // Hocico
+    ctx.fillStyle = '#5cdb95';
+    ctx.beginPath(); ctx.ellipse(0, p.r * 0.1, p.r * 0.45, p.r * 0.32, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#1e824c';
+    ctx.beginPath(); ctx.arc(-p.r * 0.15, p.r * 0.1, p.r * 0.08, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.arc(p.r * 0.15, p.r * 0.1, p.r * 0.08, 0, Math.PI * 2); ctx.fill();
+
+    // Ojos
+    ctx.fillStyle = '#fff';
+    ctx.beginPath(); ctx.arc(-p.r * 0.35, -p.r * 0.2, p.r * 0.22, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.arc(p.r * 0.35, -p.r * 0.2, p.r * 0.22, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#000';
+    ctx.beginPath(); ctx.arc(-p.r * 0.3, -p.r * 0.2, p.r * 0.08, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.arc(p.r * 0.3, -p.r * 0.2, p.r * 0.08, 0, Math.PI * 2); ctx.fill();
+
+    // Corona
+    if (p.isKing) {
+        ctx.fillStyle = '#f1c40f';
+        ctx.beginPath();
+        ctx.moveTo(-p.r * 0.5, -p.r * 0.8);
+        ctx.lineTo(-p.r * 0.5, -p.r * 1.3);
+        ctx.lineTo(-p.r * 0.2, -p.r * 1.0);
+        ctx.lineTo(0, -p.r * 1.4);
+        ctx.lineTo(p.r * 0.2, -p.r * 1.0);
+        ctx.lineTo(p.r * 0.5, -p.r * 1.3);
+        ctx.lineTo(p.r * 0.5, -p.r * 0.8);
+        ctx.closePath(); ctx.fill();
+        ctx.strokeStyle = '#d4ac0d'; ctx.stroke();
+    }
+
+    ctx.restore();
+}
+
+function drawBlock(b) {
+    ctx.save();
+    if (b.type === 'wood') {
+        ctx.fillStyle = '#d35400';
+        ctx.strokeStyle = '#5c2c06';
+    } else if (b.type === 'stone') {
+        ctx.fillStyle = '#7f8c8d';
+        ctx.strokeStyle = '#2c3e50';
+    } else if (b.type === 'ice') {
+        ctx.fillStyle = '#74b9ff';
+        ctx.strokeStyle = '#0984e3';
+    }
+
+    ctx.fillRect(b.x, b.y, b.w, b.h);
+    ctx.lineWidth = 2;
+    ctx.strokeRect(b.x, b.y, b.w, b.h);
+
+    ctx.beginPath();
+    ctx.moveTo(b.x + 4, b.y + 4);
+    ctx.lineTo(b.x + b.w - 4, b.y + b.h - 4);
+    ctx.strokeStyle = 'rgba(0,0,0,0.15)';
+    ctx.stroke();
+
+    ctx.restore();
+}
+
+function drawBackground() {
+    ctx.fillStyle = '#70c5ce';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.7)';
+    ctx.beginPath(); ctx.arc(200, 80, 30, 0, Math.PI * 2); ctx.arc(230, 70, 40, 0, Math.PI * 2); ctx.arc(260, 80, 30, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.arc(600, 100, 30, 0, Math.PI * 2); ctx.arc(630, 90, 35, 0, Math.PI * 2); ctx.arc(660, 100, 30, 0, Math.PI * 2); ctx.fill();
+
+    ctx.fillStyle = '#8B5A2B';
+    ctx.fillRect(0, groundY, canvas.width, canvas.height - groundY);
+    ctx.fillStyle = '#2ED573';
+    ctx.fillRect(0, groundY, canvas.width, 15);
+}
+
+function drawSlingshot() {
+    ctx.strokeStyle = '#4A2E18';
+    ctx.lineWidth = 8;
+    ctx.beginPath();
+    ctx.moveTo(sling.x, groundY);
+    ctx.lineTo(sling.x, sling.y + 10);
+    ctx.lineTo(sling.x - 10, sling.y - 15);
+    ctx.moveTo(sling.x, sling.y + 10);
+    ctx.lineTo(sling.x + 10, sling.y - 15);
+    ctx.stroke();
+}
+
+// --- EVENTOS DEL RATÓN ---
+
+canvas.addEventListener('mousedown', (e) => {
+    initAudio();
+    if (!currentBird || currentBird.isLaunched) return;
+    const rect = canvas.getBoundingClientRect();
+    const mx = e.clientX - rect.left;
+    const my = e.clientY - rect.top;
+
+    if (Math.hypot(mx - currentBird.x, my - currentBird.y) < currentBird.r * 2.5) {
+        currentBird.isDragging = true;
+    }
+});
+
+canvas.addEventListener('mousemove', (e) => {
+    if (!currentBird || !currentBird.isDragging) return;
+    const rect = canvas.getBoundingClientRect();
+    let mx = e.clientX - rect.left;
+    let my = e.clientY - rect.top;
+
+    const maxDrag = 90;
+    const dx = mx - sling.x;
+    const dy = my - sling.y;
+    const dist = Math.hypot(dx, dy);
+
+    if (dist > maxDrag) {
+        const angle = Math.atan2(dy, dx);
+        mx = sling.x + Math.cos(angle) * maxDrag;
+        my = sling.y + Math.sin(angle) * maxDrag;
+    }
+
+    currentBird.x = mx;
+    currentBird.y = my;
+});
+
+canvas.addEventListener('mouseup', () => {
+    if (!currentBird || !currentBird.isDragging) return;
+    currentBird.isDragging = false;
+    currentBird.isLaunched = true;
+
+    currentBird.vx = (sling.x - currentBird.x) * speedMultiplier;
+    currentBird.vy = (sling.y - currentBird.y) * speedMultiplier;
+    playSfx('launch');
+});
+
+// --- MOTOR DE FÍSICA Y GRAVEDAD ---
+
+function updatePhysics() {
+    // 1. Actualizar Pájaros
+    if (currentBird && currentBird.isLaunched && !currentBird.settled) {
+        currentBird.vx *= 0.99;
+        currentBird.vy += gravity;
+        currentBird.x += currentBird.vx;
+        currentBird.y += currentBird.vy;
+
+        // Suelo
+        if (currentBird.y + currentBird.r >= groundY) {
+            currentBird.y = groundY - currentBird.r;
+            currentBird.vx *= 0.5;
+            currentBird.vy = -currentBird.vy * 0.3;
+            if (Math.hypot(currentBird.vx, currentBird.vy) < 0.8) {
+                currentBird.settled = true;
+                nextBird();
+            }
+        }
+
+        // Colisión Pájaro - Bloques (Transferencia de Impulso)
+        activeBlocks.forEach((b) => {
+            if (currentBird.x + currentBird.r > b.x &&
+                currentBird.x - currentBird.r < b.x + b.w &&
+                currentBird.y + currentBird.r > b.y &&
+                currentBird.y - currentBird.r < b.y + b.h) {
+                
+                playSfx('hit');
+                // Empuje de física al bloque
+                b.vx += currentBird.vx * 0.5;
+                b.vy += currentBird.vy * 0.5;
+                
+                currentBird.vx *= 0.3;
+                currentBird.vy *= 0.3;
+                
+                b.hp -= 0.5;
+                score += 150;
+            }
+        });
+
+        // Colisión Pájaro - Cerdos
+        activePigs.forEach((p) => {
+            const dist = Math.hypot(currentBird.x - p.x, currentBird.y - p.y);
+            if (dist < currentBird.r + p.r) {
+                playSfx('pop');
+                p.vx += currentBird.vx * 0.6;
+                p.vy += currentBird.vy * 0.6;
+                p.hp--;
+                score += 800;
+            }
+        });
+
+        if (currentBird.x > canvas.width + 50 || currentBird.x < -50) {
+            currentBird.settled = true;
+            nextBird();
+        }
+    }
+
+    // 2. Gravedad y Colisiones de Bloques
+    for (let i = activeBlocks.length - 1; i >= 0; i--) {
+        let b = activeBlocks[i];
+        
+        // Aplicar gravedad al bloque
+        b.vy += gravity * 0.8;
+        b.x += b.vx;
+        b.y += b.vy;
+        b.vx *= 0.95; // Fricción
+        b.vy *= 0.98;
+
+        // Colisión Bloque con el Suelo
+        if (b.y + b.h >= groundY) {
+            if (Math.abs(b.vy) > 3.5) {
+                b.hp--;
+                playSfx('hit');
+            }
+            b.y = groundY - b.h;
+            b.vy = -b.vy * 0.15;
+            b.vx *= 0.8;
+        }
+
+        // Apilado y soporte entre bloques
+        activeBlocks.forEach(other => {
+            if (b === other) return;
+            // Verificar si el bloque 'b' está apoyado sobre 'other'
+            if (b.x + b.w > other.x + 2 && b.x < other.x + other.w - 2) {
+                if (b.y + b.h >= other.y && b.y + b.h <= other.y + 15 && b.vy >= 0) {
+                    b.y = other.y - b.h;
+                    b.vy = 0;
+                    b.vx *= 0.85;
+                }
+            }
+        });
+
+        // Eliminar bloques destruidos
+        if (b.hp <= 0) {
+            activeBlocks.splice(i, 1);
+            score += 200;
+        }
+    }
+
+    // 3. Gravedad y Colisiones de Cerdos
+    for (let i = activePigs.length - 1; i >= 0; i--) {
+        let p = activePigs[i];
+
+        // Aplicar gravedad al cerdo
+        p.vy += gravity * 0.8;
+        p.x += p.vx;
+        p.y += p.vy;
+        p.vx *= 0.95;
+        p.vy *= 0.98;
+
+        // Caída al Suelo (Daño por golpe fuerte)
+        if (p.y + p.r >= groundY) {
+            if (Math.abs(p.vy) > 3) {
+                p.hp--;
+                playSfx('pop');
+            }
+            p.y = groundY - p.r;
+            p.vy = -p.vy * 0.2;
+            p.vx *= 0.8;
+        }
+
+        // Cerdos apoyados sobre bloques
+        activeBlocks.forEach(b => {
+            if (p.x + p.r > b.x && p.x - p.r < b.x + b.w) {
+                // Soporte superior
+                if (p.y + p.r >= b.y && p.y + p.r <= b.y + 15 && p.vy >= 0) {
+                    if (Math.abs(p.vy) > 3.5) {
+                        p.hp--;
+                        playSfx('pop');
+                    }
+                    p.y = b.y - p.r;
+                    p.vy = 0;
+                    p.vx *= 0.85;
+                }
+                // Si un bloque pesado aplasta al cerdo
+                if (Math.abs(b.vy) > 2.5 && b.y < p.y) {
+                    p.hp--;
+                    playSfx('pop');
+                }
+            }
+        });
+
+        // Eliminar cerdos eliminados
+        if (p.hp <= 0) {
+            activePigs.splice(i, 1);
+            score += 1000;
+        }
+    }
+
+    // Comprobar fin de nivel
+    if (activePigs.length === 0) {
+        checkEndGame(true);
+    }
+}
+
+function nextBird() {
+    const queueIdx = birdsQueue.indexOf(currentBird);
+    if (queueIdx < birdsQueue.length - 1) {
+        currentBird = birdsQueue[queueIdx + 1];
+        currentBird.x = sling.x;
+        currentBird.y = sling.y;
+    } else {
+        setTimeout(() => checkEndGame(activePigs.length === 0), 1200);
+    }
+}
+
+function checkEndGame(won) {
+    if (document.getElementById('result-modal').classList.contains('hidden') === false) return;
+
+    const modal = document.getElementById('result-modal');
+    const title = document.getElementById('result-title');
+    const starsDiv = document.getElementById('result-stars');
+    const scoreText = document.getElementById('result-score');
+    const nextBtn = document.getElementById('next-btn');
+
+    modal.classList.remove('hidden');
+
+    if (won) {
+        playSfx('win');
+        title.innerText = "¡NIVEL COMPLETADO!";
+        
+        const unusedBirds = birdsQueue.filter(b => !b.isLaunched).length + 1;
+        let starsEarned = Math.min(3, unusedBirds);
+
+        if (starsEarned > levelStars[currentLevelIdx]) {
+            levelStars[currentLevelIdx] = starsEarned;
+            localStorage.setItem('ab_stars', JSON.stringify(levelStars));
+        }
+
+        starsDiv.innerHTML = '';
+        for (let i = 1; i <= 3; i++) {
+            starsDiv.innerHTML += `<span class="star ${i <= starsEarned ? 'active' : ''}">★</span>`;
+        }
+
+        scoreText.innerText = `Puntuación: ${score}`;
+        nextBtn.style.display = currentLevelIdx < levels.length - 1 ? 'inline-block' : 'none';
+    } else {
+        title.innerText = "¡HAS PERDIDO!";
+        starsDiv.innerHTML = '<span class="star">★</span><span class="star">★</span><span class="star">★</span>';
+        scoreText.innerText = "Inténtalo de nuevo";
+        nextBtn.style.display = 'none';
+    }
+
+    document.getElementById('score-display').innerText = `Puntos: ${score}`;
+}
+
+// --- RENDERIZADO ---
+
+function drawTrajectory() {
+    if (!currentBird || !currentBird.isDragging) return;
+
+    let px = currentBird.x;
+    let py = currentBird.y;
+    let vx = (sling.x - currentBird.x) * speedMultiplier;
+    let vy = (sling.y - currentBird.y) * speedMultiplier;
+
+    ctx.save();
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.8)';
+    ctx.lineWidth = 3;
+    ctx.setLineDash([6, 6]);
+    ctx.beginPath();
+    ctx.moveTo(px, py);
+
+    for (let i = 0; i < 30; i++) {
+        vx *= 0.99;
+        vy += gravity;
+        px += vx;
+        py += vy;
+        if (py >= groundY) break;
+        ctx.lineTo(px, py);
+    }
+    ctx.stroke();
+    ctx.restore();
+}
+
+function render() {
+    drawBackground();
+    drawSlingshot();
+
+    // Banda trasera de resortera
+    if (currentBird && currentBird.isDragging) {
+        ctx.strokeStyle = '#222';
+        ctx.lineWidth = 4;
+        ctx.beginPath();
+        ctx.moveTo(sling.x - 8, sling.y - 10);
+        ctx.lineTo(currentBird.x, currentBird.y);
+        ctx.stroke();
+    }
+
+    // Dibujar Pájaros
+    birdsQueue.forEach(b => drawBird(b));
+
+    // Banda delantera de resortera
+    if (currentBird && currentBird.isDragging) {
+        ctx.strokeStyle = '#222';
+        ctx.lineWidth = 4;
+        ctx.beginPath();
+        ctx.moveTo(sling.x + 8, sling.y - 10);
+        ctx.lineTo(currentBird.x, currentBird.y);
+        ctx.stroke();
+    }
+
+    drawTrajectory();
+
+    // Bloques y Cerdos
+    activeBlocks.forEach(b => drawBlock(b));
+    activePigs.forEach(p => drawPig(p));
+
+    document.getElementById('score-display').innerText = `Puntos: ${score}`;
+}
+
+function gameLoop() {
+    updatePhysics();
+    render();
+    requestAnimationFrame(gameLoop);
+}
+
+// --- MENÚS ---
+
+function openLevelSelect() {
+    const grid = document.getElementById('level-grid');
+    grid.innerHTML = '';
+
+    levels.forEach((_, idx) => {
+        const stars = levelStars[idx];
+        const starsStr = '★'.repeat(stars) + '☆'.repeat(3 - stars);
+        grid.innerHTML += `
+            <div class="level-btn" onclick="initLevel(${idx})">
+                ${idx + 1}
+                <div class="mini-stars" style="color: ${stars > 0 ? '#f1c40f' : '#888'}">${starsStr}</div>
+            </div>
+        `;
+    });
+
+    document.getElementById('menu-modal').classList.remove('hidden');
+}
+
+function retryLevel() {
+    initLevel(currentLevelIdx);
+}
+
+function nextLevel() {
+    if (currentLevelIdx < levels.length - 1) {
+        initLevel(currentLevelIdx + 1);
+    }
+}
+
+// Iniciar juego
+initLevel(0);
+gameLoop();
+</script>
+</body>
+</html>
