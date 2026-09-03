@@ -1,7 +1,8 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { JuegoCard } from "@/components/JuegoCard";
+import { Button } from "@/components/ui/button";
 import { biblioteca, formatPrecio } from "@/lib/api";
 import { useUsuario } from "@/lib/sesion";
 import type { Genero } from "@/lib/types";
@@ -69,11 +70,18 @@ function Biblioteca() {
             key={item.juego.id}
             juego={item.juego}
             footer={
-              <div className="flex justify-between text-sm text-muted-foreground">
-                <span>Comprado el {item.fecha}</span>
-                <span className="font-semibold text-accent">
-                  {formatPrecio(item.precio_pagado)}
-                </span>
+              <div className="space-y-2">
+                <div className="flex justify-between text-sm text-muted-foreground">
+                  <span>Comprado el {item.fecha}</span>
+                  <span className="font-semibold text-accent">
+                    {formatPrecio(item.precio_pagado)}
+                  </span>
+                </div>
+                <Button asChild size="sm" className="w-full">
+                  <Link to="/jugar/$juegoId" params={{ juegoId: String(item.juego.id) }}>
+                    Jugar
+                  </Link>
+                </Button>
               </div>
             }
           />

@@ -17,6 +17,7 @@ import { Route as PerfilRouteImport } from './routes/perfil'
 import { Route as TopRouteImport } from './routes/top'
 import { Route as WishlistRouteImport } from './routes/wishlist'
 import { Route as JuegosJuegoIdRouteImport } from './routes/juegos.$juegoId'
+import { Route as JugarJuegoIdRouteImport } from './routes/jugar.$juegoId'
 import { Route as UsuariosUsuarioIdRouteImport } from './routes/usuarios.$usuarioId'
 
 const IndexRoute = IndexRouteImport.update({
@@ -59,6 +60,11 @@ const JuegosJuegoIdRoute = JuegosJuegoIdRouteImport.update({
   path: '/juegos/$juegoId',
   getParentRoute: () => rootRouteImport,
 } as any)
+const JugarJuegoIdRoute = JugarJuegoIdRouteImport.update({
+  id: '/jugar/$juegoId',
+  path: '/jugar/$juegoId',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const UsuariosUsuarioIdRoute = UsuariosUsuarioIdRouteImport.update({
   id: '/usuarios/$usuarioId',
   path: '/usuarios/$usuarioId',
@@ -74,6 +80,7 @@ export interface FileRoutesByFullPath {
   '/top': typeof TopRoute
   '/wishlist': typeof WishlistRoute
   '/juegos/$juegoId': typeof JuegosJuegoIdRoute
+  '/jugar/$juegoId': typeof JugarJuegoIdRoute
   '/usuarios/$usuarioId': typeof UsuariosUsuarioIdRoute
 }
 export interface FileRoutesByTo {
@@ -85,6 +92,7 @@ export interface FileRoutesByTo {
   '/top': typeof TopRoute
   '/wishlist': typeof WishlistRoute
   '/juegos/$juegoId': typeof JuegosJuegoIdRoute
+  '/jugar/$juegoId': typeof JugarJuegoIdRoute
   '/usuarios/$usuarioId': typeof UsuariosUsuarioIdRoute
 }
 export interface FileRoutesById {
@@ -97,6 +105,7 @@ export interface FileRoutesById {
   '/top': typeof TopRoute
   '/wishlist': typeof WishlistRoute
   '/juegos/$juegoId': typeof JuegosJuegoIdRoute
+  '/jugar/$juegoId': typeof JugarJuegoIdRoute
   '/usuarios/$usuarioId': typeof UsuariosUsuarioIdRoute
 }
 export interface FileRouteTypes {
@@ -110,6 +119,7 @@ export interface FileRouteTypes {
     | '/top'
     | '/wishlist'
     | '/juegos/$juegoId'
+    | '/jugar/$juegoId'
     | '/usuarios/$usuarioId'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -121,6 +131,7 @@ export interface FileRouteTypes {
     | '/top'
     | '/wishlist'
     | '/juegos/$juegoId'
+    | '/jugar/$juegoId'
     | '/usuarios/$usuarioId'
   id:
     | '__root__'
@@ -132,6 +143,7 @@ export interface FileRouteTypes {
     | '/top'
     | '/wishlist'
     | '/juegos/$juegoId'
+    | '/jugar/$juegoId'
     | '/usuarios/$usuarioId'
   fileRoutesById: FileRoutesById
 }
@@ -144,6 +156,7 @@ export interface RootRouteChildren {
   TopRoute: typeof TopRoute
   WishlistRoute: typeof WishlistRoute
   JuegosJuegoIdRoute: typeof JuegosJuegoIdRoute
+  JugarJuegoIdRoute: typeof JugarJuegoIdRoute
   UsuariosUsuarioIdRoute: typeof UsuariosUsuarioIdRoute
 }
 
@@ -205,6 +218,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof JuegosJuegoIdRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/jugar/$juegoId': {
+      id: '/jugar/$juegoId'
+      path: '/jugar/$juegoId'
+      fullPath: '/jugar/$juegoId'
+      preLoaderRoute: typeof JugarJuegoIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/usuarios/$usuarioId': {
       id: '/usuarios/$usuarioId'
       path: '/usuarios/$usuarioId'
@@ -224,6 +244,7 @@ const rootRouteChildren: RootRouteChildren = {
   TopRoute: TopRoute,
   WishlistRoute: WishlistRoute,
   JuegosJuegoIdRoute: JuegosJuegoIdRoute,
+  JugarJuegoIdRoute: JugarJuegoIdRoute,
   UsuariosUsuarioIdRoute: UsuariosUsuarioIdRoute,
 }
 export const routeTree = rootRouteImport

@@ -14,7 +14,6 @@ import {
   biblioteca,
   comprarJuego,
   crearLogro,
-  desbloquearLogro,
   formatPrecio,
   guardarResena,
   logrosDeJuego,
@@ -41,7 +40,6 @@ function DetalleJuego() {
   const [puntos, setPuntos] = useState("10");
   const [principal, setPrincipal] = useState<string | null>(null);
   const [ampliada, setAmpliada] = useState<string | null>(null);
-  const [jugando, setJugando] = useState(false);
 
   const { data: juego, isError } = useQuery({
     queryKey: ["juego", id],
@@ -186,9 +184,11 @@ function DetalleJuego() {
               >
                 {deseado ? "En tu wishlist" : "Agregar a wishlist"}
               </Button>
-              {juego.es_jugable && (comprado || esMiJuego) && (
-                <Button variant="secondary" onClick={() => setJugando(true)}>
-                  <Gamepad2 className="h-4 w-4" /> Jugar
+              {(comprado || esMiJuego) && (
+                <Button asChild variant="secondary">
+                  <Link to="/jugar/$juegoId" params={{ juegoId: String(id) }}>
+                    <Gamepad2 className="h-4 w-4" /> Jugar
+                  </Link>
                 </Button>
               )}
             </div>
@@ -197,29 +197,6 @@ function DetalleJuego() {
       </section>
 
       <div className="mx-auto max-w-4xl space-y-10 px-4 py-10">
-        {jugando && juego.archivo_url && (
-          <section>
-            <div className="flex items-center justify-between gap-4">
-              <div>
-                <h2 className="text-xl font-semibold">Jugando: {juego.titulo}</h2>
-                <p className="text-sm text-muted-foreground">
-                  El juego se ejecuta dentro de la plataforma.
-                </p>
-              </div>
-              <Button variant="ghost" onClick={() => setJugando(false)}>
-                Cerrar
-              </Button>
-            </div>
-            <Card className="mt-4 overflow-hidden p-0">
-              <iframe
-                title={`Juego: ${juego.titulo}`}
-                src={juego.archivo_url}
-                className="aspect-video w-full bg-black"
-                sandbox="allow-scripts allow-pointer-lock"
-              />
-            </Card>
-          </section>
-        )}
         <section>
           <h2 className="text-xl font-semibold">Reseñas ({resenas.length})</h2>
           <Card className="mt-4 p-4">
@@ -293,16 +270,9 @@ function DetalleJuego() {
                     <p className="text-sm text-muted-foreground">{logro.descripcion}</p>
                   </div>
                   <Badge variant="secondary">{logro.puntos} pts</Badge>
-                  <Button
-                    size="sm"
-                    variant="secondary"
-                    disabled={hecho || !comprado}
-                    onClick={() =>
-                      accion(() => desbloquearLogro(usuario.id, logro.id), "¡Logro desbloqueado!")
-                    }
-                  >
-                    {hecho ? "Listo" : "Desbloquear"}
-                  </Button>
+                  <Badge variant={hecho ? "default" : "outline"}>
+                    {hecho ? "Desbloqueado" : "Bloqueado"}
+                  </Badge>
                 </Card>
               );
             })}

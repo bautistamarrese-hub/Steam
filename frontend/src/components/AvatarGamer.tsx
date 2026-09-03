@@ -8,7 +8,7 @@ export function AvatarGamer({
   className,
 }: {
   nickname: string;
-  avatar?: string;
+  avatar?: string | undefined;
   className?: string;
 }) {
   return (

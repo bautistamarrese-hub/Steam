@@ -131,6 +131,8 @@ const adaptarJuego = (juego: JuegoApi): Juego => {
   const presentacion = mock.juegos.find(
     (item) => item.id === juego.id || item.titulo.toLowerCase() === juego.titulo.toLowerCase(),
   );
+  const resumenFinal = resumen || presentacion?.resumen;
+  const galeriaFinal = galeria?.length ? galeria : presentacion?.galeria;
   return {
     ...datos,
     ...(juego.archivo_url ? { archivo_url: new URL(juego.archivo_url, BASE_URL).toString() } : {}),
@@ -138,10 +140,8 @@ const adaptarJuego = (juego: JuegoApi): Juego => {
     genero: juego.genero as Genero,
     descripcion: descripcion || presentacion?.descripcion || "Sin descripción disponible.",
     imagen: imagen || presentacion?.imagen || "/favicon.ico",
-    ...(resumen || presentacion?.resumen ? { resumen: resumen || presentacion?.resumen } : {}),
-    ...(galeria?.length || presentacion?.galeria
-      ? { galeria: galeria?.length ? galeria : presentacion?.galeria }
-      : {}),
+    ...(resumenFinal ? { resumen: resumenFinal } : {}),
+    ...(galeriaFinal ? { galeria: galeriaFinal } : {}),
   };
 };
 
@@ -504,7 +504,7 @@ export async function perfilPublico(usuarioId: number): Promise<PerfilPublico> {
 export const formatPrecio = (value: number) =>
   value === 0 ? "Gratis" : `$${value.toLocaleString("es-AR")}`;
 
-export const avatarDe = ({ nickname, avatar }: Pick<Usuario, "nickname" | "avatar">) =>
+export const avatarDe = ({ nickname, avatar }: { nickname: string; avatar?: string | undefined }) =>
   avatar ||
   `https://api.dicebear.com/9.x/adventurer/svg?seed=${encodeURIComponent(
     nickname.trim().toLowerCase(),
