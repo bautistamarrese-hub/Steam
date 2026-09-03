@@ -255,6 +255,10 @@ function DetalleJuego() {
 
         <section>
           <h2 className="text-xl font-semibold">Logros ({logros.length})</h2>
+          <p className="mt-1 text-xs text-muted-foreground">
+            Los logros se desbloquean jugando: los otorga el propio juego cuando cumplís lo que
+            piden.
+          </p>
           <div className="mt-4 grid gap-3 md:grid-cols-2">
             {logros.map((logro) => {
               const hecho = desbloqueados.some((item) => item.logro_id === logro.id);

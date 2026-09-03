@@ -201,6 +201,31 @@ def test_publicacion_completa_con_archivo_y_logro(
     assert publicado["es_jugable"] is True
     assert (tmp_path / "games" / str(juego["id"]) / "index.html").is_file()
 
+    assert_status(
+        client.post(
+            f"/api/juegos/{juego['id']}/archivo",
+            files={"archivo": ("roto.zip", b"esto no es un zip", "application/zip")},
+        ),
+        400,
+    )
+    conservado = assert_status(client.get(f"/api/juegos/{juego['id']}"), 200)
+    assert conservado["archivo_nombre"] == "index.html"
+    assert (tmp_path / "games" / str(juego["id"]) / "index.html").read_bytes() == (
+        b"<h1>Juego listo</h1>"
+    )
+
+    reemplazado = assert_status(
+        client.post(
+            f"/api/juegos/{juego['id']}/archivo",
+            files={"archivo": ("nuevo.html", b"<h1>Nueva version</h1>", "text/html")},
+        ),
+        200,
+    )
+    assert reemplazado["archivo_nombre"] == "nuevo.html"
+    assert (tmp_path / "games" / str(juego["id"]) / "index.html").read_bytes() == (
+        b"<h1>Nueva version</h1>"
+    )
+
     logro = assert_status(
         client.post(
             f"/api/juegos/{juego['id']}/logros",
@@ -273,6 +298,78 @@ def test_avatar_y_contenido_editorial_de_juegos(client: TestClient, tmp_path, mo
         ),
         400,
     )
+
+
+def test_eliminar_juego_valida_propietario_y_limpia_dependencias(
+    client: TestClient, tmp_path, monkeypatch
+):
+    monkeypatch.setattr(JuegoService, "STORAGE_ROOT", tmp_path)
+    propietario = registrar(client, "propietario_juego", rol="admin", estudio="Delete Studio")
+    otro_dev = registrar(client, "otro_propietario", rol="admin", estudio="Otro Delete Studio")
+    comprador = registrar(client, "comprador_delete")
+    interesado = registrar(client, "interesado_delete")
+    juego = publicar_juego(
+        client,
+        propietario["desarrollador_id"],
+        "Juego descartable",
+        precio=250,
+    )
+
+    assert_status(
+        client.post(
+            f"/api/juegos/{juego['id']}/archivo",
+            files={"archivo": ("index.html", b"<h1>Temporal</h1>", "text/html")},
+        ),
+        200,
+    )
+    logro = assert_status(
+        client.post(
+            f"/api/juegos/{juego['id']}/logros",
+            json={"nombre": "Temporal", "descripcion": "Temporal", "puntos": 10},
+        ),
+        201,
+    )
+    assert_status(
+        client.post(f"/api/usuarios/{comprador['id']}/recargar", json={"monto": 500}),
+        200,
+    )
+    assert_status(client.post(f"/api/usuarios/{comprador['id']}/comprar/{juego['id']}"), 201)
+    assert_status(
+        client.post(
+            f"/api/juegos/{juego['id']}/resenas",
+            json={"usuario_id": comprador["id"], "recomienda": True, "texto": "Bien"},
+        ),
+        201,
+    )
+    assert_status(client.post(f"/api/usuarios/{comprador['id']}/logros/{logro['id']}"), 201)
+    assert_status(
+        client.post(
+            f"/api/usuarios/{interesado['id']}/wishlist",
+            json={"juego_id": juego["id"]},
+        ),
+        201,
+    )
+
+    assert_status(
+        client.delete(
+            f"/api/juegos/{juego['id']}",
+            params={"desarrollador_id": otro_dev["desarrollador_id"]},
+        ),
+        400,
+    )
+    assert_status(
+        client.delete(
+            f"/api/juegos/{juego['id']}",
+            params={"desarrollador_id": propietario["desarrollador_id"]},
+        ),
+        204,
+    )
+
+    assert_status(client.get(f"/api/juegos/{juego['id']}"), 400)
+    assert assert_status(client.get(f"/api/usuarios/{comprador['id']}/biblioteca"), 200) == []
+    assert assert_status(client.get(f"/api/usuarios/{comprador['id']}/logros"), 200) == []
+    assert assert_status(client.get(f"/api/usuarios/{interesado['id']}/wishlist"), 200) == []
+    assert not (tmp_path / "games" / str(juego["id"])).exists()
 
 
 def test_recarga_wishlist_compra_biblioteca_y_estadisticas(client: TestClient):

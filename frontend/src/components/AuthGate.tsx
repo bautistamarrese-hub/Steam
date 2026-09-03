@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { ApiError } from "@/lib/api";
+import { ApiError, LARGO_MINIMO_PASSWORD } from "@/lib/api";
 import { useSesion } from "@/lib/sesion";
 import type { Rol } from "@/lib/types";
 
@@ -32,8 +32,7 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
         await login(email, password);
         toast.success("¡Bienvenido de vuelta!");
       } else {
-        if (password !== confirmacion) throw new ApiError("Las contraseñas no coinciden.");
-        await registrar(email, nickname, password, rol, estudio || undefined);
+        await registrar(email, nickname, password, confirmacion, rol, estudio || undefined);
         toast.success("Cuenta creada, ¡a jugar!");
       }
     } catch (e) {
@@ -79,11 +78,11 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
               id="password"
               type="password"
               autoComplete={modo === "login" ? "current-password" : "new-password"}
-              minLength={6}
+              minLength={LARGO_MINIMO_PASSWORD}
               required
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              placeholder="Mínimo 6 caracteres"
+              placeholder={`Mínimo ${LARGO_MINIMO_PASSWORD} caracteres`}
             />
           </div>
 
@@ -94,7 +93,7 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
                 id="password2"
                 type="password"
                 autoComplete="new-password"
-                minLength={6}
+                minLength={LARGO_MINIMO_PASSWORD}
                 required
                 value={confirmacion}
                 onChange={(e) => setConfirmacion(e.target.value)}

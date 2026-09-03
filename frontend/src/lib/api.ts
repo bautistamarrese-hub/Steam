@@ -152,16 +152,21 @@ const query = (params: Record<string, string | undefined>) => {
   return value ? `?${value}` : "";
 };
 
+export const LARGO_MINIMO_PASSWORD = 6;
+
 export async function registrarUsuario(
   email: string,
   nickname: string,
   password: string,
+  confirmacion: string,
   rol: Rol = "cliente",
   estudio?: string,
 ): Promise<Usuario> {
   const emailLimpio = textoRequerido(email, "El email").toLowerCase();
   const nicknameLimpio = textoRequerido(nickname, "El nickname");
-  if (password.length < 6) throw new ApiError("La contraseña debe tener al menos 6 caracteres.");
+  if (password.length < LARGO_MINIMO_PASSWORD)
+    throw new ApiError(`La contraseña debe tener al menos ${LARGO_MINIMO_PASSWORD} caracteres.`);
+  if (password !== confirmacion) throw new ApiError("Las contraseñas no coinciden.");
   const estudioLimpio = rol === "admin" ? textoRequerido(estudio ?? "", "El estudio") : undefined;
   return adaptarUsuario(
     await request<UsuarioApi>("/usuarios/", {
@@ -179,7 +184,8 @@ export async function registrarUsuario(
 
 export async function iniciarSesion(email: string, password: string): Promise<Usuario> {
   const emailLimpio = textoRequerido(email, "El email").toLowerCase();
-  if (password.length < 6) throw new ApiError("La contraseña debe tener al menos 6 caracteres.");
+  if (password.length < LARGO_MINIMO_PASSWORD)
+    throw new ApiError(`La contraseña debe tener al menos ${LARGO_MINIMO_PASSWORD} caracteres.`);
   return adaptarUsuario(
     await request<UsuarioApi>("/usuarios/login", {
       method: "POST",
@@ -205,6 +211,32 @@ export const obtenerDesarrollador = (id: number): Promise<Desarrollador> =>
 export const juegosDeDesarrollador = async (id: number): Promise<Juego[]> =>
   (await request<JuegoApi[]>(`/desarrolladores/${id}/juegos`)).map(adaptarJuego);
 
+/**
+ * Elige una portada y capturas del banco local según la descripción del juego.
+ * Así los juegos publicados sin imágenes propias no terminan con un favicon.
+ */
+export function imagenSegunDescripcion(texto: string): { imagen: string; galeria: string[] } {
+  const normalizado = texto.toLocaleLowerCase("es");
+  let mejor = mock.bancoImagenes[0]!;
+  let mejorPuntaje = 0;
+
+  for (const item of mock.bancoImagenes) {
+    const puntaje = item.claves.reduce(
+      (total, clave) => (normalizado.includes(clave) ? total + 1 : total),
+      0,
+    );
+    if (puntaje > mejorPuntaje) {
+      mejor = item;
+      mejorPuntaje = puntaje;
+    }
+  }
+
+  if (mejorPuntaje === 0) {
+    mejor = mock.bancoImagenes[Math.abs(texto.length * 7) % mock.bancoImagenes.length]!;
+  }
+  return { imagen: mejor.imagen, galeria: [...mejor.galeria] };
+}
+
 export async function publicarJuego(
   input: Omit<Juego, "id" | "imagen"> & { imagen?: string },
 ): Promise<Juego> {
@@ -222,6 +254,9 @@ export async function publicarJuego(
   const tituloLimpio = textoRequerido(titulo, "El título");
   numeroFinito(precio, "El precio");
   if (precio < 0) throw new ApiError("El precio no puede ser negativo.");
+  const imagenesSugeridas = imagenSegunDescripcion(
+    `${resumen ?? ""} ${descripcion} ${tituloLimpio} ${genero}`,
+  );
   return adaptarJuego(
     await request<JuegoApi>("/juegos/", {
       method: "POST",
@@ -233,8 +268,8 @@ export async function publicarJuego(
         genero,
         descripcion,
         resumen,
-        imagen,
-        galeria,
+        imagen: imagen || imagenesSugeridas.imagen,
+        galeria: galeria?.length ? galeria : imagenesSugeridas.galeria,
       }),
     }),
   );
@@ -262,6 +297,11 @@ export async function actualizarJuego(
 
 export const subirArchivoJuego = async (juegoId: number, archivo: File): Promise<Juego> =>
   adaptarJuego(await requestArchivo<JuegoApi>(`/juegos/${juegoId}/archivo`, archivo));
+
+export const eliminarJuego = (juegoId: number, desarrolladorId: number): Promise<void> =>
+  request(`/juegos/${juegoId}?desarrollador_id=${encodeURIComponent(String(desarrolladorId))}`, {
+    method: "DELETE",
+  });
 
 export async function listarJuegos(filtros?: {
   genero?: Genero | "todos";

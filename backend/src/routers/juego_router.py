@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, File, Query, UploadFile, status
+from fastapi import APIRouter, Depends, File, Query, Response, UploadFile, status
 from sqlalchemy.orm import Session
 from src.db.connection import get_db
 
@@ -52,6 +52,16 @@ def obtener_juego(id: int, db: Session = Depends(get_db)):
 @router.put("/{id}", response_model=GetJuegoSchema)
 def actualizar_juego(id: int, payload: UpdateJuegoSchema, db: Session = Depends(get_db)):
     return JuegoService(db).actualizar_juego(id, payload)
+
+
+@router.delete("/{id}", status_code=status.HTTP_204_NO_CONTENT)
+def eliminar_juego(
+    id: int,
+    desarrollador_id: int = Query(...),
+    db: Session = Depends(get_db),
+):
+    JuegoService(db).eliminar_juego(id, desarrollador_id)
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 # HU8 — Definir logro
 @router.post("/{id}/logros", response_model=GetLogroSchema, status_code=status.HTTP_201_CREATED)

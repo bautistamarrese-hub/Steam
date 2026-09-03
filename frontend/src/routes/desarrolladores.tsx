@@ -11,6 +11,7 @@ import {
   actualizarJuego,
   ApiError,
   crearLogro,
+  eliminarJuego,
   formatPrecio,
   juegosDeDesarrollador,
   obtenerDesarrollador,
@@ -69,7 +70,9 @@ function Desarrolladores() {
   const [eGenero, setEGenero] = useState<Genero>("Indie");
   const [ePortada, setEPortada] = useState("");
   const [eCapturas, setECapturas] = useState<string[]>([]);
+  const [eArchivo, setEArchivo] = useState<File | null>(null);
   const [guardando, setGuardando] = useState(false);
+  const [eliminandoId, setEliminandoId] = useState<number | null>(null);
 
   const { data: dev, isLoading: cargandoDev } = useQuery({
     queryKey: ["desarrollador", usuario.desarrollador_id],
@@ -124,10 +127,7 @@ function Desarrolladores() {
   };
 
   const publicar = async () => {
-    if (!archivo) {
-      toast.error("Seleccioná el archivo HTML o ZIP jugable del juego.");
-      return;
-    }
+    let juegoCreado: Juego | null = null;
     setPublicando(true);
     try {
       const juego = await publicarJuego({
@@ -141,7 +141,8 @@ function Desarrolladores() {
         ...(portada ? { imagen: portada } : {}),
         ...(capturas.length ? { galeria: capturas } : {}),
       });
-      await subirArchivoJuego(juego.id, archivo);
+      juegoCreado = juego;
+      if (archivo) await subirArchivoJuego(juego.id, archivo);
       await Promise.all(
         logros.map((logro) =>
           crearLogro(juego.id, logro.nombre, logro.descripcion, Number(logro.puntos)),
@@ -156,8 +157,19 @@ function Desarrolladores() {
       setCapturas([]);
       setLogros([]);
       setFormKey((value) => value + 1);
-      toast.success(`Juego publicado como ${dev.nombre}. Ya se puede jugar desde su ficha.`);
+      toast.success(
+        archivo
+          ? `Juego publicado como ${dev.nombre}. Ya se puede jugar desde su ficha.`
+          : `Juego publicado como ${dev.nombre} con el minijuego de respaldo.`,
+      );
     } catch (error) {
+      if (juegoCreado) {
+        try {
+          await eliminarJuego(juegoCreado.id, dev.id);
+        } catch {
+          toast.error("La publicación falló y no se pudo limpiar el juego incompleto.");
+        }
+      }
       toast.error(error instanceof ApiError ? error.message : "No se pudo publicar el juego.");
     } finally {
       setPublicando(false);
@@ -172,6 +184,7 @@ function Desarrolladores() {
     setEGenero(juego.genero);
     setEPortada("");
     setECapturas([]);
+    setEArchivo(null);
   };
 
   const guardarEdicion = async () => {
@@ -187,6 +200,7 @@ function Desarrolladores() {
         ...(ePortada ? { imagen: ePortada } : {}),
         ...(eCapturas.length ? { galeria: eCapturas } : {}),
       });
+      if (eArchivo) await subirArchivoJuego(editando.id, eArchivo);
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ["juegos-desarrollador", dev.id] }),
         queryClient.invalidateQueries({ queryKey: ["juego", editando.id] }),
@@ -201,6 +215,34 @@ function Desarrolladores() {
     }
   };
 
+  const borrar = async (juego: Juego) => {
+    if (
+      !window.confirm(
+        `¿Seguro que querés borrar "${juego.titulo}"? Esta acción no se puede deshacer.`,
+      )
+    ) {
+      return;
+    }
+    setEliminandoId(juego.id);
+    try {
+      await eliminarJuego(juego.id, dev.id);
+      if (editando?.id === juego.id) setEditando(null);
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["juegos-desarrollador", dev.id] }),
+        queryClient.invalidateQueries({ queryKey: ["juegos"] }),
+        queryClient.invalidateQueries({ queryKey: ["top-ventas"] }),
+        queryClient.invalidateQueries({ queryKey: ["mejor-valorados"] }),
+        queryClient.invalidateQueries({ queryKey: ["biblioteca"] }),
+        queryClient.invalidateQueries({ queryKey: ["wishlist"] }),
+      ]);
+      toast.success("Juego eliminado");
+    } catch (error) {
+      toast.error(error instanceof ApiError ? error.message : "No se pudo eliminar el juego.");
+    } finally {
+      setEliminandoId(null);
+    }
+  };
+
   return (
     <div className="mx-auto max-w-5xl px-4 py-10">
       <div className="flex flex-wrap items-center gap-3">
@@ -212,8 +254,8 @@ function Desarrolladores() {
       <Card className="mt-6 p-6">
         <h2 className="text-lg font-semibold">Publicar un juego</h2>
         <p className="mt-1 text-sm text-muted-foreground">
-          El archivo debe ser un HTML o un ZIP con <code>index.html</code>; así el botón Jugar puede
-          abrirlo en el navegador.
+          El archivo es opcional. Si lo subís, debe ser un HTML o un ZIP con <code>index.html</code>
+          ; si no, se usa el minijuego de respaldo.
         </p>
         <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
           <Campo etiqueta="Título">
@@ -231,7 +273,7 @@ function Desarrolladores() {
             <select
               value={genero}
               onChange={(event) => setGenero(event.target.value as Genero)}
-              className="h-9 w-full rounded-md border border-input bg-transparent px-3 text-sm"
+              className="h-9 w-full rounded-md border border-input bg-sidebar px-3 text-sm text-foreground [&>option]:bg-sidebar [&>option]:text-foreground"
             >
               {GENEROS.map((item) => (
                 <option key={item} value={item}>
@@ -278,7 +320,7 @@ function Desarrolladores() {
         )}
 
         <div className="mt-4 space-y-1">
-          <Label htmlFor="archivo">Archivo del juego</Label>
+          <Label htmlFor="archivo">Archivo del juego (opcional)</Label>
           <Input
             key={`archivo-${formKey}`}
             id="archivo"
@@ -290,7 +332,7 @@ function Desarrolladores() {
           <p className="text-xs text-muted-foreground">
             {archivo
               ? `Seleccionado: ${archivo.name} (${(archivo.size / 1024 / 1024).toFixed(2)} MB)`
-              : "Subí un .html o un .zip que incluya index.html."}
+              : "Podés subir un .html o un .zip que incluya index.html."}
           </p>
         </div>
 
@@ -360,6 +402,14 @@ function Desarrolladores() {
                 <Button size="sm" variant="outline" onClick={() => abrirEdicion(juego)}>
                   Modificar
                 </Button>
+                <Button
+                  size="sm"
+                  variant="destructive"
+                  disabled={eliminandoId === juego.id}
+                  onClick={() => void borrar(juego)}
+                >
+                  {eliminandoId === juego.id ? "Borrando…" : "Borrar"}
+                </Button>
               </div>
             </li>
           ))}
@@ -388,7 +438,7 @@ function Desarrolladores() {
               <select
                 value={eGenero}
                 onChange={(event) => setEGenero(event.target.value as Genero)}
-                className="h-9 w-full rounded-md border border-input bg-transparent px-3 text-sm"
+                className="h-9 w-full rounded-md border border-input bg-sidebar px-3 text-sm text-foreground [&>option]:bg-sidebar [&>option]:text-foreground"
               >
                 {GENEROS.map((item) => (
                   <option key={item} value={item}>
@@ -424,6 +474,21 @@ function Desarrolladores() {
                   : "Se mantienen las actuales."}
               </p>
             </Campo>
+          </div>
+          <div className="mt-4 space-y-1">
+            <Label htmlFor="e-archivo">Reemplazar archivo del juego (opcional)</Label>
+            <Input
+              id="e-archivo"
+              type="file"
+              accept=".html,.htm,.zip,text/html,application/zip"
+              className="cursor-pointer"
+              onChange={(event) => setEArchivo(event.target.files?.[0] ?? null)}
+            />
+            <p className="text-xs text-muted-foreground">
+              {eArchivo
+                ? `Nuevo archivo: ${eArchivo.name}`
+                : `Actual: ${editando.archivo_nombre ?? "sin archivo subido"}`}
+            </p>
           </div>
           <img
             src={ePortada || editando.imagen}

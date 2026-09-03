@@ -1,6 +1,8 @@
 import shutil
 from pathlib import Path, PurePosixPath
+from tempfile import mkdtemp
 from urllib.parse import quote
+from uuid import uuid4
 from zipfile import BadZipFile, ZipFile
 
 from fastapi import UploadFile
@@ -8,10 +10,12 @@ from sqlalchemy import case, desc, func
 from sqlalchemy.orm import Session
 
 from src.db.models.comprarJuego_model import Compra
+from src.db.models.desbloquearLogro_model import LogroDesbloqueado
 from src.db.models.desarrolladorJuego_model import Desarrollador, Juego
 from src.db.models.logros_model import Logro
 from src.db.models.reseñas_model import Resena
 from src.db.models.registroUsuario_model import Usuario
+from src.db.models.wishlist_model import Wishlist
 
 
 class JuegoService:
@@ -106,6 +110,36 @@ class JuegoService:
         self.db.refresh(juego)
         return juego
 
+    def eliminar_juego(self, juego_id: int, desarrollador_id: int) -> None:
+        juego = self.obtener_juego(juego_id)
+        if juego.desarrollador_id != desarrollador_id:
+            raise ValueError("Solo el desarrollador dueño del juego puede eliminarlo.")
+
+        logro_ids = [
+            logro_id
+            for (logro_id,) in self.db.query(Logro.id).filter(Logro.juego_id == juego_id).all()
+        ]
+        if logro_ids:
+            self.db.query(LogroDesbloqueado).filter(
+                LogroDesbloqueado.logro_id.in_(logro_ids)
+            ).delete(synchronize_session=False)
+        self.db.query(Logro).filter(Logro.juego_id == juego_id).delete(
+            synchronize_session=False
+        )
+        self.db.query(Resena).filter(Resena.juego_id == juego_id).delete(
+            synchronize_session=False
+        )
+        self.db.query(Wishlist).filter(Wishlist.juego_id == juego_id).delete(
+            synchronize_session=False
+        )
+        self.db.query(Compra).filter(Compra.juego_id == juego_id).delete(
+            synchronize_session=False
+        )
+        self.db.delete(juego)
+        self.db.commit()
+
+        shutil.rmtree(self.STORAGE_ROOT / "games" / str(juego_id), ignore_errors=True)
+
     async def guardar_archivo(self, juego_id: int, archivo: UploadFile) -> Juego:
         """Guarda un juego web y deja una URL segura para ejecutarlo en un iframe.
 
@@ -119,28 +153,46 @@ class JuegoService:
         if extension not in {".html", ".htm", ".zip"}:
             raise ValueError("Subí un archivo .html o un .zip que contenga index.html.")
 
-        raiz = self.STORAGE_ROOT / "games" / str(juego_id)
-        if raiz.exists():
-            shutil.rmtree(raiz)
-        raiz.mkdir(parents=True, exist_ok=True)
+        directorio_juegos = self.STORAGE_ROOT / "games"
+        directorio_juegos.mkdir(parents=True, exist_ok=True)
+        raiz = directorio_juegos / str(juego_id)
+        temporal = Path(mkdtemp(prefix=f".{juego_id}-", dir=directorio_juegos))
 
         try:
             if extension in {".html", ".htm"}:
-                destino = raiz / "index.html"
+                destino = temporal / "index.html"
                 await self._guardar_stream(archivo, destino)
                 ruta_inicio = "index.html"
             else:
-                comprimido = raiz / "juego.zip"
+                comprimido = temporal / "juego.zip"
                 await self._guardar_stream(archivo, comprimido)
-                ruta_inicio = self._extraer_zip_jugable(comprimido, raiz)
+                ruta_inicio = self._extraer_zip_jugable(comprimido, temporal)
         except ValueError:
-            shutil.rmtree(raiz, ignore_errors=True)
+            shutil.rmtree(temporal, ignore_errors=True)
             raise
         except (BadZipFile, OSError) as exc:
-            shutil.rmtree(raiz, ignore_errors=True)
+            shutil.rmtree(temporal, ignore_errors=True)
             raise ValueError("No se pudo procesar el archivo del juego.") from exc
         finally:
             await archivo.close()
+
+        respaldo = directorio_juegos / f".{juego_id}-anterior-{uuid4().hex}"
+        try:
+            if raiz.exists():
+                raiz.rename(respaldo)
+            temporal.rename(raiz)
+        except OSError as exc:
+            shutil.rmtree(temporal, ignore_errors=True)
+            if respaldo.exists() and not raiz.exists():
+                try:
+                    respaldo.rename(raiz)
+                except OSError as restore_error:
+                    raise ValueError(
+                        "No se pudo reemplazar el archivo ni restaurar la versión anterior."
+                    ) from restore_error
+            raise ValueError("No se pudo reemplazar el archivo del juego.") from exc
+        else:
+            shutil.rmtree(respaldo, ignore_errors=True)
 
         juego.archivo_nombre = nombre
         juego.archivo_url = f"/uploads/games/{juego_id}/{quote(ruta_inicio)}"
