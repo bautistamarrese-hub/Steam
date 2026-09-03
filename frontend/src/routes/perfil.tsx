@@ -13,6 +13,7 @@ import {
   Users,
 } from "lucide-react";
 import { AvatarGamer } from "@/components/AvatarGamer";
+import { AccesoRequerido } from "@/components/AccesoRequerido";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -61,7 +62,15 @@ export const Route = createFileRoute("/perfil")({
 });
 
 function Perfil() {
-  const { esAdmin, refrescar } = useSesion();
+  const { usuario } = useSesion();
+  if (!usuario) {
+    return <AccesoRequerido detalle="Tenés que iniciar sesión para acceder a tu perfil y saldo." />;
+  }
+  return <PerfilConSesion />;
+}
+
+function PerfilConSesion() {
+  const { esAdmin, esSuperAdmin, refrescar } = useSesion();
   const usuario = useUsuario();
   const queryClient = useQueryClient();
   const [monto, setMonto] = useState("1000");
@@ -143,8 +152,8 @@ function Perfil() {
         <div>
           <div className="flex items-center gap-2">
             <h1 className="text-3xl font-bold">{usuario.nickname}</h1>
-            <Badge variant={esAdmin ? "default" : "secondary"}>
-              {esAdmin ? "Desarrollador / Admin" : "Jugador"}
+            <Badge variant={esAdmin || esSuperAdmin ? "default" : "secondary"}>
+              {esSuperAdmin ? "Administrador principal" : esAdmin ? "Desarrollador" : "Jugador"}
             </Badge>
           </div>
           <p className="text-muted-foreground">

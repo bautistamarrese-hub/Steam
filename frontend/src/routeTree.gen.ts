@@ -10,6 +10,7 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as AdministracionRouteImport } from './routes/administracion'
 import { Route as AmigosRouteImport } from './routes/amigos'
 import { Route as BibliotecaRouteImport } from './routes/biblioteca'
 import { Route as DesarrolladoresRouteImport } from './routes/desarrolladores'
@@ -23,6 +24,11 @@ import { Route as UsuariosUsuarioIdRouteImport } from './routes/usuarios.$usuari
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AdministracionRoute = AdministracionRouteImport.update({
+  id: '/administracion',
+  path: '/administracion',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AmigosRoute = AmigosRouteImport.update({
@@ -73,6 +79,7 @@ const UsuariosUsuarioIdRoute = UsuariosUsuarioIdRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/administracion': typeof AdministracionRoute
   '/amigos': typeof AmigosRoute
   '/biblioteca': typeof BibliotecaRoute
   '/desarrolladores': typeof DesarrolladoresRoute
@@ -85,6 +92,7 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/administracion': typeof AdministracionRoute
   '/amigos': typeof AmigosRoute
   '/biblioteca': typeof BibliotecaRoute
   '/desarrolladores': typeof DesarrolladoresRoute
@@ -98,6 +106,7 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/administracion': typeof AdministracionRoute
   '/amigos': typeof AmigosRoute
   '/biblioteca': typeof BibliotecaRoute
   '/desarrolladores': typeof DesarrolladoresRoute
@@ -112,6 +121,7 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/administracion'
     | '/amigos'
     | '/biblioteca'
     | '/desarrolladores'
@@ -124,6 +134,7 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/administracion'
     | '/amigos'
     | '/biblioteca'
     | '/desarrolladores'
@@ -136,6 +147,7 @@ export interface FileRouteTypes {
   id:
     | '__root__'
     | '/'
+    | '/administracion'
     | '/amigos'
     | '/biblioteca'
     | '/desarrolladores'
@@ -149,6 +161,7 @@ export interface FileRouteTypes {
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  AdministracionRoute: typeof AdministracionRoute
   AmigosRoute: typeof AmigosRoute
   BibliotecaRoute: typeof BibliotecaRoute
   DesarrolladoresRoute: typeof DesarrolladoresRoute
@@ -167,6 +180,13 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/administracion': {
+      id: '/administracion'
+      path: '/administracion'
+      fullPath: '/administracion'
+      preLoaderRoute: typeof AdministracionRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/amigos': {
@@ -237,6 +257,7 @@ declare module '@tanstack/react-router' {
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  AdministracionRoute: AdministracionRoute,
   AmigosRoute: AmigosRoute,
   BibliotecaRoute: BibliotecaRoute,
   DesarrolladoresRoute: DesarrolladoresRoute,

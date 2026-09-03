@@ -23,7 +23,7 @@ import {
   obtenerWishlist,
   resenasDeJuego,
 } from "@/lib/api";
-import { useSesion, useUsuario } from "@/lib/sesion";
+import { useSesion } from "@/lib/sesion";
 
 export const Route = createFileRoute("/juegos/$juegoId")({
   head: () => ({ meta: [{ title: "Detalle de juego — Steamn't" }] }),
@@ -32,8 +32,7 @@ export const Route = createFileRoute("/juegos/$juegoId")({
 
 function DetalleJuego() {
   const id = Number(Route.useParams().juegoId);
-  const usuario = useUsuario();
-  const { esAdmin, refrescar } = useSesion();
+  const { usuario, esAdmin, abrirAcceso, refrescar } = useSesion();
   const queryClient = useQueryClient();
   const [texto, setTexto] = useState("");
   const [nombreLogro, setNombreLogro] = useState("");
@@ -48,20 +47,23 @@ function DetalleJuego() {
     throwOnError: false,
   });
   const { data: compras = [] } = useQuery({
-    queryKey: ["biblioteca", usuario.id],
-    queryFn: () => biblioteca(usuario.id),
+    queryKey: ["biblioteca", usuario?.id],
+    queryFn: () => biblioteca(usuario!.id),
+    enabled: Boolean(usuario),
   });
   const { data: wishlist = [] } = useQuery({
-    queryKey: ["wishlist", usuario.id],
-    queryFn: () => obtenerWishlist(usuario.id),
+    queryKey: ["wishlist", usuario?.id],
+    queryFn: () => obtenerWishlist(usuario!.id),
+    enabled: Boolean(usuario),
   });
   const { data: logros = [] } = useQuery({
     queryKey: ["logros-juego", id],
     queryFn: () => logrosDeJuego(id),
   });
   const { data: desbloqueados = [] } = useQuery({
-    queryKey: ["logros-desbloqueados", usuario.id],
-    queryFn: () => obtenerLogrosDesbloqueados(usuario.id),
+    queryKey: ["logros-desbloqueados", usuario?.id],
+    queryFn: () => obtenerLogrosDesbloqueados(usuario!.id),
+    enabled: Boolean(usuario),
   });
   const { data: resenas = [] } = useQuery({
     queryKey: ["resenas", id],
@@ -73,12 +75,16 @@ function DetalleJuego() {
     enabled: Boolean(juego),
   });
 
-  const miResena = resenas.find((resena) => resena.usuario_id === usuario.id);
+  const miResena = resenas.find((resena) => resena.usuario_id === usuario?.id);
   useEffect(() => {
     if (miResena) setTexto(miResena.texto);
   }, [miResena]);
 
   const accion = async (fn: () => Promise<unknown>, mensaje: string) => {
+    if (!usuario) {
+      abrirAcceso("Tenés que iniciar sesión para usar esta función.");
+      return;
+    }
     try {
       await fn();
       await Promise.all([
@@ -110,7 +116,7 @@ function DetalleJuego() {
 
   const comprado = compras.some((item) => item.juego.id === id);
   const deseado = wishlist.some((item) => item.juego_id === id);
-  const esMiJuego = esAdmin && usuario.desarrollador_id === juego.desarrollador_id;
+  const esMiJuego = esAdmin && usuario?.desarrollador_id === juego.desarrollador_id;
   const capturas = [juego.imagen, ...(juego.galeria ?? [])];
   const imagenPrincipal = principal ?? juego.imagen;
 
@@ -170,7 +176,7 @@ function DetalleJuego() {
               <Button
                 disabled={comprado}
                 onClick={() =>
-                  accion(() => comprarJuego(usuario.id, id), `Compraste ${juego.titulo}`)
+                  accion(() => comprarJuego(usuario!.id, id), `Compraste ${juego.titulo}`)
                 }
               >
                 {comprado ? "Ya en tu biblioteca" : "Comprar ahora"}
@@ -179,7 +185,7 @@ function DetalleJuego() {
                 variant="secondary"
                 disabled={comprado || deseado}
                 onClick={() =>
-                  accion(() => agregarAWishlist(usuario.id, id), "Agregado a la wishlist")
+                  accion(() => agregarAWishlist(usuario!.id, id), "Agregado a la wishlist")
                 }
               >
                 {deseado ? "En tu wishlist" : "Agregar a wishlist"}
@@ -189,6 +195,16 @@ function DetalleJuego() {
                   <Link to="/jugar/$juegoId" params={{ juegoId: String(id) }}>
                     <Gamepad2 className="h-4 w-4" /> Jugar
                   </Link>
+                </Button>
+              )}
+              {!usuario && (
+                <Button
+                  variant="secondary"
+                  onClick={() =>
+                    abrirAcceso("Tenés que iniciar sesión y comprar el juego para jugar.")
+                  }
+                >
+                  <Gamepad2 className="h-4 w-4" /> Jugar
                 </Button>
               )}
             </div>
@@ -208,14 +224,14 @@ function DetalleJuego() {
               className="mt-3"
               value={texto}
               onChange={(event) => setTexto(event.target.value)}
-              disabled={!comprado}
+              disabled={!usuario || !comprado}
             />
             <div className="mt-3 flex gap-2">
               <Button
                 size="sm"
-                disabled={!comprado}
+                disabled={Boolean(usuario) && !comprado}
                 onClick={() =>
-                  accion(() => guardarResena(usuario.id, id, true, texto), "Reseña publicada")
+                  accion(() => guardarResena(usuario!.id, id, true, texto), "Reseña publicada")
                 }
               >
                 <ThumbsUp className="h-4 w-4" /> Recomiendo
@@ -223,9 +239,9 @@ function DetalleJuego() {
               <Button
                 size="sm"
                 variant="secondary"
-                disabled={!comprado}
+                disabled={Boolean(usuario) && !comprado}
                 onClick={() =>
-                  accion(() => guardarResena(usuario.id, id, false, texto), "Reseña publicada")
+                  accion(() => guardarResena(usuario!.id, id, false, texto), "Reseña publicada")
                 }
               >
                 <ThumbsDown className="h-4 w-4" /> No recomiendo

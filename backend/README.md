@@ -80,6 +80,7 @@ actualizadas y aplicá la migración correspondiente:
 pip install -r requirements.txt
 psql -U postgres -d steamdb -f .\src\db\migrations\20260831_juegos_archivos.sql
 psql -U postgres -d steamdb -f .\src\db\migrations\20260902_perfiles_imagenes.sql
+psql -U postgres -d steamdb -f .\src\db\migrations\20260903_superadmin.sql
 ```
 
 Los juegos reproducibles deben ser un archivo `.html` o un `.zip` que incluya
@@ -89,6 +90,12 @@ y por eso no se incluyen en Git.
 La migración `20260902_perfiles_imagenes.sql` agrega avatares y los campos
 editoriales de los juegos (descripción, resumen, portada y galería), necesarios
 para las pantallas de perfil y el panel de desarrolladores.
+
+La migración `20260903_superadmin.sql` crea la cuenta administradora principal
+usada por el panel global. El backend también verifica esta cuenta al iniciar
+sesión para que esté disponible en bases creadas por los tests o por SQLAlchemy.
+Sus credenciales iniciales son `admin@gmail.com`, contraseña `123456` y nombre
+de usuario `admin`.
 
 Abrir http://localhost:8000/docs para ver Swagger.
 

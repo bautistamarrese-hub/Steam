@@ -25,6 +25,9 @@ class UsuarioService:
     """
 
     STORAGE_ROOT = Path(__file__).resolve().parents[2] / "storage"
+    SUPERADMIN_EMAIL = "admin@gmail.com"
+    SUPERADMIN_NICKNAME = "admin"
+    SUPERADMIN_PASSWORD = "123456"
 
     def __init__(self, db: Session):
         self.db = db
@@ -48,8 +51,8 @@ class UsuarioService:
 
             desarrollador_id = desarrollador.id
 
-        # El frontend actual no solicita contraseña. El rol y la relación con
-        # el estudio sí se guardan para poder reconstruir la sesión al volver.
+        # El rol y la relación con el estudio se guardan para poder reconstruir
+        # la sesión al volver a ingresar.
         usuario = Usuario(
             email=email,
             nickname=nickname,
@@ -67,6 +70,7 @@ class UsuarioService:
         return usuario
 
     def iniciar_sesion(self, payload) -> Usuario:
+        self.asegurar_superadmin()
         email = str(payload.email).strip().lower()
         usuario = (
             self.db.query(Usuario)
@@ -75,6 +79,49 @@ class UsuarioService:
         )
         if not usuario or not verify_password(payload.password, usuario.password_hash):
             raise ValueError("Email o contraseña incorrectos.")
+        return usuario
+
+    def asegurar_superadmin(self) -> Usuario:
+        usuario = (
+            self.db.query(Usuario)
+            .filter(func.lower(Usuario.email) == self.SUPERADMIN_EMAIL)
+            .first()
+        )
+        nickname_en_uso = (
+            self.db.query(Usuario)
+            .filter(func.lower(Usuario.nickname) == self.SUPERADMIN_NICKNAME)
+            .first()
+        )
+        if usuario is None:
+            if nickname_en_uso is not None:
+                raise ValueError(
+                    "No se pudo inicializar la cuenta administradora porque el nickname admin ya existe."
+                )
+            usuario = Usuario(
+                email=self.SUPERADMIN_EMAIL,
+                nickname=self.SUPERADMIN_NICKNAME,
+                password_hash=hash_password(self.SUPERADMIN_PASSWORD),
+                rol="superadmin",
+                saldo=0,
+            )
+            self.db.add(usuario)
+        else:
+            if nickname_en_uso is not None and nickname_en_uso.id != usuario.id:
+                raise ValueError(
+                    "No se pudo inicializar la cuenta administradora porque el nickname admin ya existe."
+                )
+            usuario.nickname = self.SUPERADMIN_NICKNAME
+            usuario.rol = "superadmin"
+            usuario.desarrollador_id = None
+            if not verify_password(self.SUPERADMIN_PASSWORD, usuario.password_hash):
+                usuario.password_hash = hash_password(self.SUPERADMIN_PASSWORD)
+
+        try:
+            self.db.commit()
+        except IntegrityError as exc:
+            self.db.rollback()
+            raise ValueError("No se pudo inicializar la cuenta administradora.") from exc
+        self.db.refresh(usuario)
         return usuario
 
     def listar(self, email: str | None = None) -> list[Usuario]:

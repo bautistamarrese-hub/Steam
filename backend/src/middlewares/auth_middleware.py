@@ -3,9 +3,9 @@ from sqlalchemy.orm import Session
 
 from src.db.connection import get_db
 from src.db.models.registroUsuario_model import Usuario
-from src.repositories.usuario_repository import UsuarioRepository
 from src.utils.errors import UnauthorizedError
 from src.utils.jwt import decode_token
+
 
 def get_current_user(
     authorization: str | None = Header(default=None),
@@ -21,7 +21,12 @@ def get_current_user(
     if user_id is None:
         raise UnauthorizedError("Invalid token payload")
 
-    user = UsuarioRepository(db).find_by_id(int(user_id))
+    try:
+        user_id_int = int(user_id)
+    except (TypeError, ValueError) as exc:
+        raise UnauthorizedError("Invalid token payload") from exc
+
+    user = db.query(Usuario).filter(Usuario.id == user_id_int).first()
     if user is None:
         raise UnauthorizedError("User no longer exists")
 

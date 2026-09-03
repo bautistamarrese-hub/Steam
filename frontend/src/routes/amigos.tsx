@@ -18,7 +18,7 @@ import {
   solicitudesEnviadas,
   solicitudesRecibidas,
 } from "@/lib/api";
-import { useSesion, useUsuario } from "@/lib/sesion";
+import { useSesion } from "@/lib/sesion";
 
 export const Route = createFileRoute("/amigos")({
   head: () => ({
@@ -33,27 +33,29 @@ export const Route = createFileRoute("/amigos")({
 });
 
 function Amigos() {
-  const yo = useUsuario();
-  const { refrescar } = useSesion();
+  const { usuario: yo, abrirAcceso, refrescar } = useSesion();
   const queryClient = useQueryClient();
   // GET /usuarios/{id}/amigos
   const { data: amigos = [] } = useQuery({
-    queryKey: ["amigos", yo.id],
-    queryFn: () => amigosDe(yo.id),
+    queryKey: ["amigos", yo?.id],
+    queryFn: () => amigosDe(yo!.id),
+    enabled: Boolean(yo),
   });
   const { data: usuarios = [] } = useQuery({
     queryKey: ["usuarios"],
     queryFn: listarUsuarios,
   });
   const { data: recibidas = [] } = useQuery({
-    queryKey: ["solicitudes-recibidas", yo.id],
-    queryFn: () => solicitudesRecibidas(yo.id),
+    queryKey: ["solicitudes-recibidas", yo?.id],
+    queryFn: () => solicitudesRecibidas(yo!.id),
+    enabled: Boolean(yo),
   });
   const { data: enviadas = [] } = useQuery({
-    queryKey: ["solicitudes-enviadas", yo.id],
-    queryFn: () => solicitudesEnviadas(yo.id),
+    queryKey: ["solicitudes-enviadas", yo?.id],
+    queryFn: () => solicitudesEnviadas(yo!.id),
+    enabled: Boolean(yo),
   });
-  const otros = usuarios.filter((u) => u.id !== yo.id);
+  const otros = usuarios.filter((u) => u.id !== yo?.id && u.rol !== "superadmin");
   const estadisticasUsuarios = useQueries({
     queries: otros.map((usuario) => ({
       queryKey: ["estadisticas", usuario.id],
@@ -63,6 +65,10 @@ function Amigos() {
   const amigosIds = new Set(amigos.map((amigo) => amigo.id));
 
   const accion = async (fn: () => Promise<unknown>, ok: string) => {
+    if (!yo) {
+      abrirAcceso("Tenés que iniciar sesión para usar las funciones de amistad.");
+      return;
+    }
     try {
       await fn();
       await Promise.all([
@@ -81,7 +87,9 @@ function Amigos() {
     <div className="mx-auto max-w-5xl px-4 py-10">
       <h1 className="text-3xl font-bold">Comunidad</h1>
       <p className="mt-2 text-muted-foreground">
-        Tenés {amigos.length} amigo(s). Entrá a cualquier perfil para ver sus juegos y logros.
+        {yo
+          ? `Tenés ${amigos.length} amigo(s). Entrá a cualquier perfil para ver sus juegos y logros.`
+          : "Explorá los perfiles de la comunidad. Iniciá sesión para agregar amigos."}
       </p>
 
       {recibidas.length > 0 && (
@@ -154,7 +162,7 @@ function Amigos() {
                   <Button
                     size="sm"
                     variant="secondary"
-                    onClick={() => accion(() => eliminarAmigo(yo.id, u.id), "Amistad eliminada")}
+                    onClick={() => accion(() => eliminarAmigo(yo!.id, u.id), "Amistad eliminada")}
                   >
                     <UserMinus className="h-4 w-4" /> Amigos
                   </Button>
@@ -174,7 +182,7 @@ function Amigos() {
                     size="sm"
                     onClick={() =>
                       accion(
-                        () => enviarSolicitud(yo.id, u.id),
+                        () => enviarSolicitud(yo!.id, u.id),
                         `Solicitud enviada a ${u.nickname}`,
                       )
                     }

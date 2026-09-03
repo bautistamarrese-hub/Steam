@@ -1,12 +1,15 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { iniciarSesion, obtenerUsuario, registrarUsuario } from "@/lib/api";
-import type { Rol, Usuario } from "@/lib/types";
+import type { RolRegistro, Usuario } from "@/lib/types";
 
 const CLAVE = "steamnt.sesion";
+const CLAVE_TOKEN = "steamnt.token";
 
 interface SesionCtx {
   usuario: Usuario | null;
   esAdmin: boolean;
+  esSuperAdmin: boolean;
+  tokenAcceso: string | null;
   cargando: boolean;
   accesoAbierto: boolean;
   motivoAcceso: string;
@@ -18,7 +21,7 @@ interface SesionCtx {
     nickname: string,
     password: string,
     confirmacion: string,
-    rol: Rol,
+    rol: RolRegistro,
     estudio?: string,
   ) => Promise<void>;
   logout: () => void;
@@ -38,27 +41,34 @@ const leerSesion = (): Usuario | null => {
 
 export function SesionProvider({ children }: { children: React.ReactNode }) {
   const [usuario, setUsuario] = useState<Usuario | null>(null);
+  const [tokenAcceso, setTokenAcceso] = useState<string | null>(null);
   const [cargando, setCargando] = useState(true);
   const [accesoAbierto, setAccesoAbierto] = useState(false);
   const [motivoAcceso, setMotivoAcceso] = useState(
     "Iniciá sesión o creá una cuenta para usar esta función.",
   );
 
-  const guardar = useCallback((nuevo: Usuario | null) => {
+  const guardar = useCallback((nuevo: Usuario | null, nuevoToken?: string | null) => {
     if (nuevo) localStorage.setItem(CLAVE, JSON.stringify(nuevo));
     else localStorage.removeItem(CLAVE);
+    if (nuevoToken !== undefined) {
+      if (nuevoToken) localStorage.setItem(CLAVE_TOKEN, nuevoToken);
+      else localStorage.removeItem(CLAVE_TOKEN);
+      setTokenAcceso(nuevoToken);
+    }
     setUsuario(nuevo);
   }, []);
 
   useEffect(() => {
     const guardado = leerSesion();
+    setTokenAcceso(localStorage.getItem(CLAVE_TOKEN));
     if (!guardado) {
       setCargando(false);
       return;
     }
     obtenerUsuario(guardado.id)
       .then(guardar)
-      .catch(() => guardar(null))
+      .catch(() => guardar(null, null))
       .finally(() => setCargando(false));
   }, [guardar]);
 
@@ -79,20 +89,25 @@ export function SesionProvider({ children }: { children: React.ReactNode }) {
     () => ({
       usuario,
       esAdmin: usuario?.rol === "admin",
+      esSuperAdmin: usuario?.rol === "superadmin",
+      tokenAcceso,
       cargando,
       accesoAbierto,
       motivoAcceso,
       abrirAcceso,
       cerrarAcceso,
       login: async (email, password) => {
-        guardar(await iniciarSesion(email, password));
+        const sesion = await iniciarSesion(email, password);
+        guardar(sesion.usuario, sesion.accessToken);
         cerrarAcceso();
       },
       registrar: async (email, nickname, password, confirmacion, rol, estudio) => {
-        guardar(await registrarUsuario(email, nickname, password, confirmacion, rol, estudio));
+        await registrarUsuario(email, nickname, password, confirmacion, rol, estudio);
+        const sesion = await iniciarSesion(email, password);
+        guardar(sesion.usuario, sesion.accessToken);
         cerrarAcceso();
       },
-      logout: () => guardar(null),
+      logout: () => guardar(null, null),
       refrescar,
     }),
     [
@@ -103,6 +118,7 @@ export function SesionProvider({ children }: { children: React.ReactNode }) {
       guardar,
       motivoAcceso,
       refrescar,
+      tokenAcceso,
       usuario,
     ],
   );

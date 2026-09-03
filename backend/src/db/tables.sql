@@ -101,3 +101,14 @@ CREATE TABLE amigos (
     FOREIGN KEY (usuario_b) REFERENCES usuarios(id),
     CHECK (usuario_a != usuario_b) -- Evita que un usuario sea amigo de sí mismo
 );
+
+-- Cuenta administradora principal precargada.
+INSERT INTO usuarios (email, nickname, password_hash, saldo, rol)
+VALUES (
+    'admin@gmail.com',
+    'admin',
+    '$pbkdf2-sha256$29000$CIFwLmWslfIeY2wtJaR0jg$YOOn/d5VUJ3JMj8wyqrpt45KHOtyHA3vOqnj4kJNqYA',
+    0,
+    'superadmin'
+)
+ON CONFLICT (email) DO NOTHING;

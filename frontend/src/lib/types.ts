@@ -1,7 +1,8 @@
 export type Genero =
   "Acción" | "Aventura" | "RPG" | "Estrategia" | "Deportes" | "Indie" | "Terror" | "Simulación";
 
-export type Rol = "cliente" | "admin";
+export type Rol = "cliente" | "admin" | "superadmin";
+export type RolRegistro = Exclude<Rol, "superadmin">;
 
 export interface Usuario {
   id: number;

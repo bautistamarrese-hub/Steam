@@ -11,6 +11,7 @@ from src.schemas.usuario_schema import (
     CreateUsuarioSchema,
     GetEstadisticasUsuarioSchema,
     GetUsuarioSchema,
+    LoginResponseSchema,
     LoginUsuarioSchema,
     RecargarSaldoSchema,
 )
@@ -18,6 +19,7 @@ from src.schemas.wishlist_schema import CreateWishlistSchema, GetWishlistSchema
 from src.services.desbloquearLogro_service import DesbloqueoLogroService
 from src.services.registroUsuario_service import UsuarioService
 from src.services.solicitudAmistad_service import SolicitudAmistadService
+from src.utils.jwt import create_access_token
 
 router = APIRouter(prefix="/usuarios", tags=["usuarios"])
 
@@ -27,9 +29,14 @@ def registrar_usuario(payload: CreateUsuarioSchema, db: Session = Depends(get_db
     return UsuarioService(db).registrar(payload)
 
 
-@router.post("/login", response_model=GetUsuarioSchema)
+@router.post("/login", response_model=LoginResponseSchema)
 def iniciar_sesion(payload: LoginUsuarioSchema, db: Session = Depends(get_db)):
-    return UsuarioService(db).iniciar_sesion(payload)
+    usuario = UsuarioService(db).iniciar_sesion(payload)
+    return {
+        "usuario": usuario,
+        "access_token": create_access_token({"sub": str(usuario.id)}),
+        "token_type": "bearer",
+    }
 
 
 @router.get("/", response_model=list[GetUsuarioSchema])

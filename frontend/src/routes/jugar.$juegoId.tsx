@@ -4,6 +4,7 @@ import { Maximize, Minimize, Trophy } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
+import { AccesoRequerido } from "@/components/AccesoRequerido";
 import { Button } from "@/components/ui/button";
 import {
   ApiError,
@@ -38,6 +39,16 @@ interface MensajeLogro {
 }
 
 function Jugar() {
+  const { usuario } = useSesion();
+  if (!usuario) {
+    return (
+      <AccesoRequerido detalle="Tenés que iniciar sesión y tener el juego en tu biblioteca para jugar." />
+    );
+  }
+  return <JuegoConSesion />;
+}
+
+function JuegoConSesion() {
   const id = Number(Route.useParams().juegoId);
   const usuario = useUsuario();
   const { esAdmin } = useSesion();

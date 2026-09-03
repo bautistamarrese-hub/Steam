@@ -586,3 +586,108 @@ def test_rankings_incluyen_ventas_y_exigen_veinte_resenas(client: TestClient):
     assert valorados[0]["id"] == juego["id"]
     assert valorados[0]["total_resenas"] == 20
     assert valorados[0]["porcentaje_positivas"] == 95
+
+
+def test_superadmin_precargado_administra_usuarios_y_todos_los_juegos(client: TestClient):
+    acceso = assert_status(
+        client.post(
+            "/api/usuarios/login",
+            json={"email": "admin@gmail.com", "password": "123456"},
+        ),
+        200,
+    )
+    assert acceso["usuario"]["nickname"] == "admin"
+    assert acceso["usuario"]["rol"] == "superadmin"
+    headers = {"Authorization": f"Bearer {acceso['access_token']}"}
+
+    jugador = registrar(client, "administrado")
+    desarrollador = registrar(
+        client,
+        "dev_administrado",
+        rol="admin",
+        estudio="Estudio administrado",
+    )
+    juego = publicar_juego(
+        client,
+        desarrollador["desarrollador_id"],
+        "Juego administrado",
+        precio=150,
+    )
+
+    assert_status(
+        client.put(
+            f"/api/administracion/usuarios/{jugador['id']}",
+            headers=headers,
+            json={
+                "email": "editado@example.com",
+                "nickname": "nick_editado",
+                "saldo": 900,
+                "password": "nueva123",
+            },
+        ),
+        200,
+    )
+    editado = assert_status(client.get(f"/api/usuarios/{jugador['id']}"), 200)
+    assert editado["email"] == "editado@example.com"
+    assert editado["nickname"] == "nick_editado"
+    assert editado["saldo"] == 900
+    assert_status(
+        client.post(
+            "/api/usuarios/login",
+            json={"email": "editado@example.com", "password": "nueva123"},
+        ),
+        200,
+    )
+
+    juego_editado = assert_status(
+        client.put(
+            f"/api/administracion/juegos/{juego['id']}",
+            headers=headers,
+            json={
+                "desarrollador_id": desarrollador["desarrollador_id"],
+                "titulo": "Juego globalmente editado",
+                "precio": 25,
+                "genero": "Estrategia",
+            },
+        ),
+        200,
+    )
+    assert juego_editado["titulo"] == "Juego globalmente editado"
+    assert juego_editado["precio"] == 25
+
+    assert_status(
+        client.delete(
+            f"/api/administracion/usuarios/{desarrollador['id']}",
+            headers=headers,
+        ),
+        204,
+    )
+    assert_status(client.get(f"/api/usuarios/{desarrollador['id']}"), 400)
+    assert_status(client.get(f"/api/juegos/{juego['id']}"), 400)
+
+    assert_status(
+        client.delete(
+            f"/api/administracion/usuarios/{acceso['usuario']['id']}",
+            headers=headers,
+        ),
+        400,
+    )
+
+
+def test_administracion_rechaza_sesiones_no_autorizadas(client: TestClient):
+    jugador = registrar(client, "sin_permisos")
+    sin_token = client.delete(f"/api/administracion/usuarios/{jugador['id']}")
+    assert_status(sin_token, 401)
+
+    acceso_jugador = assert_status(
+        client.post(
+            "/api/usuarios/login",
+            json={"email": "sin_permisos@example.com", "password": "secreto123"},
+        ),
+        200,
+    )
+    sin_rol = client.delete(
+        f"/api/administracion/usuarios/{jugador['id']}",
+        headers={"Authorization": f"Bearer {acceso_jugador['access_token']}"},
+    )
+    assert_status(sin_rol, 403)

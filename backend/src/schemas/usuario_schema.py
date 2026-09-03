@@ -32,9 +32,15 @@ class GetUsuarioSchema(BaseModel):
     nickname: str
     saldo: float
     fecha_registro: datetime
-    rol: Literal["cliente", "admin"]
+    rol: Literal["cliente", "admin", "superadmin"]
     desarrollador_id: int | None
     avatar: str | None = None
+
+
+class LoginResponseSchema(BaseModel):
+    usuario: GetUsuarioSchema
+    access_token: str
+    token_type: Literal["bearer"] = "bearer"
 
 class ProgresoJuegoSchema(BaseModel):
     juego: GetJuegoSchema

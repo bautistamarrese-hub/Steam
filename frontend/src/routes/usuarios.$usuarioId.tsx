@@ -27,7 +27,7 @@ import {
   solicitudesEnviadas,
   solicitudesRecibidas,
 } from "@/lib/api";
-import { useSesion, useUsuario } from "@/lib/sesion";
+import { useSesion } from "@/lib/sesion";
 
 export const Route = createFileRoute("/usuarios/$usuarioId")({
   head: () => ({
@@ -46,8 +46,7 @@ export const Route = createFileRoute("/usuarios/$usuarioId")({
 
 function PerfilUsuario() {
   const { usuarioId } = Route.useParams();
-  const yo = useUsuario();
-  const { refrescar } = useSesion();
+  const { usuario: yo, abrirAcceso, refrescar } = useSesion();
   const queryClient = useQueryClient();
   // GET /usuarios/{id}/perfil
   const id = Number(usuarioId);
@@ -62,16 +61,19 @@ function PerfilUsuario() {
     throwOnError: false,
   });
   const { data: misAmigos = [] } = useQuery({
-    queryKey: ["amigos", yo.id],
-    queryFn: () => amigosDe(yo.id),
+    queryKey: ["amigos", yo?.id],
+    queryFn: () => amigosDe(yo!.id),
+    enabled: Boolean(yo),
   });
   const { data: recibidas = [] } = useQuery({
-    queryKey: ["solicitudes-recibidas", yo.id],
-    queryFn: () => solicitudesRecibidas(yo.id),
+    queryKey: ["solicitudes-recibidas", yo?.id],
+    queryFn: () => solicitudesRecibidas(yo!.id),
+    enabled: Boolean(yo),
   });
   const { data: enviadas = [] } = useQuery({
-    queryKey: ["solicitudes-enviadas", yo.id],
-    queryFn: () => solicitudesEnviadas(yo.id),
+    queryKey: ["solicitudes-enviadas", yo?.id],
+    queryFn: () => solicitudesEnviadas(yo!.id),
+    enabled: Boolean(yo),
   });
 
   if (isPending) {
@@ -90,12 +92,16 @@ function PerfilUsuario() {
   }
 
   const { usuario, stats, juegos, logros, amigos } = perfil;
-  const esYo = usuario.id === yo.id;
+  const esYo = usuario.id === yo?.id;
   const amigo = misAmigos.some((item) => item.id === usuario.id);
   const pendiente = enviadas.find((solicitud) => solicitud.para === usuario.id);
   const meEnvio = recibidas.find((solicitud) => solicitud.de === usuario.id);
 
   const accion = async (fn: () => Promise<unknown>, ok: string) => {
+    if (!yo) {
+      abrirAcceso("Tenés que iniciar sesión para enviar solicitudes de amistad.");
+      return;
+    }
     try {
       await fn();
       await Promise.all([
@@ -126,8 +132,12 @@ function PerfilUsuario() {
         <div className="flex-1">
           <div className="flex items-center gap-2">
             <h1 className="text-3xl font-bold">{usuario.nickname}</h1>
-            <Badge variant={usuario.rol === "admin" ? "default" : "secondary"}>
-              {usuario.rol === "admin" ? "Desarrollador" : "Jugador"}
+            <Badge variant={usuario.rol !== "cliente" ? "default" : "secondary"}>
+              {usuario.rol === "superadmin"
+                ? "Administrador principal"
+                : usuario.rol === "admin"
+                  ? "Desarrollador"
+                  : "Jugador"}
             </Badge>
           </div>
           <p className="text-muted-foreground">Miembro desde {usuario.fecha_registro}</p>
@@ -136,7 +146,7 @@ function PerfilUsuario() {
           (amigo ? (
             <Button
               variant="secondary"
-              onClick={() => accion(() => eliminarAmigo(yo.id, usuario.id), "Amistad eliminada")}
+              onClick={() => accion(() => eliminarAmigo(yo!.id, usuario.id), "Amistad eliminada")}
             >
               <UserMinus className="h-4 w-4" /> Amigos
             </Button>
@@ -154,7 +164,7 @@ function PerfilUsuario() {
             <Button
               onClick={() =>
                 accion(
-                  () => enviarSolicitud(yo.id, usuario.id),
+                  () => enviarSolicitud(yo!.id, usuario.id),
                   `Solicitud enviada a ${usuario.nickname}`,
                 )
               }

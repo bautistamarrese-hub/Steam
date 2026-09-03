@@ -1,5 +1,5 @@
 import { Link } from "@tanstack/react-router";
-import { Gamepad2, LogIn, LogOut, Wallet, Wrench } from "lucide-react";
+import { Gamepad2, LogIn, LogOut, ShieldCheck, Wallet, Wrench } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { AvatarGamer } from "@/components/AvatarGamer";
@@ -11,7 +11,7 @@ const LINKS_CLIENTE = [
   { to: "/biblioteca", label: "Biblioteca", requiereSesion: true },
   { to: "/wishlist", label: "Wishlist", requiereSesion: true },
   { to: "/top", label: "Top", requiereSesion: false },
-  { to: "/amigos", label: "Amigos", requiereSesion: true },
+  { to: "/amigos", label: "Amigos", requiereSesion: false },
   { to: "/perfil", label: "Perfil", requiereSesion: true },
 ] as const;
 
@@ -21,13 +21,21 @@ const LINKS_ADMIN = [
   { to: "/wishlist", label: "Wishlist", requiereSesion: true },
   { to: "/desarrolladores", label: "Panel", requiereSesion: true },
   { to: "/top", label: "Top", requiereSesion: false },
-  { to: "/amigos", label: "Amigos", requiereSesion: true },
+  { to: "/amigos", label: "Amigos", requiereSesion: false },
+  { to: "/perfil", label: "Perfil", requiereSesion: true },
+] as const;
+
+const LINKS_SUPERADMIN = [
+  { to: "/", label: "Tienda", requiereSesion: false },
+  { to: "/administracion", label: "Administración", requiereSesion: true },
+  { to: "/top", label: "Top", requiereSesion: false },
+  { to: "/amigos", label: "Amigos", requiereSesion: false },
   { to: "/perfil", label: "Perfil", requiereSesion: true },
 ] as const;
 
 export function SiteHeader() {
-  const { usuario, esAdmin, abrirAcceso, logout } = useSesion();
-  const links = esAdmin ? LINKS_ADMIN : LINKS_CLIENTE;
+  const { usuario, esAdmin, esSuperAdmin, abrirAcceso, logout } = useSesion();
+  const links = esSuperAdmin ? LINKS_SUPERADMIN : esAdmin ? LINKS_ADMIN : LINKS_CLIENTE;
   const interceptarPrivado = (
     event: React.MouseEvent<HTMLAnchorElement>,
     requiereSesion: boolean,
@@ -62,6 +70,11 @@ export function SiteHeader() {
           {esAdmin && (
             <Badge variant="secondary" className="hidden gap-1 lg:flex">
               <Wrench className="h-3.5 w-3.5" /> Desarrollador
+            </Badge>
+          )}
+          {esSuperAdmin && (
+            <Badge variant="secondary" className="hidden gap-1 lg:flex">
+              <ShieldCheck className="h-3.5 w-3.5" /> Administrador
             </Badge>
           )}
           {usuario ? (

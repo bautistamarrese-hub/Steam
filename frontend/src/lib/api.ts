@@ -13,7 +13,7 @@ import type {
   PerfilPublico,
   Recarga,
   Resena,
-  Rol,
+  RolRegistro,
   SolicitudAmistad,
   Usuario,
   WishlistItem,
@@ -98,6 +98,11 @@ async function requestArchivo<T>(
 type UsuarioApi = Omit<Usuario, "password" | "desarrollador_id"> & {
   desarrollador_id: number | null;
 };
+type LoginApi = {
+  usuario: UsuarioApi;
+  access_token: string;
+  token_type: "bearer";
+};
 type JuegoApi = Omit<Juego, "descripcion" | "imagen" | "resumen" | "galeria"> & {
   descripcion?: string | null;
   resumen?: string | null;
@@ -159,7 +164,7 @@ export async function registrarUsuario(
   nickname: string,
   password: string,
   confirmacion: string,
-  rol: Rol = "cliente",
+  rol: RolRegistro = "cliente",
   estudio?: string,
 ): Promise<Usuario> {
   const emailLimpio = textoRequerido(email, "El email").toLowerCase();
@@ -182,16 +187,18 @@ export async function registrarUsuario(
   );
 }
 
-export async function iniciarSesion(email: string, password: string): Promise<Usuario> {
+export async function iniciarSesion(
+  email: string,
+  password: string,
+): Promise<{ usuario: Usuario; accessToken: string }> {
   const emailLimpio = textoRequerido(email, "El email").toLowerCase();
   if (password.length < LARGO_MINIMO_PASSWORD)
     throw new ApiError(`La contraseña debe tener al menos ${LARGO_MINIMO_PASSWORD} caracteres.`);
-  return adaptarUsuario(
-    await request<UsuarioApi>("/usuarios/login", {
-      method: "POST",
-      body: JSON.stringify({ email: emailLimpio, password }),
-    }),
-  );
+  const sesion = await request<LoginApi>("/usuarios/login", {
+    method: "POST",
+    body: JSON.stringify({ email: emailLimpio, password }),
+  });
+  return { usuario: adaptarUsuario(sesion.usuario), accessToken: sesion.access_token };
 }
 
 export const listarUsuarios = async (): Promise<Usuario[]> =>
@@ -199,6 +206,56 @@ export const listarUsuarios = async (): Promise<Usuario[]> =>
 
 export const obtenerUsuario = async (id: number): Promise<Usuario> =>
   adaptarUsuario(await request<UsuarioApi>(`/usuarios/${id}`));
+
+export interface CambiosUsuarioAdmin {
+  email?: string;
+  nickname?: string;
+  saldo?: number;
+  rol?: "cliente" | "admin";
+  estudio?: string;
+  password?: string;
+}
+
+const autorizacion = (token: string) => ({ Authorization: `Bearer ${token}` });
+
+export const actualizarUsuarioAdmin = async (
+  token: string,
+  usuarioId: number,
+  cambios: CambiosUsuarioAdmin,
+): Promise<Usuario> =>
+  adaptarUsuario(
+    await request<UsuarioApi>(`/administracion/usuarios/${usuarioId}`, {
+      method: "PUT",
+      headers: autorizacion(token),
+      body: JSON.stringify(cambios),
+    }),
+  );
+
+export const eliminarUsuarioAdmin = (token: string, usuarioId: number): Promise<void> =>
+  request(`/administracion/usuarios/${usuarioId}`, {
+    method: "DELETE",
+    headers: autorizacion(token),
+  });
+
+export const actualizarJuegoAdmin = async (
+  token: string,
+  juegoId: number,
+  desarrolladorId: number,
+  cambios: Partial<Pick<Juego, "titulo" | "precio" | "genero" | "descripcion" | "resumen">>,
+): Promise<Juego> =>
+  adaptarJuego(
+    await request<JuegoApi>(`/administracion/juegos/${juegoId}`, {
+      method: "PUT",
+      headers: autorizacion(token),
+      body: JSON.stringify({ desarrollador_id: desarrolladorId, ...cambios }),
+    }),
+  );
+
+export const eliminarJuegoAdmin = (token: string, juegoId: number): Promise<void> =>
+  request(`/administracion/juegos/${juegoId}`, {
+    method: "DELETE",
+    headers: autorizacion(token),
+  });
 
 export const actualizarAvatar = async (usuarioId: number, archivo: File): Promise<Usuario> =>
   adaptarUsuario(await requestArchivo<UsuarioApi>(`/usuarios/${usuarioId}/avatar`, archivo, "PUT"));

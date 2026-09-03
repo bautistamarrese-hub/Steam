@@ -14,25 +14,18 @@ import {
 } from "@/components/ui/dialog";
 import { ApiError, LARGO_MINIMO_PASSWORD } from "@/lib/api";
 import { useSesion } from "@/lib/sesion";
-import type { Rol } from "@/lib/types";
+import type { RolRegistro } from "@/lib/types";
 
 export function AuthGate({ children }: { children: React.ReactNode }) {
-  const {
-    usuario,
-    cargando,
-    accesoAbierto,
-    motivoAcceso,
-    cerrarAcceso,
-    login,
-    registrar,
-  } = useSesion();
+  const { usuario, cargando, accesoAbierto, motivoAcceso, cerrarAcceso, login, registrar } =
+    useSesion();
   const [modo, setModo] = useState<"registro" | "login">("login");
   const [email, setEmail] = useState("");
   const [nickname, setNickname] = useState("");
   const [password, setPassword] = useState("");
   const [confirmacion, setConfirmacion] = useState("");
   const [estudio, setEstudio] = useState("");
-  const [rol, setRol] = useState<Rol>("cliente");
+  const [rol, setRol] = useState<RolRegistro>("cliente");
   const [enviando, setEnviando] = useState(false);
 
   const enviar = async (event: FormEvent<HTMLFormElement>) => {
@@ -75,136 +68,136 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
             <DialogDescription>{motivoAcceso}</DialogDescription>
           </DialogHeader>
           <Card className="border-0 p-0 shadow-none">
-        <p className="text-sm text-muted-foreground">
-          {modo === "registro"
-            ? "El email y el nickname son únicos. Tu saldo arranca en 0."
-            : "Ingresá con el email y la contraseña de tu cuenta."}
-        </p>
+            <p className="text-sm text-muted-foreground">
+              {modo === "registro"
+                ? "El email y el nickname son únicos. Tu saldo arranca en 0."
+                : "Ingresá con el email y la contraseña de tu cuenta."}
+            </p>
 
-        <form className="mt-4 space-y-4" onSubmit={enviar}>
-          <div className="space-y-1">
-            <Label htmlFor="email">Email</Label>
-            <Input
-              id="email"
-              type="email"
-              autoComplete="email"
-              required
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="vos@mail.com"
-            />
-          </div>
-
-          <div className="space-y-1">
-            <Label htmlFor="password">Contraseña</Label>
-            <Input
-              id="password"
-              type="password"
-              autoComplete={modo === "login" ? "current-password" : "new-password"}
-              minLength={LARGO_MINIMO_PASSWORD}
-              required
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              placeholder={`Mínimo ${LARGO_MINIMO_PASSWORD} caracteres`}
-            />
-          </div>
-
-          {modo === "registro" && (
-            <div className="space-y-1">
-              <Label htmlFor="password2">Confirmar contraseña</Label>
-              <Input
-                id="password2"
-                type="password"
-                autoComplete="new-password"
-                minLength={LARGO_MINIMO_PASSWORD}
-                required
-                value={confirmacion}
-                onChange={(e) => setConfirmacion(e.target.value)}
-                placeholder="Repetí la contraseña"
-              />
-            </div>
-          )}
-
-          {modo === "registro" && (
-            <>
+            <form className="mt-4 space-y-4" onSubmit={enviar}>
               <div className="space-y-1">
-                <Label htmlFor="nick">Nickname</Label>
+                <Label htmlFor="email">Email</Label>
                 <Input
-                  id="nick"
-                  autoComplete="username"
-                  minLength={3}
+                  id="email"
+                  type="email"
+                  autoComplete="email"
                   required
-                  value={nickname}
-                  onChange={(e) => setNickname(e.target.value)}
-                  placeholder="TuNick"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="vos@mail.com"
                 />
               </div>
 
-              <div className="space-y-2">
-                <Label>¿Qué tipo de cuenta querés?</Label>
-                <div className="grid gap-3 sm:grid-cols-2">
-                  {[
-                    {
-                      v: "cliente" as Rol,
-                      icon: User,
-                      t: "Jugador",
-                      d: "Comprá juegos, sumá logros y reseñas.",
-                    },
-                    {
-                      v: "admin" as Rol,
-                      icon: Code2,
-                      t: "Desarrollador / Admin",
-                      d: "Publicá juegos y creá sus logros.",
-                    },
-                  ].map((o) => (
-                    <button
-                      key={o.v}
-                      type="button"
-                      onClick={() => setRol(o.v)}
-                      className={`rounded-lg border p-3 text-left transition-colors ${
-                        rol === o.v
-                          ? "border-primary bg-secondary"
-                          : "border-border hover:border-primary/60"
-                      }`}
-                    >
-                      <o.icon className="h-5 w-5 text-primary" />
-                      <p className="mt-2 font-semibold">{o.t}</p>
-                      <p className="text-xs text-muted-foreground">{o.d}</p>
-                    </button>
-                  ))}
-                </div>
+              <div className="space-y-1">
+                <Label htmlFor="password">Contraseña</Label>
+                <Input
+                  id="password"
+                  type="password"
+                  autoComplete={modo === "login" ? "current-password" : "new-password"}
+                  minLength={LARGO_MINIMO_PASSWORD}
+                  required
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder={`Mínimo ${LARGO_MINIMO_PASSWORD} caracteres`}
+                />
               </div>
 
-              {rol === "admin" && (
+              {modo === "registro" && (
                 <div className="space-y-1">
-                  <Label htmlFor="estudio">Nombre del estudio o compañía</Label>
+                  <Label htmlFor="password2">Confirmar contraseña</Label>
                   <Input
-                    id="estudio"
-                    minLength={2}
+                    id="password2"
+                    type="password"
+                    autoComplete="new-password"
+                    minLength={LARGO_MINIMO_PASSWORD}
                     required
-                    value={estudio}
-                    onChange={(e) => setEstudio(e.target.value)}
-                    placeholder="Mi Estudio"
+                    value={confirmacion}
+                    onChange={(e) => setConfirmacion(e.target.value)}
+                    placeholder="Repetí la contraseña"
                   />
                 </div>
               )}
-            </>
-          )}
 
-          <Button className="w-full" type="submit" disabled={enviando}>
-            {enviando ? "Procesando..." : modo === "registro" ? "Crear cuenta" : "Entrar"}
-          </Button>
-          <button
-            type="button"
-            disabled={enviando}
-            className="w-full text-sm text-muted-foreground underline-offset-4 hover:underline"
-            onClick={() => setModo(modo === "registro" ? "login" : "registro")}
-          >
-            {modo === "registro"
-              ? "Ya tengo cuenta, quiero iniciar sesión"
-              : "No tengo cuenta, quiero registrarme"}
-          </button>
-        </form>
+              {modo === "registro" && (
+                <>
+                  <div className="space-y-1">
+                    <Label htmlFor="nick">Nickname</Label>
+                    <Input
+                      id="nick"
+                      autoComplete="username"
+                      minLength={3}
+                      required
+                      value={nickname}
+                      onChange={(e) => setNickname(e.target.value)}
+                      placeholder="TuNick"
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label>¿Qué tipo de cuenta querés?</Label>
+                    <div className="grid gap-3 sm:grid-cols-2">
+                      {[
+                        {
+                          v: "cliente" as RolRegistro,
+                          icon: User,
+                          t: "Jugador",
+                          d: "Comprá juegos, sumá logros y reseñas.",
+                        },
+                        {
+                          v: "admin" as RolRegistro,
+                          icon: Code2,
+                          t: "Desarrollador / Admin",
+                          d: "Publicá juegos y creá sus logros.",
+                        },
+                      ].map((o) => (
+                        <button
+                          key={o.v}
+                          type="button"
+                          onClick={() => setRol(o.v)}
+                          className={`rounded-lg border p-3 text-left transition-colors ${
+                            rol === o.v
+                              ? "border-primary bg-secondary"
+                              : "border-border hover:border-primary/60"
+                          }`}
+                        >
+                          <o.icon className="h-5 w-5 text-primary" />
+                          <p className="mt-2 font-semibold">{o.t}</p>
+                          <p className="text-xs text-muted-foreground">{o.d}</p>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {rol === "admin" && (
+                    <div className="space-y-1">
+                      <Label htmlFor="estudio">Nombre del estudio o compañía</Label>
+                      <Input
+                        id="estudio"
+                        minLength={2}
+                        required
+                        value={estudio}
+                        onChange={(e) => setEstudio(e.target.value)}
+                        placeholder="Mi Estudio"
+                      />
+                    </div>
+                  )}
+                </>
+              )}
+
+              <Button className="w-full" type="submit" disabled={enviando}>
+                {enviando ? "Procesando..." : modo === "registro" ? "Crear cuenta" : "Entrar"}
+              </Button>
+              <button
+                type="button"
+                disabled={enviando}
+                className="w-full text-sm text-muted-foreground underline-offset-4 hover:underline"
+                onClick={() => setModo(modo === "registro" ? "login" : "registro")}
+              >
+                {modo === "registro"
+                  ? "Ya tengo cuenta, quiero iniciar sesión"
+                  : "No tengo cuenta, quiero registrarme"}
+              </button>
+            </form>
           </Card>
         </DialogContent>
       </Dialog>

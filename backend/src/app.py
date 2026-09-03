@@ -1,4 +1,10 @@
-from .routers import desarollador_router, juego_router, solicitudAmistad_router, usuario_router
+from .routers import (
+    administracion_router,
+    desarollador_router,
+    juego_router,
+    solicitudAmistad_router,
+    usuario_router,
+)
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
@@ -24,6 +30,7 @@ app.include_router(desarollador_router.router, prefix="/api")
 app.include_router(usuario_router.router, prefix="/api")
 app.include_router(juego_router.router, prefix="/api")
 app.include_router(solicitudAmistad_router.router, prefix="/api")
+app.include_router(administracion_router.router, prefix="/api")
 
 
 @app.get("/health")

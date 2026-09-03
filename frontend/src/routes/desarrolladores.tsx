@@ -3,6 +3,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState, type ReactNode } from "react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
+import { AccesoRequerido } from "@/components/AccesoRequerido";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -50,6 +51,16 @@ type BorradorLogro = { nombre: string; descripcion: string; puntos: string };
 const logroVacio = (): BorradorLogro => ({ nombre: "", descripcion: "", puntos: "10" });
 
 function Desarrolladores() {
+  const { usuario } = useSesion();
+  if (!usuario) {
+    return (
+      <AccesoRequerido detalle="Tenés que iniciar sesión con una cuenta de desarrollador para acceder al panel." />
+    );
+  }
+  return <PanelDesarrollador />;
+}
+
+function PanelDesarrollador() {
   const usuario = useUsuario();
   const { esAdmin } = useSesion();
   const queryClient = useQueryClient();

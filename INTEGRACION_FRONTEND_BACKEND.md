@@ -1,6 +1,6 @@
 # Integración frontend–backend
 
-Fecha de revisión: 2026-08-30.
+Fecha de revisión: 2026-09-03.
 
 ## Estado
 
@@ -39,16 +39,20 @@ porque esos campos no existen en el modelo actual de `Juego`.
 | Solicitudes de amistad | `POST /api/solicitudes`; `PUT`, `DELETE /api/solicitudes/{id}`; `GET /api/usuarios/{id}/solicitudes/{recibidas,enviadas}` | comunidad y perfil público |
 | Rankings | `GET /api/juegos/top-ventas`, `GET /api/juegos/mejor-valorados` | top |
 | Estadísticas | `GET /api/usuarios/{id}/estadisticas` | perfil y comunidad |
+| Administración de usuarios | `PUT`, `DELETE /api/administracion/usuarios/{id}` | panel de superadministración |
+| Administración de juegos | `PUT`, `DELETE /api/administracion/juegos/{id}` | panel de superadministración |
 
 ## Huecos pendientes
 
 ### 1. Autorización de endpoints
 
 El registro deriva la contraseña con PBKDF2-SHA256 y el login valida email y
-contraseña mediante `POST /api/usuarios/login`. Todavía no se emite un token ni
-se comprueba la identidad o el rol al mutar recursos: la sesión actual sólo se
-conserva en el navegador. Antes de producción hay que agregar tokens o cookies
-seguras y autorización en cada endpoint protegido.
+contraseña mediante `POST /api/usuarios/login`. El login emite un token JWT que
+el frontend conserva junto con la sesión y envía como Bearer token. Las rutas de
+`/api/administracion` verifican tanto la identidad como el rol `superadmin`.
+Los endpoints históricos de cliente y desarrollador todavía identifican al
+actor por parámetros de ruta; antes de producción también deben protegerse con
+el token o con cookies seguras.
 
 ### 2. Almacenamiento de imágenes
 
@@ -79,11 +83,14 @@ de amistad. Las cuentas anteriores cuyo hash sea `autenticacion-pendiente`
 necesitan un restablecimiento de contraseña; las cuentas nuevas ya son compatibles.
 El script `src/db/migrations/20260902_perfiles_imagenes.sql` agrega el avatar y
 los campos editoriales sin borrar los datos existentes.
+El script `src/db/migrations/20260903_superadmin.sql` crea o normaliza la cuenta
+administradora principal; el servicio de login también garantiza su existencia
+de forma idempotente.
 
 ## Verificación automatizada
 
 `backend/tests/test_flows.py` cubre registro y persistencia de rol, CORS,
 publicación, búsqueda, recargas, compra transaccional, wishlist, biblioteca,
 reseñas editables, logros, amistades bidireccionales, solicitudes, login con
-contraseña, estadísticas y rankings.
+contraseña y token, estadísticas, rankings y permisos de superadministración.
 Se ejecuta contra SQLite aislado con `pytest -q` y no modifica la base local.

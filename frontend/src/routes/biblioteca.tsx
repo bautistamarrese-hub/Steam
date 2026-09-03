@@ -2,9 +2,10 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { JuegoCard } from "@/components/JuegoCard";
+import { AccesoRequerido } from "@/components/AccesoRequerido";
 import { Button } from "@/components/ui/button";
 import { biblioteca, formatPrecio } from "@/lib/api";
-import { useUsuario } from "@/lib/sesion";
+import { useSesion, useUsuario } from "@/lib/sesion";
 import type { Genero } from "@/lib/types";
 
 export const Route = createFileRoute("/biblioteca")({
@@ -35,6 +36,14 @@ const GENEROS: Array<Genero | "todos"> = [
 ];
 
 function Biblioteca() {
+  const { usuario } = useSesion();
+  if (!usuario) {
+    return <AccesoRequerido detalle="Tenés que iniciar sesión para ver tu biblioteca." />;
+  }
+  return <BibliotecaConSesion />;
+}
+
+function BibliotecaConSesion() {
   const usuario = useUsuario();
   const [genero, setGenero] = useState<Genero | "todos">("todos");
   // GET /usuarios/{id}/biblioteca?genero=
