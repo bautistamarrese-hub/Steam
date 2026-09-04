@@ -196,7 +196,11 @@ class JuegoService:
             shutil.rmtree(respaldo, ignore_errors=True)
 
         juego.archivo_nombre = nombre
-        juego.archivo_url = f"/uploads/games/{juego_id}/{quote(ruta_inicio)}"
+        # La ruta física se reutiliza al reemplazar un juego. Una versión en la
+        # URL evita que el navegador siga ejecutando el HTML anterior desde caché.
+        juego.archivo_url = (
+            f"/uploads/games/{juego_id}/{quote(ruta_inicio)}?v={uuid4().hex}"
+        )
         juego.es_jugable = True
         self.db.commit()
         self.db.refresh(juego)

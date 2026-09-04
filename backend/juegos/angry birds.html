@@ -235,11 +235,31 @@ function reportSteamNT(evento, valor) {
     window.parent.postMessage({ type: 'steamnt:achievement-progress', evento, valor }, '*');
 }
 
+// Los juegos publicados se ejecutan dentro de un iframe aislado. Algunos
+// navegadores bloquean localStorage en ese contexto; el juego debe seguir
+// funcionando aunque no pueda persistir las estrellas entre sesiones.
+function loadLevelStars() {
+    try {
+        const saved = JSON.parse(window.localStorage.getItem('ab_stars'));
+        return Array.isArray(saved) && saved.length === 10 ? saved : Array(10).fill(0);
+    } catch {
+        return Array(10).fill(0);
+    }
+}
+
+function saveLevelStars() {
+    try {
+        window.localStorage.setItem('ab_stars', JSON.stringify(levelStars));
+    } catch {
+        // El progreso de la partida actual se conserva aunque no haya almacenamiento.
+    }
+}
+
 let currentLevelIdx = 0;
 let score = 0;
 let defeatedPigs = 0;
 let completedLevels = 0;
-let levelStars = JSON.parse(localStorage.getItem('ab_stars')) || Array(10).fill(0);
+let levelStars = loadLevelStars();
 
 // Definición de los 10 Niveles
 const levels = [
@@ -778,7 +798,7 @@ function checkEndGame(won) {
 
         if (starsEarned > levelStars[currentLevelIdx]) {
             levelStars[currentLevelIdx] = starsEarned;
-            localStorage.setItem('ab_stars', JSON.stringify(levelStars));
+            saveLevelStars();
         }
 
         starsDiv.innerHTML = '';

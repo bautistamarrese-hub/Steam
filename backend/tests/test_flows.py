@@ -229,7 +229,10 @@ def test_publicacion_completa_con_archivo_y_logro(
         200,
     )
     assert publicado["archivo_nombre"] == "index.html"
-    assert publicado["archivo_url"].endswith(f"/{juego['id']}/index.html")
+    assert publicado["archivo_url"].split("?", 1)[0].endswith(
+        f"/{juego['id']}/index.html"
+    )
+    assert "?v=" in publicado["archivo_url"]
     assert publicado["es_jugable"] is True
     assert (tmp_path / "games" / str(juego["id"]) / "index.html").is_file()
 
@@ -256,6 +259,7 @@ def test_publicacion_completa_con_archivo_y_logro(
         200,
     )
     assert reemplazado["archivo_nombre"] == "nuevo.html"
+    assert reemplazado["archivo_url"] != publicado["archivo_url"]
     assert (tmp_path / "games" / str(juego["id"]) / "index.html").read_bytes() == (
         b"<h1>Nueva version</h1>"
     )
