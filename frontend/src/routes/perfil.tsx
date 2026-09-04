@@ -25,6 +25,7 @@ import {
   TrendingUp,
   Trophy,
   Users,
+  WalletCards,
 } from "lucide-react";
 import { AvatarGamer } from "@/components/AvatarGamer";
 import { AvatarCropDialog } from "@/components/AvatarCropDialog";
@@ -239,7 +240,8 @@ function PerfilConSesion() {
           },
         ]
       : []),
-    { icon: Coins, label: "Total gastado", value: formatPrecio(stats.total_gastado) },
+    { icon: WalletCards, label: "Saldo", value: formatSaldo(usuario.saldo) },
+    { icon: Coins, label: "Total gastado", value: formatSaldo(stats.total_gastado) },
     { icon: Gamepad2, label: "Juegos", value: stats.cantidad_juegos },
     { icon: Trophy, label: "Logros", value: stats.logros_desbloqueados },
     { icon: Award, label: "Puntos", value: stats.puntos_totales },
@@ -592,7 +594,7 @@ function PerfilConSesion() {
             {recargas.map((r) => (
               <li key={r.id} className="flex justify-between border-b border-border py-1">
                 <span>{r.fecha}</span>
-                <span className="text-accent">+{formatPrecio(r.monto)}</span>
+                <span className="text-accent">+{formatSaldo(r.monto)}</span>
               </li>
             ))}
             {recargas.length === 0 && <li>Todavía no hiciste recargas.</li>}

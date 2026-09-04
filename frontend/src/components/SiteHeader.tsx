@@ -1,5 +1,6 @@
-import { Link, useNavigate } from "@tanstack/react-router";
+import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
+import { useEffect, useState } from "react";
 import { Gamepad2, LogIn, LogOut, ShieldCheck, Wallet, Wrench } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -35,6 +36,9 @@ const LINKS_SUPERADMIN = [
 export function SiteHeader() {
   const { usuario, esAdmin, esSuperAdmin, abrirAcceso, logout } = useSesion();
   const navigate = useNavigate();
+  const rutaActual = useRouterState({ select: (state) => state.location.pathname });
+  const [ultimoJuegoId, setUltimoJuegoId] = useState<string | null>(null);
+  const [ultimoUsuarioId, setUltimoUsuarioId] = useState<string | null>(null);
   const links = esSuperAdmin ? LINKS_SUPERADMIN : esAdmin ? LINKS_ADMIN : LINKS_CLIENTE;
   const { data: solicitudesPendientes = 0 } = useQuery({
     queryKey: ["solicitudes-recibidas-count", usuario?.id],
@@ -43,6 +47,45 @@ export function SiteHeader() {
     refetchInterval: 15_000,
   });
   const contadorSolicitudes = solicitudesPendientes > 9 ? "+9" : String(solicitudesPendientes);
+
+  useEffect(() => {
+    const juegoActual = /^\/juegos\/(\d+)$/.exec(rutaActual)?.[1];
+    if (rutaActual === "/") {
+      sessionStorage.removeItem("steamnt-ultimo-juego");
+      setUltimoJuegoId(null);
+    } else if (juegoActual) {
+      sessionStorage.setItem("steamnt-ultimo-juego", juegoActual);
+      setUltimoJuegoId(juegoActual);
+    } else {
+      setUltimoJuegoId(sessionStorage.getItem("steamnt-ultimo-juego"));
+    }
+
+    const usuarioActual = /^\/usuarios\/(\d+)$/.exec(rutaActual)?.[1];
+    if (rutaActual === "/amigos") {
+      sessionStorage.removeItem("steamnt-ultimo-usuario");
+      setUltimoUsuarioId(null);
+    } else if (usuarioActual) {
+      sessionStorage.setItem("steamnt-ultimo-usuario", usuarioActual);
+      setUltimoUsuarioId(usuarioActual);
+    } else {
+      setUltimoUsuarioId(sessionStorage.getItem("steamnt-ultimo-usuario"));
+    }
+  }, [rutaActual]);
+
+  const contenidoEnlace = (link: { to: string; label: string }) => (
+    <>
+      {link.label}
+      {link.to === "/amigos" && solicitudesPendientes > 0 && (
+        <span
+          className="inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-destructive px-1 text-[10px] font-bold leading-none text-destructive-foreground"
+          aria-label={`${solicitudesPendientes} solicitudes de amistad pendientes`}
+          title={`${solicitudesPendientes} solicitudes de amistad pendientes`}
+        >
+          {contadorSolicitudes}
+        </span>
+      )}
+    </>
+  );
   const cerrarSesion = () => {
     logout();
     void navigate({ to: "/", replace: true });
@@ -64,27 +107,58 @@ export function SiteHeader() {
           <span className="hidden sm:inline">Steamn&apos;t</span>
         </Link>
         <nav aria-label="Navegación principal" className="hidden flex-1 items-center gap-1 xl:flex">
-          {links.map((l) => (
-            <Link
-              key={l.to}
-              to={l.to}
-              activeOptions={{ exact: l.to === "/" }}
-              onClick={(event) => interceptarPrivado(event, l.requiereSesion)}
-              className="inline-flex items-center gap-1.5 whitespace-nowrap rounded-md px-2.5 py-1.5 text-sm text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
-              activeProps={{ className: "bg-secondary text-foreground" }}
-            >
-              {l.label}
-              {l.to === "/amigos" && solicitudesPendientes > 0 && (
-                <span
-                  className="inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-destructive px-1 text-[10px] font-bold leading-none text-destructive-foreground"
-                  aria-label={`${solicitudesPendientes} solicitudes de amistad pendientes`}
-                  title={`${solicitudesPendientes} solicitudes de amistad pendientes`}
+          {links.map((l) => {
+            const clases =
+              "inline-flex items-center gap-1.5 whitespace-nowrap rounded-md px-2.5 py-1.5 text-sm text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground";
+            if (
+              l.to === "/" &&
+              ultimoJuegoId &&
+              rutaActual !== "/" &&
+              !rutaActual.startsWith("/juegos/")
+            ) {
+              return (
+                <Link
+                  key={l.to}
+                  to="/juegos/$juegoId"
+                  params={{ juegoId: ultimoJuegoId }}
+                  className={clases}
+                  activeProps={{ className: "bg-secondary text-foreground" }}
                 >
-                  {contadorSolicitudes}
-                </span>
-              )}
-            </Link>
-          ))}
+                  {contenidoEnlace(l)}
+                </Link>
+              );
+            }
+            if (
+              l.to === "/amigos" &&
+              ultimoUsuarioId &&
+              rutaActual !== "/amigos" &&
+              !rutaActual.startsWith("/usuarios/")
+            ) {
+              return (
+                <Link
+                  key={l.to}
+                  to="/usuarios/$usuarioId"
+                  params={{ usuarioId: ultimoUsuarioId }}
+                  className={clases}
+                  activeProps={{ className: "bg-secondary text-foreground" }}
+                >
+                  {contenidoEnlace(l)}
+                </Link>
+              );
+            }
+            return (
+              <Link
+                key={l.to}
+                to={l.to}
+                activeOptions={{ exact: l.to === "/" }}
+                onClick={(event) => interceptarPrivado(event, l.requiereSesion)}
+                className={clases}
+                activeProps={{ className: "bg-secondary text-foreground" }}
+              >
+                {contenidoEnlace(l)}
+              </Link>
+            );
+          })}
         </nav>
         <div className="ml-auto flex shrink-0 items-center gap-2 sm:gap-3 xl:ml-0">
           {esAdmin && (
@@ -145,27 +219,58 @@ export function SiteHeader() {
         aria-label="Navegación principal"
         className="flex flex-wrap justify-center gap-1 border-t border-border px-3 py-2 xl:hidden"
       >
-        {links.map((l) => (
-          <Link
-            key={l.to}
-            to={l.to}
-            activeOptions={{ exact: l.to === "/" }}
-            onClick={(event) => interceptarPrivado(event, l.requiereSesion)}
-            className="inline-flex items-center gap-1.5 whitespace-nowrap rounded-md px-3 py-1 text-sm text-muted-foreground"
-            activeProps={{ className: "bg-secondary text-foreground" }}
-          >
-            {l.label}
-            {l.to === "/amigos" && solicitudesPendientes > 0 && (
-              <span
-                className="inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-destructive px-1 text-[10px] font-bold leading-none text-destructive-foreground"
-                aria-label={`${solicitudesPendientes} solicitudes de amistad pendientes`}
-                title={`${solicitudesPendientes} solicitudes de amistad pendientes`}
+        {links.map((l) => {
+          const clases =
+            "inline-flex items-center gap-1.5 whitespace-nowrap rounded-md px-3 py-1 text-sm text-muted-foreground";
+          if (
+            l.to === "/" &&
+            ultimoJuegoId &&
+            rutaActual !== "/" &&
+            !rutaActual.startsWith("/juegos/")
+          ) {
+            return (
+              <Link
+                key={l.to}
+                to="/juegos/$juegoId"
+                params={{ juegoId: ultimoJuegoId }}
+                className={clases}
+                activeProps={{ className: "bg-secondary text-foreground" }}
               >
-                {contadorSolicitudes}
-              </span>
-            )}
-          </Link>
-        ))}
+                {contenidoEnlace(l)}
+              </Link>
+            );
+          }
+          if (
+            l.to === "/amigos" &&
+            ultimoUsuarioId &&
+            rutaActual !== "/amigos" &&
+            !rutaActual.startsWith("/usuarios/")
+          ) {
+            return (
+              <Link
+                key={l.to}
+                to="/usuarios/$usuarioId"
+                params={{ usuarioId: ultimoUsuarioId }}
+                className={clases}
+                activeProps={{ className: "bg-secondary text-foreground" }}
+              >
+                {contenidoEnlace(l)}
+              </Link>
+            );
+          }
+          return (
+            <Link
+              key={l.to}
+              to={l.to}
+              activeOptions={{ exact: l.to === "/" }}
+              onClick={(event) => interceptarPrivado(event, l.requiereSesion)}
+              className={clases}
+              activeProps={{ className: "bg-secondary text-foreground" }}
+            >
+              {contenidoEnlace(l)}
+            </Link>
+          );
+        })}
       </nav>
     </header>
   );

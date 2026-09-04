@@ -752,7 +752,13 @@ function PanelAdministracion({
                     className="h-20 w-20"
                   />
                   <div className="min-w-0 flex-1">
-                    <p className="truncate font-semibold">{usuario.nickname}</p>
+                    <Link
+                      to="/usuarios/$usuarioId"
+                      params={{ usuarioId: String(usuario.id) }}
+                      className="block truncate font-semibold hover:text-primary"
+                    >
+                      {usuario.nickname}
+                    </Link>
                     <p className="truncate text-xs text-muted-foreground">
                       {usuario.email} · {formatPrecio(usuario.saldo)}
                     </p>
@@ -769,6 +775,11 @@ function PanelAdministracion({
                     </Badge>
                   </div>
                   <div className="flex gap-2 sm:justify-end">
+                    <Button size="sm" variant="secondary" asChild>
+                      <Link to="/usuarios/$usuarioId" params={{ usuarioId: String(usuario.id) }}>
+                        Ver perfil
+                      </Link>
+                    </Button>
                     <Button
                       size="sm"
                       variant="outline"

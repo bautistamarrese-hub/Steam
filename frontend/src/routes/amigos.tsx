@@ -88,9 +88,8 @@ function Amigos() {
   const usuariosVisibles = otros
     .filter(
       (usuario) =>
-        `${usuario.nickname} ${usuario.email}`
-          .toLocaleLowerCase("es")
-          .includes(terminoBusqueda) && (filtroRol === "todos" || usuario.rol === filtroRol),
+        `${usuario.nickname} ${usuario.email}`.toLocaleLowerCase("es").includes(terminoBusqueda) &&
+        (filtroRol === "todos" || usuario.rol === filtroRol),
     )
     .sort((a, b) => {
       if (ordenUsuarios === "mas-juegos")

@@ -23,6 +23,7 @@ import {
   eliminarAmigo,
   enviarSolicitud,
   formatPrecio,
+  formatSaldo,
   perfilPublico,
   solicitudesEnviadas,
   solicitudesRecibidas,
@@ -46,7 +47,7 @@ export const Route = createFileRoute("/usuarios/$usuarioId")({
 
 function PerfilUsuario() {
   const { usuarioId } = Route.useParams();
-  const { usuario: yo, abrirAcceso, refrescar } = useSesion();
+  const { usuario: yo, esSuperAdmin, abrirAcceso, refrescar } = useSesion();
   const queryClient = useQueryClient();
   // GET /usuarios/{id}/perfil
   const id = Number(usuarioId);
@@ -63,17 +64,17 @@ function PerfilUsuario() {
   const { data: misAmigos = [] } = useQuery({
     queryKey: ["amigos", yo?.id],
     queryFn: () => amigosDe(yo!.id),
-    enabled: Boolean(yo),
+    enabled: Boolean(yo && !esSuperAdmin),
   });
   const { data: recibidas = [] } = useQuery({
     queryKey: ["solicitudes-recibidas", yo?.id],
     queryFn: () => solicitudesRecibidas(yo!.id),
-    enabled: Boolean(yo),
+    enabled: Boolean(yo && !esSuperAdmin),
   });
   const { data: enviadas = [] } = useQuery({
     queryKey: ["solicitudes-enviadas", yo?.id],
     queryFn: () => solicitudesEnviadas(yo!.id),
-    enabled: Boolean(yo),
+    enabled: Boolean(yo && !esSuperAdmin),
   });
 
   if (isPending) {
@@ -123,7 +124,7 @@ function PerfilUsuario() {
     { icon: Trophy, label: "Logros", value: stats.logros_desbloqueados },
     { icon: Award, label: "Puntos", value: stats.puntos_totales },
     { icon: Users, label: "Amigos", value: stats.cantidad_amigos },
-    { icon: Coins, label: "Gastado", value: formatPrecio(stats.total_gastado) },
+    { icon: Coins, label: "Gastado", value: formatSaldo(stats.total_gastado) },
   ];
 
   return (
@@ -143,7 +144,8 @@ function PerfilUsuario() {
           </div>
           <p className="text-muted-foreground">Miembro desde {usuario.fecha_registro}</p>
         </div>
-        {!esYo &&
+        {!esSuperAdmin &&
+          !esYo &&
           (amigo ? (
             <Button
               variant="secondary"

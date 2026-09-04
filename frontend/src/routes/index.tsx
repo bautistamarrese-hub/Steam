@@ -203,38 +203,38 @@ function Tienda() {
                 wishlisted={deseado}
                 footer={
                   esSuperAdmin ? undefined : (
-                  <div className="flex gap-2">
-                    <Button
-                      size="sm"
-                      className="flex-1"
-                      disabled={enBiblioteca}
-                      onClick={() => {
-                        if (usuario && usuario.saldo < juego.precio) {
-                          setPrecioSinSaldo(juego.precio);
-                          return;
+                    <div className="flex gap-2">
+                      <Button
+                        size="sm"
+                        className="flex-1"
+                        disabled={enBiblioteca}
+                        onClick={() => {
+                          if (usuario && usuario.saldo < juego.precio) {
+                            setPrecioSinSaldo(juego.precio);
+                            return;
+                          }
+                          void accion(
+                            (usuarioId) => comprarJuego(usuarioId, juego.id),
+                            `Compraste ${juego.titulo}`,
+                          );
+                        }}
+                      >
+                        {esPropio ? "Es tu juego" : comprado ? "En biblioteca" : "Comprar"}
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="secondary"
+                        disabled={enBiblioteca || deseado}
+                        onClick={() =>
+                          accion(
+                            (usuarioId) => agregarAWishlist(usuarioId, juego.id),
+                            "Agregado a tu wishlist",
+                          )
                         }
-                        void accion(
-                          (usuarioId) => comprarJuego(usuarioId, juego.id),
-                          `Compraste ${juego.titulo}`,
-                        );
-                      }}
-                    >
-                      {esPropio ? "Es tu juego" : comprado ? "En biblioteca" : "Comprar"}
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant="secondary"
-                      disabled={enBiblioteca || deseado}
-                      onClick={() =>
-                        accion(
-                          (usuarioId) => agregarAWishlist(usuarioId, juego.id),
-                          "Agregado a tu wishlist",
-                        )
-                      }
-                    >
-                      Wishlist
-                    </Button>
-                  </div>
+                      >
+                        Wishlist
+                      </Button>
+                    </div>
                   )
                 }
               />
