@@ -1,5 +1,6 @@
 import shutil
 
+from fastapi import UploadFile
 from sqlalchemy import func, or_
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
@@ -143,9 +144,20 @@ class AdministracionService:
             raise ValueError("No se puede cambiar el desarrollador desde este panel.")
         return JuegoService(self.db).actualizar_juego(juego_id, payload)
 
+    async def guardar_archivo_juego(self, juego_id: int, archivo: UploadFile) -> Juego:
+        self._obtener_juego(juego_id)
+        return await JuegoService(self.db).guardar_archivo(juego_id, archivo)
+
+    def crear_logro(self, juego_id: int, payload) -> Logro:
+        self._obtener_juego(juego_id)
+        return JuegoService(self.db).crear_logro(juego_id, payload)
+
     def eliminar_juego(self, juego_id: int) -> None:
-        juego = JuegoService(self.db).obtener_juego(juego_id)
+        juego = self._obtener_juego(juego_id)
         JuegoService(self.db).eliminar_juego(juego_id, juego.desarrollador_id)
+
+    def _obtener_juego(self, juego_id: int) -> Juego:
+        return JuegoService(self.db).obtener_juego(juego_id)
 
     def _obtener_usuario_editable(self, usuario_id: int) -> Usuario:
         usuario = self.db.query(Usuario).filter(Usuario.id == usuario_id).first()

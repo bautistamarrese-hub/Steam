@@ -1,0 +1,726 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>JS DOOM - 20 Enemies Edition</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      user-select: none;
+    }
+    body {
+      background-color: #050505;
+      color: #ff3300;
+      font-family: 'Press Start 2P', monospace, 'Courier New';
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      overflow: hidden;
+    }
+    .viewport {
+      position: relative;
+      width: 640px;
+      background: #000;
+      border: 4px solid #3a3a3a;
+      box-shadow: 0 0 40px rgba(255, 0, 0, 0.4);
+      border-radius: 4px;
+    }
+    canvas#renderCanvas {
+      display: block;
+      width: 640px;
+      height: 400px;
+      image-rendering: pixelated;
+      cursor: crosshair;
+    }
+    .doom-hud {
+      display: flex;
+      height: 64px;
+      background: linear-gradient(180deg, #333 0%, #1a1a1a 100%);
+      border-top: 4px solid #555;
+      color: #ff3300;
+      align-items: center;
+      justify-content: space-around;
+      padding: 0 10px;
+    }
+    .hud-box {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      background: #000;
+      border: 2px inset #666;
+      padding: 4px 14px;
+      min-width: 95px;
+    }
+    .hud-label {
+      font-size: 8px;
+      color: #aaa;
+      margin-bottom: 2px;
+    }
+    .hud-val {
+      font-size: 18px;
+      color: #ff2200;
+      text-shadow: 0 0 6px #ff0000;
+    }
+    canvas#faceCanvas {
+      width: 48px;
+      height: 48px;
+      background: #300;
+      border: 2px solid #666;
+      image-rendering: pixelated;
+    }
+    .overlay {
+      position: absolute;
+      top: 0; left: 0;
+      width: 640px; height: 400px;
+      background: rgba(10, 0, 0, 0.9);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      z-index: 10;
+      color: #fff;
+      text-align: center;
+    }
+    .overlay h1 {
+      font-size: 32px;
+      color: #ff1100;
+      text-shadow: 0 0 20px #ff0000;
+      margin-bottom: 15px;
+    }
+    .overlay h1.win-title {
+      color: #00ff66;
+      text-shadow: 0 0 20px #00ff66;
+    }
+    .overlay p {
+      font-size: 10px;
+      line-height: 1.8;
+      color: #bbb;
+      margin-bottom: 20px;
+    }
+    .btn {
+      padding: 12px 28px;
+      font-family: inherit;
+      font-size: 12px;
+      color: #fff;
+      background: #990000;
+      border: 2px solid #ff4444;
+      cursor: pointer;
+      box-shadow: 0 0 12px #ff0000;
+    }
+    .btn:hover {
+      background: #ff0000;
+      box-shadow: 0 0 24px #ff0000;
+    }
+  </style>
+  <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+</head>
+<body>
+
+  <div class="viewport">
+    <canvas id="renderCanvas" width="320" height="200"></canvas>
+    
+    <div class="doom-hud">
+      <div class="hud-box">
+        <span class="hud-label">MUNICIÓN</span>
+        <span id="hud-ammo" class="hud-val">120</span>
+      </div>
+      <div class="hud-box">
+        <span class="hud-label">SALUD</span>
+        <span id="hud-health" class="hud-val">100%</span>
+      </div>
+      <canvas id="faceCanvas" width="24" height="24"></canvas>
+      <div class="hud-box">
+        <span class="hud-label">ENEMIGOS</span>
+        <span id="hud-kills" class="hud-val">0/20</span>
+      </div>
+    </div>
+
+    <div id="startOverlay" class="overlay">
+      <h1>DOOM - 20 ENEMIGOS</h1>
+      <p>
+        [W, A, S, D] : Moverse / Desplazamiento Lateral<br>
+        [RATÓN] : Mirar / Apuntar (360°)<br>
+        [CLIC IZQ] / [ESPACIO] : Disparar Escopeta<br><br>
+        <i>A quemarropa el disparo elimina 50% de la vida del enemigo.</i>
+      </p>
+      <button class="btn" id="startBtn">¡EMPEZAR A JUGAR!</button>
+    </div>
+
+    <div id="winOverlay" class="overlay" style="display: none;">
+      <h1 class="win-title">¡VICTORIA!</h1>
+      <p>Has purgado a los 20 demonios con éxito.</p>
+      <button class="btn" id="restartBtn">VOLVER A JUGAR</button>
+    </div>
+  </div>
+
+  <script>
+    class SoundFX {
+      constructor() { this.ctx = null; }
+      init() {
+        if (!this.ctx) {
+          const AudioCtx = window.AudioContext || window.webkitAudioContext;
+          if (AudioCtx) this.ctx = new AudioCtx();
+        }
+        if (this.ctx && this.ctx.state === 'suspended') this.ctx.resume();
+      }
+      playShotgun() {
+        if (!this.ctx) return;
+        const now = this.ctx.currentTime;
+        const bufferSize = this.ctx.sampleRate * 0.3;
+        const buffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
+        const data = buffer.getChannelData(0);
+        for (let i = 0; i < bufferSize; i++) data[i] = Math.random() * 2 - 1;
+
+        const noise = this.ctx.createBufferSource();
+        noise.buffer = buffer;
+
+        const filter = this.ctx.createBiquadFilter();
+        filter.type = 'lowpass';
+        filter.frequency.setValueAtTime(1200, now);
+        filter.frequency.exponentialRampToValueAtTime(80, now + 0.3);
+
+        const gain = this.ctx.createGain();
+        gain.gain.setValueAtTime(0.5, now);
+        gain.gain.exponentialRampToValueAtTime(0.01, now + 0.3);
+
+        noise.connect(filter); filter.connect(gain); gain.connect(this.ctx.destination);
+        noise.start(now);
+      }
+      playHit() {
+        if (!this.ctx) return;
+        const now = this.ctx.currentTime;
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.type = 'sawtooth';
+        osc.frequency.setValueAtTime(150, now);
+        osc.frequency.exponentialRampToValueAtTime(30, now + 0.15);
+        gain.gain.setValueAtTime(0.4, now);
+        gain.gain.exponentialRampToValueAtTime(0.01, now + 0.15);
+        osc.connect(gain); gain.connect(this.ctx.destination);
+        osc.start(now); osc.stop(now + 0.15);
+      }
+      playMonster() {
+        if (!this.ctx) return;
+        const now = this.ctx.currentTime;
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.type = 'square';
+        osc.frequency.setValueAtTime(100, now);
+        osc.frequency.linearRampToValueAtTime(50, now + 0.25);
+        gain.gain.setValueAtTime(0.3, now);
+        gain.gain.exponentialRampToValueAtTime(0.01, now + 0.25);
+        osc.connect(gain); gain.connect(this.ctx.destination);
+        osc.start(now); osc.stop(now + 0.25);
+      }
+    }
+
+    function createTextures() {
+      const tex = [];
+      const size = 64;
+
+      const c1 = document.createElement('canvas');
+      c1.width = c1.height = size;
+      const ctx1 = c1.getContext('2d');
+      ctx1.fillStyle = '#552211'; ctx1.fillRect(0,0,size,size);
+      ctx1.fillStyle = '#110500';
+      for(let y=0; y<size; y+=16) {
+        ctx1.fillRect(0, y, size, 2);
+        const offset = (y/16)%2 === 0 ? 0 : 16;
+        for(let x=offset; x<size; x+=32) ctx1.fillRect(x, y, 2, 16);
+      }
+      tex[1] = ctx1.getImageData(0,0,size,size);
+
+      const c2 = document.createElement('canvas');
+      c2.width = c2.height = size;
+      const ctx2 = c2.getContext('2d');
+      ctx2.fillStyle = '#444455'; ctx2.fillRect(0,0,size,size);
+      ctx2.fillStyle = '#222233'; ctx2.strokeRect(2,2,size-4,size-4);
+      ctx2.fillStyle = '#00ffcc'; ctx2.fillRect(10, 10, 12, 12);
+      ctx2.fillStyle = '#ff2200'; ctx2.fillRect(10, 28, 12, 6);
+      tex[2] = ctx2.getImageData(0,0,size,size);
+
+      const c3 = document.createElement('canvas');
+      c3.width = c3.height = size;
+      const ctx3 = c3.getContext('2d');
+      ctx3.fillStyle = '#441111'; ctx3.fillRect(0,0,size,size);
+      ctx3.fillStyle = '#ff3300'; ctx3.fillRect(20, 20, 24, 24);
+      ctx3.fillStyle = '#000000'; ctx3.fillRect(24, 24, 6, 6); ctx3.fillRect(34, 24, 6, 6);
+      tex[3] = ctx3.getImageData(0,0,size,size);
+
+      return tex;
+    }
+
+    function createSprites() {
+      const cImp = document.createElement('canvas');
+      cImp.width = cImp.height = 32;
+      const ctxI = cImp.getContext('2d');
+
+      ctxI.fillStyle = '#ff3300';
+      ctxI.fillRect(10, 8, 12, 16);
+      ctxI.fillRect(8, 4, 16, 10);
+      ctxI.fillRect(4, 10, 6, 12);
+      ctxI.fillRect(22, 10, 6, 12);
+      ctxI.fillRect(9, 24, 6, 8);
+      ctxI.fillRect(17, 24, 6, 8);
+
+      ctxI.fillStyle = '#770000';
+      ctxI.fillRect(12, 10, 8, 12);
+
+      ctxI.fillStyle = '#ffff00';
+      ctxI.fillRect(6, 1, 4, 5); ctxI.fillRect(22, 1, 4, 5);
+
+      ctxI.fillStyle = '#00ffff';
+      ctxI.fillRect(10, 6, 4, 3); ctxI.fillRect(18, 6, 4, 3);
+
+      ctxI.fillStyle = '#000000'; ctxI.fillRect(12, 11, 8, 3);
+
+      const cDead = document.createElement('canvas');
+      cDead.width = cDead.height = 32;
+      const ctxD = cDead.getContext('2d');
+      ctxD.fillStyle = '#990000';
+      ctxD.beginPath(); ctxD.ellipse(16, 26, 14, 5, 0, 0, Math.PI * 2); ctxD.fill();
+
+      const cGun = document.createElement('canvas');
+      cGun.width = 120; cGun.height = 100;
+      const ctxG = cGun.getContext('2d');
+      ctxG.fillStyle = '#666677'; ctxG.fillRect(48, 10, 24, 60);
+      ctxG.fillStyle = '#222222'; ctxG.fillRect(58, 10, 4, 60);
+      ctxG.fillStyle = '#552200'; ctxG.fillRect(44, 60, 32, 25);
+      ctxG.fillStyle = '#d8a080'; ctxG.fillRect(36, 70, 16, 30); ctxG.fillRect(68, 70, 16, 30);
+
+      return { imp: cImp, dead: cDead, gun: cGun };
+    }
+
+    function drawDoomFace(canvas, hp) {
+      const ctx = canvas.getContext('2d');
+      ctx.fillStyle = '#111'; ctx.fillRect(0,0,24,24);
+      ctx.fillStyle = '#d8a080'; ctx.fillRect(6, 4, 12, 14);
+      ctx.fillStyle = '#4a2810'; ctx.fillRect(6, 2, 12, 4);
+      ctx.fillStyle = '#fff'; ctx.fillRect(8, 8, 3, 2); ctx.fillRect(13, 8, 3, 2);
+      ctx.fillStyle = '#000'; ctx.fillRect(9, 8, 1, 2); ctx.fillRect(14, 8, 1, 2);
+      ctx.fillStyle = '#804040'; ctx.fillRect(9, 14, 6, 2);
+      if (hp < 50) { ctx.fillStyle = '#aa0000'; ctx.fillRect(15, 8, 3, 8); }
+    }
+
+    function initEngine() {
+      const canvas = document.getElementById('renderCanvas');
+      const ctx = canvas.getContext('2d');
+      const faceCanvas = document.getElementById('faceCanvas');
+      const sound = new SoundFX();
+
+      const TEX_SIZE = 64;
+      const textures = createTextures();
+      const sprites = createSprites();
+
+      const map = [
+        [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
+        [1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1],
+        [1,0,1,1,0,1,1,0,1,1,0,2,2,2,0,1],
+        [1,0,1,0,0,0,1,0,1,0,0,2,0,2,0,1],
+        [1,0,1,0,3,0,0,0,0,0,0,2,0,2,0,1],
+        [1,0,0,0,3,0,0,0,0,0,0,0,0,0,0,1],
+        [1,0,2,0,3,0,0,3,0,1,0,1,0,1,0,1],
+        [1,0,2,0,0,0,0,3,0,1,0,0,0,1,0,1],
+        [1,0,2,2,2,0,0,0,0,1,0,3,0,0,0,1],
+        [1,0,0,0,0,0,0,0,0,0,0,3,0,0,0,1],
+        [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1]
+      ];
+
+      const player = {
+        x: 1.5, y: 1.5,
+        dirX: 1, dirY: 0,
+        planeX: 0, planeY: 0.66,
+        health: 100, ammo: 120, kills: 0
+      };
+
+      // 20 ENEMIGOS - Salud base 80 HP
+      const enemies = [
+        { x: 2.5, y: 1.5, alive: true, hp: 80, lastAttack: 0 },
+        { x: 4.5, y: 1.5, alive: true, hp: 80, lastAttack: 0 },
+        { x: 6.5, y: 1.5, alive: true, hp: 80, lastAttack: 0 },
+        { x: 8.5, y: 1.5, alive: true, hp: 80, lastAttack: 0 },
+        { x: 10.5, y: 1.5, alive: true, hp: 80, lastAttack: 0 },
+        { x: 12.5, y: 1.5, alive: true, hp: 80, lastAttack: 0 },
+        { x: 14.5, y: 1.5, alive: true, hp: 80, lastAttack: 0 },
+        { x: 3.5, y: 3.5, alive: true, hp: 80, lastAttack: 0 },
+        { x: 9.5, y: 3.5, alive: true, hp: 80, lastAttack: 0 },
+        { x: 10.5, y: 3.5, alive: true, hp: 80, lastAttack: 0 },
+        { x: 6.5, y: 5.5, alive: true, hp: 80, lastAttack: 0 },
+        { x: 8.5, y: 5.5, alive: true, hp: 80, lastAttack: 0 },
+        { x: 11.5, y: 5.5, alive: true, hp: 80, lastAttack: 0 },
+        { x: 14.5, y: 5.5, alive: true, hp: 80, lastAttack: 0 },
+        { x: 4.5, y: 7.5, alive: true, hp: 80, lastAttack: 0 },
+        { x: 11.5, y: 7.5, alive: true, hp: 80, lastAttack: 0 },
+        { x: 6.5, y: 9.5, alive: true, hp: 80, lastAttack: 0 },
+        { x: 8.5, y: 9.5, alive: true, hp: 80, lastAttack: 0 },
+        { x: 10.5, y: 9.5, alive: true, hp: 80, lastAttack: 0 },
+        { x: 13.5, y: 9.5, alive: true, hp: 80, lastAttack: 0 }
+      ];
+
+      const keys = { w: false, s: false, a: false, d: false };
+      let zBuffer = new Array(320);
+      let shootAnim = 0;
+      let headBob = 0;
+      let damageFlash = 0;
+      let gameActive = false;
+
+      function checkLineOfSight(x0, y0, x1, y1) {
+        const dx = x1 - x0;
+        const dy = y1 - y0;
+        const dist = Math.hypot(dx, dy);
+        const steps = Math.ceil(dist * 12);
+        const stepX = dx / steps;
+        const stepY = dy / steps;
+
+        let currX = x0;
+        let currY = y0;
+
+        for (let i = 0; i < steps; i++) {
+          currX += stepX;
+          currY += stepY;
+          const mx = Math.floor(currX);
+          const my = Math.floor(currY);
+
+          if (map[my] && map[my][mx] > 0) {
+            return false;
+          }
+        }
+        return true;
+      }
+
+      canvas.addEventListener('click', () => {
+        if (gameActive) canvas.requestPointerLock();
+      });
+
+      document.addEventListener('mousemove', e => {
+        if (document.pointerLockElement === canvas && gameActive) {
+          const rotSpeed = e.movementX * 0.0025;
+          const oldDirX = player.dirX;
+          player.dirX = player.dirX * Math.cos(rotSpeed) - player.dirY * Math.sin(rotSpeed);
+          player.dirY = oldDirX * Math.sin(rotSpeed) + player.dirY * Math.cos(rotSpeed);
+          const oldPlaneX = player.planeX;
+          player.planeX = player.planeX * Math.cos(rotSpeed) - player.planeY * Math.sin(rotSpeed);
+          player.planeY = oldPlaneX * Math.sin(rotSpeed) + player.planeY * Math.cos(rotSpeed);
+        }
+      });
+
+      window.addEventListener('keydown', e => {
+        sound.init();
+        if (e.code === 'KeyW' || e.key === 'w' || e.key === 'W') keys.w = true;
+        if (e.code === 'KeyS' || e.key === 's' || e.key === 'S') keys.s = true;
+        if (e.code === 'KeyA' || e.key === 'a' || e.key === 'A') keys.a = true;
+        if (e.code === 'KeyD' || e.key === 'd' || e.key === 'D') keys.d = true;
+        if (e.code === 'Space') shoot();
+      });
+
+      window.addEventListener('keyup', e => {
+        if (e.code === 'KeyW' || e.key === 'w' || e.key === 'W') keys.w = false;
+        if (e.code === 'KeyS' || e.key === 's' || e.key === 'S') keys.s = false;
+        if (e.code === 'KeyA' || e.key === 'a' || e.key === 'A') keys.a = false;
+        if (e.code === 'KeyD' || e.key === 'd' || e.key === 'D') keys.d = false;
+      });
+
+      window.addEventListener('mousedown', () => {
+        if (document.pointerLockElement === canvas) {
+          sound.init();
+          shoot();
+        }
+      });
+
+      function shoot() {
+        if (!gameActive || shootAnim > 0 || player.ammo <= 0) return;
+        player.ammo--;
+        shootAnim = 10;
+        sound.playShotgun();
+
+        enemies.forEach(e => {
+          if (!e.alive) return;
+          const dx = e.x - player.x;
+          const dy = e.y - player.y;
+          const angleToEnemy = Math.atan2(dy, dx);
+          const playerAngle = Math.atan2(player.dirY, player.dirX);
+          let diff = angleToEnemy - playerAngle;
+
+          while (diff < -Math.PI) diff += Math.PI * 2;
+          while (diff > Math.PI) diff -= Math.PI * 2;
+
+          if (Math.abs(diff) < 0.35) {
+            const dist = Math.sqrt(dx*dx + dy*dy);
+            const maxRange = 12;
+
+            if (dist < maxRange && checkLineOfSight(player.x, player.y, e.x, e.y)) {
+              // CÁLCULO DE DAÑO:
+              // A distancia muy corta (~0), aplica 50% de la vida total del enemigo (40 HP)
+              // Disminuye en función de la distancia a lo largo de maxRange
+              const maxDamage = 40; // 50% de 80 HP
+              let damage = Math.floor(maxDamage * (1 - (dist / maxRange)));
+              damage = Math.max(4, damage); // Daño mínimo a larga distancia
+
+              e.hp -= damage;
+              sound.playHit();
+
+              if (e.hp <= 0) {
+                e.alive = false;
+                player.kills++;
+                window.parent.postMessage({
+                  type: 'steamnt:achievement-progress',
+                  evento: 'enemigos_derrotados',
+                  valor: player.kills
+                }, '*');
+
+                if (player.kills >= enemies.length) {
+                  window.parent.postMessage({ type: 'steamnt:achievement-progress', evento: 'victorias', valor: 1 }, '*');
+                  window.parent.postMessage({ type: 'steamnt:achievement-progress', evento: 'partidas-ganadas', valor: 1 }, '*');
+                  gameActive = false;
+                  document.exitPointerLock();
+                  document.getElementById('winOverlay').style.display = 'flex';
+                }
+              }
+            }
+          }
+        });
+        updateHUD();
+      }
+
+      function updateMovement() {
+        const moveSpeed = 0.05;
+        const radius = 0.2;
+        let dx = 0, dy = 0;
+
+        if (keys.w) { dx += player.dirX * moveSpeed; dy += player.dirY * moveSpeed; }
+        if (keys.s) { dx -= player.dirX * moveSpeed; dy -= player.dirY * moveSpeed; }
+        if (keys.a) { dx += player.dirY * moveSpeed; dy -= player.dirX * moveSpeed; }
+        if (keys.d) { dx -= player.dirY * moveSpeed; dy += player.dirX * moveSpeed; }
+
+        if (dx !== 0 || dy !== 0) {
+          headBob += 0.25;
+          const newX = player.x + dx;
+          const newY = player.y + dy;
+          if (map[Math.floor(player.y)][Math.floor(newX + Math.sign(dx) * radius)] === 0) player.x = newX;
+          if (map[Math.floor(newY + Math.sign(dy) * radius)][Math.floor(player.x)] === 0) player.y = newY;
+        }
+      }
+
+      function updateEnemies() {
+        const now = Date.now();
+        const enemyRadius = 0.25;
+
+        enemies.forEach(e => {
+          if (!e.alive) return;
+          const dx = player.x - e.x;
+          const dy = player.y - e.y;
+          const dist = Math.sqrt(dx*dx + dy*dy);
+
+          if (dist < 8) {
+            // VELOCIDAD DE ENEMIGO UN 15% MÁS RÁPIDA (0.012 * 1.15 = 0.0138)
+            const moveSpeed = 0.0138;
+            const edx = (dx / dist) * moveSpeed;
+            const edy = (dy / dist) * moveSpeed;
+
+            const newX = e.x + edx;
+            const newY = e.y + edy;
+
+            if (map[Math.floor(e.y)][Math.floor(newX + Math.sign(edx) * enemyRadius)] === 0) {
+              e.x = newX;
+            }
+            if (map[Math.floor(newY + Math.sign(edy) * enemyRadius)][Math.floor(e.x)] === 0) {
+              e.y = newY;
+            }
+
+            if (dist < 0.7 && now - e.lastAttack > 1000) {
+              e.lastAttack = now;
+              player.health = Math.max(0, player.health - 12);
+              damageFlash = 8;
+              sound.playMonster();
+              updateHUD();
+
+              if (player.health <= 0) {
+                gameActive = false;
+                document.exitPointerLock();
+                alert("¡HAS SIDO DESTRUIDO!");
+                location.reload();
+              }
+            }
+          }
+        });
+      }
+
+      function renderRaycasting() {
+        const imgData = ctx.createImageData(320, 200);
+        const data = imgData.data;
+
+        for (let i = 0; i < 320 * 200 * 4; i += 4) {
+          const pixelIdx = i / 4;
+          const y = Math.floor(pixelIdx / 320);
+          if (y < 100) {
+            data[i] = 15; data[i+1] = 10; data[i+2] = 10; data[i+3] = 255;
+          } else {
+            data[i] = 30; data[i+1] = 30; data[i+2] = 35; data[i+3] = 255;
+          }
+        }
+        ctx.putImageData(imgData, 0, 0);
+
+        for (let x = 0; x < 320; x++) {
+          const cameraX = 2 * x / 320 - 1;
+          const rayDirX = player.dirX + player.planeX * cameraX;
+          const rayDirY = player.dirY + player.planeY * cameraX;
+
+          let mapX = Math.floor(player.x);
+          let mapY = Math.floor(player.y);
+
+          const deltaDistX = Math.abs(1 / rayDirX);
+          const deltaDistY = Math.abs(1 / rayDirY);
+
+          let stepX, stepY, sideDistX, sideDistY;
+          let hit = 0, side = 0;
+
+          if (rayDirX < 0) { stepX = -1; sideDistX = (player.x - mapX) * deltaDistX; }
+          else { stepX = 1; sideDistX = (mapX + 1.0 - player.x) * deltaDistX; }
+          if (rayDirY < 0) { stepY = -1; sideDistY = (player.y - mapY) * deltaDistY; }
+          else { stepY = 1; sideDistY = (mapY + 1.0 - player.y) * deltaDistY; }
+
+          while (hit === 0) {
+            if (sideDistX < sideDistY) {
+              sideDistX += deltaDistX; mapX += stepX; side = 0;
+            } else {
+              sideDistY += deltaDistY; mapY += stepY; side = 1;
+            }
+            if (map[mapY][mapX] > 0) hit = map[mapY][mapX];
+          }
+
+          let perpWallDist = (side === 0) ? (sideDistX - deltaDistX) : (sideDistY - deltaDistY);
+          zBuffer[x] = perpWallDist;
+
+          let lineHeight = Math.floor(200 / perpWallDist);
+          let drawStart = -lineHeight / 2 + 100;
+          if (drawStart < 0) drawStart = 0;
+          let drawEnd = lineHeight / 2 + 100;
+          if (drawEnd >= 200) drawEnd = 199;
+
+          let wallX = (side === 0) ? player.y + perpWallDist * rayDirY : player.x + perpWallDist * rayDirX;
+          wallX -= Math.floor(wallX);
+          let texX = Math.floor(wallX * TEX_SIZE);
+
+          const texturePixels = textures[hit].data;
+          for (let y = drawStart; y < drawEnd; y++) {
+            let d = y * 256 - 200 * 128 + lineHeight * 128;
+            let texY = Math.floor(((d * TEX_SIZE) / lineHeight) / 256);
+            texY = Math.max(0, Math.min(TEX_SIZE - 1, texY));
+
+            let texIdx = (TEX_SIZE * texY + texX) * 4;
+            let r = texturePixels[texIdx];
+            let g = texturePixels[texIdx + 1];
+            let b = texturePixels[texIdx + 2];
+
+            let shade = Math.min(1, 2.2 / perpWallDist) * (side === 1 ? 0.7 : 1.0);
+            ctx.fillStyle = `rgb(${r*shade},${g*shade},${b*shade})`;
+            ctx.fillRect(x, y, 1, 1);
+          }
+        }
+
+        const sortedEnemies = [...enemies].sort((a,b) => {
+          const distA = Math.hypot(player.x - a.x, player.y - a.y);
+          const distB = Math.hypot(player.x - b.x, player.y - b.y);
+          return distB - distA;
+        });
+
+        sortedEnemies.forEach(e => {
+          const spriteX = e.x - player.x;
+          const spriteY = e.y - player.y;
+
+          const invDet = 1.0 / (player.planeX * player.dirY - player.dirX * player.planeY);
+          const transformX = invDet * (player.dirY * spriteX - player.dirX * spriteY);
+          const transformY = invDet * (-player.planeY * spriteX + player.planeX * spriteY);
+
+          if (transformY > 0.2) {
+            const spriteScreenX = Math.floor((320 / 2) * (1 + transformX / transformY));
+            const spriteHeight = Math.abs(Math.floor(200 / transformY));
+            const spriteWidth = spriteHeight;
+
+            let drawStartX = Math.floor(-spriteWidth / 2 + spriteScreenX);
+            let drawEndX = Math.floor(spriteWidth / 2 + spriteScreenX);
+
+            const img = e.alive ? sprites.imp : sprites.dead;
+
+            for (let stripe = drawStartX; stripe < drawEndX; stripe++) {
+              if (stripe >= 0 && stripe < 320 && transformY < zBuffer[stripe]) {
+                const texX = Math.min(31, Math.max(0, Math.floor((stripe - drawStartX) / spriteWidth * 32)));
+                ctx.drawImage(
+                  img, 
+                  texX, 0, 1, 32, 
+                  stripe, 100 + (e.alive ? -spriteHeight/2 : spriteHeight/4), 1, spriteHeight
+                );
+              }
+            }
+          }
+        });
+
+        if (damageFlash > 0) {
+          ctx.fillStyle = 'rgba(255, 0, 0, 0.35)';
+          ctx.fillRect(0, 0, 320, 200);
+          damageFlash--;
+        }
+
+        const bobX = Math.cos(headBob) * 3;
+        const bobY = Math.abs(Math.sin(headBob)) * 4;
+
+        ctx.drawImage(sprites.gun, 100 + bobX, 110 + bobY + (shootAnim > 0 ? 15 : 0), 120, 90);
+
+        if (shootAnim > 0) {
+          ctx.fillStyle = '#ffff00';
+          ctx.beginPath();
+          ctx.arc(160 + bobX, 110 + bobY, 22, 0, Math.PI * 2);
+          ctx.fill();
+          shootAnim--;
+        }
+
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';
+        ctx.fillRect(159, 98, 2, 4);
+        ctx.fillRect(157, 100, 6, 2);
+      }
+
+      function updateHUD() {
+        document.getElementById('hud-ammo').textContent = player.ammo;
+        document.getElementById('hud-health').textContent = `${player.health}%`;
+        document.getElementById('hud-kills').textContent = `${player.kills}/${enemies.length}`;
+        drawDoomFace(faceCanvas, player.health);
+      }
+
+      function loop() {
+        if (gameActive) {
+          updateMovement();
+          updateEnemies();
+          renderRaycasting();
+        }
+        requestAnimationFrame(loop);
+      }
+
+      document.getElementById('startBtn').addEventListener('click', () => {
+        sound.init();
+        document.getElementById('startOverlay').style.display = 'none';
+        gameActive = true;
+        updateHUD();
+        canvas.requestPointerLock();
+      });
+
+      document.getElementById('restartBtn').addEventListener('click', () => {
+        location.reload();
+      });
+
+      loop();
+    }
+
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', initEngine);
+    } else {
+      initEngine();
+    }
+  </script>
+</body>
+</html>

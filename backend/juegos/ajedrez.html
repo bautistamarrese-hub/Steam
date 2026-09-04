@@ -1010,6 +1010,18 @@ function performMove(move){
     const winnerColor = movingPiece.color;
     const winnerName = winnerColor==='w' ? 'Blancas' : 'Negras';
     const humanWon = winnerColor === humanColor;
+    if(humanWon){
+      parent.postMessage({
+        type: 'steamnt:achievement-progress',
+        evento: 'victorias',
+        valor: 1
+      }, '*');
+      parent.postMessage({
+        type: 'steamnt:achievement-progress',
+        evento: 'partidas-ganadas',
+        valor: 1
+      }, '*');
+    }
     showEndModal('¡Jaque mate!', `Ganan las ${winnerName}. ${humanWon ? '¡Felicitaciones, ganaste! 🎉' : 'El bot ganó esta vez. ¡Probá de nuevo!'}`);
     return;
   }

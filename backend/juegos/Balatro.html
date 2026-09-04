@@ -1088,6 +1088,11 @@
     await delay(200);
     state.playsLeft -= 1;
     state.roundScore += total;
+    window.parent.postMessage({
+      type: 'steamnt:achievement-progress',
+      evento: 'puntaje',
+      valor: state.roundScore
+    }, '*');
     renderHUD();
 
     const playedIds = new Set(sel.map(c=>c.id));
@@ -1138,6 +1143,11 @@
     if(state.blindIndex>2){
       state.blindIndex = 0; state.ante += 1;
       if(state.ante>8){ winGame(); return; }
+      window.parent.postMessage({
+        type: 'steamnt:achievement-progress',
+        evento: 'nivel_alcanzado',
+        valor: state.ante
+      }, '*');
     }
     newRound();
   }
@@ -1323,6 +1333,8 @@
   }
 
   function winGame(){
+    window.parent.postMessage({ type:'steamnt:achievement-progress', evento:'victorias', valor:1 }, '*');
+    window.parent.postMessage({ type:'steamnt:achievement-progress', evento:'partidas-ganadas', valor:1 }, '*');
     clearSave(); el.gameLayout.classList.add('hidden');
     el.gameOverTitle.textContent = '¡Ganaste la partida! 🏆';
     el.gameOverText.textContent = `Superaste las 8 Antes con $${state.money} en mano. ¡Gran estratega!`;

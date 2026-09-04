@@ -351,7 +351,12 @@ function PanelDesarrollador() {
               accept="image/*"
               multiple
               className="cursor-pointer"
-              onChange={(event) => cargarVarias(event.target.files, capturas, setCapturas)}
+              onChange={(event) => {
+                const input = event.currentTarget;
+                void cargarVarias(input.files, capturas, setCapturas).finally(() => {
+                  input.value = "";
+                });
+              }}
             />
             <p className="text-xs text-muted-foreground">
               Podés seleccionar varias a la vez o volver a elegir para agregar más. Estas imágenes
@@ -571,7 +576,12 @@ function PanelDesarrollador() {
                 accept="image/*"
                 multiple
                 className="cursor-pointer"
-                onChange={(event) => cargarVarias(event.target.files, eCapturas, setECapturas)}
+                onChange={(event) => {
+                  const input = event.currentTarget;
+                  void cargarVarias(input.files, eCapturas, setECapturas).finally(() => {
+                    input.value = "";
+                  });
+                }}
               />
               <p className="text-xs text-muted-foreground">
                 Las imágenes elegidas se agregan a las actuales. Podés quitar cualquiera desde la

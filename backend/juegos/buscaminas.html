@@ -183,6 +183,12 @@
 
 <script>
 (function() {
+  let completedGames = 0;
+
+  function reportSteamNT(evento, valor) {
+    window.parent.postMessage({ type: 'steamnt:achievement-progress', evento, valor }, '*');
+  }
+
   const LEVELS = {
     facil:   { rows: 9,  cols: 9,  mines: 10 },
     medio:   { rows: 16, cols: 16, mines: 40 },
@@ -424,6 +430,9 @@
       messageEl.textContent = '💥 ¡Perdiste! Inténtalo de nuevo.';
       messageEl.className = 'message lose';
     } else {
+      completedGames++;
+      reportSteamNT('victorias', completedGames);
+      reportSteamNT('partidas-ganadas', completedGames);
       // marcar todas las minas restantes con bandera
       for (let r = 0; r < rows; r++) {
         for (let c = 0; c < cols; c++) {

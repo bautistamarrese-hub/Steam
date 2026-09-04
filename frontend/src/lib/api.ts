@@ -73,12 +73,17 @@ async function requestArchivo<T>(
   path: string,
   archivo: File,
   method: "POST" | "PUT" = "POST",
+  headers?: HeadersInit,
 ): Promise<T> {
   let response: Response;
   try {
     const data = new FormData();
     data.append("archivo", archivo);
-    response = await fetch(`${BASE_URL}${path}`, { method, body: data });
+    response = await fetch(`${BASE_URL}${path}`, {
+      method,
+      body: data,
+      ...(headers ? { headers } : {}),
+    });
   } catch {
     throw new ApiError("No se pudo conectar con la API. Verificá que el backend esté iniciado.");
   }
@@ -241,7 +246,9 @@ export const actualizarJuegoAdmin = async (
   token: string,
   juegoId: number,
   desarrolladorId: number,
-  cambios: Partial<Pick<Juego, "titulo" | "precio" | "genero" | "descripcion" | "resumen">>,
+  cambios: Partial<
+    Pick<Juego, "titulo" | "precio" | "genero" | "descripcion" | "resumen" | "imagen" | "galeria">
+  >,
 ): Promise<Juego> =>
   adaptarJuego(
     await request<JuegoApi>(`/administracion/juegos/${juegoId}`, {
@@ -256,6 +263,20 @@ export const eliminarJuegoAdmin = (token: string, juegoId: number): Promise<void
     method: "DELETE",
     headers: autorizacion(token),
   });
+
+export const subirArchivoJuegoAdmin = async (
+  token: string,
+  juegoId: number,
+  archivo: File,
+): Promise<Juego> =>
+  adaptarJuego(
+    await requestArchivo<JuegoApi>(
+      `/administracion/juegos/${juegoId}/archivo`,
+      archivo,
+      "POST",
+      autorizacion(token),
+    ),
+  );
 
 export const actualizarAvatar = async (usuarioId: number, archivo: File): Promise<Usuario> =>
   adaptarUsuario(await requestArchivo<UsuarioApi>(`/usuarios/${usuarioId}/avatar`, archivo, "PUT"));
@@ -463,14 +484,13 @@ export async function guardarResena(
 export const logrosDeJuego = (juegoId: number): Promise<Logro[]> =>
   request(`/juegos/${juegoId}/logros`);
 
-export const crearLogro = (
-  juegoId: number,
+const prepararLogro = (
   nombre: string,
   descripcion: string,
   puntos: number,
   requisitoEvento?: string,
   requisitoValor?: number,
-): Promise<Logro> => {
+) => {
   const nombreLimpio = textoRequerido(nombre, "El nombre del logro");
   numeroFinito(puntos, "Los puntos");
   if (!Number.isInteger(puntos) || puntos < 1 || puntos > 100)
@@ -481,16 +501,45 @@ export const crearLogro = (
     throw new ApiError("La clave de progreso y el objetivo deben completarse juntos.");
   if (requisitoValor !== undefined && (!Number.isFinite(requisitoValor) || requisitoValor <= 0))
     throw new ApiError("El objetivo del logro debe ser mayor que cero.");
-  return request(`/juegos/${juegoId}/logros`, {
-    method: "POST",
-    body: JSON.stringify({
-      nombre: nombreLimpio,
-      descripcion: descripcion.trim(),
-      puntos,
-      ...(tieneEvento ? { requisito_evento: eventoLimpio, requisito_valor: requisitoValor } : {}),
-    }),
-  });
+  return {
+    nombre: nombreLimpio,
+    descripcion: descripcion.trim(),
+    puntos,
+    ...(tieneEvento ? { requisito_evento: eventoLimpio, requisito_valor: requisitoValor } : {}),
+  };
 };
+
+export const crearLogro = (
+  juegoId: number,
+  nombre: string,
+  descripcion: string,
+  puntos: number,
+  requisitoEvento?: string,
+  requisitoValor?: number,
+): Promise<Logro> =>
+  request(`/juegos/${juegoId}/logros`, {
+    method: "POST",
+    body: JSON.stringify(
+      prepararLogro(nombre, descripcion, puntos, requisitoEvento, requisitoValor),
+    ),
+  });
+
+export const crearLogroAdmin = (
+  token: string,
+  juegoId: number,
+  nombre: string,
+  descripcion: string,
+  puntos: number,
+  requisitoEvento?: string,
+  requisitoValor?: number,
+): Promise<Logro> =>
+  request(`/administracion/juegos/${juegoId}/logros`, {
+    method: "POST",
+    headers: autorizacion(token),
+    body: JSON.stringify(
+      prepararLogro(nombre, descripcion, puntos, requisitoEvento, requisitoValor),
+    ),
+  });
 
 export const obtenerLogrosDesbloqueados = (usuarioId: number): Promise<LogroDesbloqueado[]> =>
   request(`/usuarios/${usuarioId}/logros`);

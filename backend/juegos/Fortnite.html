@@ -1195,6 +1195,16 @@
 
         function triggerVictory() {
             gameState = 'VICTORY';
+            parent.postMessage({
+                type: 'steamnt:achievement-progress',
+                evento: 'victorias',
+                valor: 1
+            }, '*');
+            parent.postMessage({
+                type: 'steamnt:achievement-progress',
+                evento: 'partidas-ganadas',
+                valor: 1
+            }, '*');
             activeBuildMode = null;
             updateGhostPreview();
             cancelAim();
@@ -1736,6 +1746,11 @@
                                             let killerName = "Un bot";
                                             if (b.owner === 'player') {
                                                 killCount++;
+                                                parent.postMessage({
+                                                    type: 'steamnt:achievement-progress',
+                                                    evento: 'enemigos_derrotados',
+                                                    valor: killCount
+                                                }, '*');
                                                 document.getElementById('kill-count').innerText = killCount;
                                                 killerName = "Tú";
                                                 showKillNotify(n.name);

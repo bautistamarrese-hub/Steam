@@ -97,6 +97,9 @@ usada por el panel global. El backend también verifica esta cuenta al iniciar
 sesión para que esté disponible en bases creadas por los tests o por SQLAlchemy.
 Sus credenciales iniciales son `admin@gmail.com`, contraseña `123456` y nombre
 de usuario `admin`.
+Desde el panel global puede editar cualquier juego, cambiar su portada y
+galería, subir o reemplazar el archivo jugable y agregar logros. Estas acciones
+usan endpoints administrativos protegidos con el token de la sesión.
 
 La migración `20260903_logros_automaticos.sql` permite definir cada logro con
 una métrica y un valor objetivo. Un juego HTML reporta el valor acumulado así:
@@ -112,6 +115,13 @@ El backend compara el progreso con todos los requisitos del juego y registra
 automáticamente los logros alcanzados. La plataforma también reporta
 `iniciar_juego`, `tiempo_jugado_segundos` y, para el minijuego de respaldo,
 `puntaje`.
+
+Las métricas disponibles para los juegos subidos son `puntaje`, `victorias`,
+`nivel_alcanzado`, `enemigos_derrotados` y `partidas-ganadas`. El mensaje debe
+emitirse dentro de la condición real del juego que confirma ese resultado; el
+texto descriptivo del logro no permite deducir por sí solo cuándo ocurrió. Por
+ejemplo, una victoria debe informar `valor: 1` solamente después de confirmar
+que ganó el jugador, no al finalizar una derrota o un empate.
 
 Abrir http://localhost:8000/docs para ver Swagger.
 

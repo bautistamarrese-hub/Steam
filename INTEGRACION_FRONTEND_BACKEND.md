@@ -41,7 +41,7 @@ porque esos campos no existen en el modelo actual de `Juego`.
 | Rankings | `GET /api/juegos/top-ventas`, `GET /api/juegos/mejor-valorados` | top |
 | Estadísticas | `GET /api/usuarios/{id}/estadisticas` | perfil y comunidad |
 | Administración de usuarios | `PUT`, `DELETE /api/administracion/usuarios/{id}` | panel de superadministración |
-| Administración de juegos | `PUT`, `DELETE /api/administracion/juegos/{id}` | panel de superadministración |
+| Administración de juegos | `PUT`, `DELETE /api/administracion/juegos/{id}`; `POST /api/administracion/juegos/{id}/{archivo,logros}` | panel de superadministración |
 
 ## Huecos pendientes
 

@@ -657,7 +657,12 @@ def test_rankings_incluyen_ventas_y_exigen_veinte_resenas(client: TestClient):
     assert valorados[0]["porcentaje_positivas"] == 95
 
 
-def test_superadmin_precargado_administra_usuarios_y_todos_los_juegos(client: TestClient):
+def test_superadmin_precargado_administra_usuarios_y_todos_los_juegos(
+    client: TestClient,
+    tmp_path,
+    monkeypatch,
+):
+    monkeypatch.setattr(JuegoService, "STORAGE_ROOT", tmp_path)
     acceso = assert_status(
         client.post(
             "/api/usuarios/login",
@@ -724,6 +729,35 @@ def test_superadmin_precargado_administra_usuarios_y_todos_los_juegos(client: Te
     assert juego_editado["titulo"] == "Juego globalmente editado"
     assert juego_editado["precio"] == 25
 
+    con_archivo = assert_status(
+        client.post(
+            f"/api/administracion/juegos/{juego['id']}/archivo",
+            headers=headers,
+            files={"archivo": ("admin.html", b"<h1>Version admin</h1>", "text/html")},
+        ),
+        200,
+    )
+    assert con_archivo["es_jugable"] is True
+    assert (tmp_path / "games" / str(juego["id"]) / "index.html").read_bytes() == (
+        b"<h1>Version admin</h1>"
+    )
+
+    logro_admin = assert_status(
+        client.post(
+            f"/api/administracion/juegos/{juego['id']}/logros",
+            headers=headers,
+            json={
+                "nombre": "Logro global",
+                "descripcion": "Creado por administración",
+                "puntos": 25,
+                "requisito_evento": "victorias",
+                "requisito_valor": 1,
+            },
+        ),
+        201,
+    )
+    assert logro_admin["juego_id"] == juego["id"]
+
     assert_status(
         client.delete(
             f"/api/administracion/usuarios/{desarrollador['id']}",
@@ -747,6 +781,19 @@ def test_administracion_rechaza_sesiones_no_autorizadas(client: TestClient):
     jugador = registrar(client, "sin_permisos")
     sin_token = client.delete(f"/api/administracion/usuarios/{jugador['id']}")
     assert_status(sin_token, 401)
+    assert_status(
+        client.post(
+            "/api/administracion/juegos/1/logros",
+            json={
+                "nombre": "Sin permiso",
+                "descripcion": "",
+                "puntos": 10,
+                "requisito_evento": "puntaje",
+                "requisito_valor": 1,
+            },
+        ),
+        401,
+    )
 
     acceso_jugador = assert_status(
         client.post(

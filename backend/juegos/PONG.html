@@ -1,0 +1,539 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Classic Pong Arcade</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      user-select: none;
+    }
+    body {
+      background-color: #08080c;
+      color: #ffffff;
+      font-family: 'Press Start 2P', 'Segoe UI', monospace;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      overflow: hidden;
+    }
+    .game-container {
+      position: relative;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      background-color: #11111a;
+      padding: 16px;
+      border-radius: 12px;
+      box-shadow: 0 0 30px rgba(0, 243, 255, 0.25), 0 0 15px rgba(255, 0, 85, 0.2);
+      border: 2px solid #00f3ff;
+    }
+    header.hud {
+      width: 800px;
+      display: flex;
+      justify-content: space-around;
+      align-items: center;
+      margin-bottom: 12px;
+      padding: 10px 0;
+      background: #000000;
+      border: 2px solid #33334d;
+      border-radius: 6px;
+    }
+    .score-box {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 6px;
+    }
+    .score-label {
+      font-size: 10px;
+      color: #8888aa;
+    }
+    .score-val {
+      font-size: 28px;
+      font-weight: bold;
+      color: #ffffff;
+      text-shadow: 0 0 10px rgba(255, 255, 255, 0.5);
+    }
+    #player-score { color: #00f3ff; text-shadow: 0 0 10px #00f3ff; }
+    #cpu-score { color: #ff0055; text-shadow: 0 0 10px #ff0055; }
+    canvas {
+      background-color: #050508;
+      border: 2px solid #ffffff;
+      border-radius: 4px;
+      box-shadow: 0 0 20px rgba(0,0,0,0.9);
+      display: block;
+      image-rendering: pixelated;
+    }
+    .overlay {
+      position: absolute;
+      top: 72px;
+      left: 16px;
+      width: 800px;
+      height: 500px;
+      background: rgba(5, 5, 10, 0.92);
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      border-radius: 4px;
+      z-index: 10;
+    }
+    .overlay h1 {
+      font-size: 40px;
+      color: #00f3ff;
+      text-shadow: 0 0 15px #00f3ff, 3px 3px #ff0055;
+      margin-bottom: 16px;
+      letter-spacing: 2px;
+    }
+    .overlay p {
+      font-size: 11px;
+      color: #cccccc;
+      margin-bottom: 24px;
+      text-align: center;
+      line-height: 1.8;
+    }
+    .controls-hint {
+      background: #121224;
+      border: 1px solid #00f3ff;
+      padding: 12px 20px;
+      border-radius: 8px;
+      margin-bottom: 24px;
+      font-size: 10px;
+      color: #ffaa00;
+      line-height: 1.8;
+      text-align: center;
+    }
+    .btn {
+      padding: 14px 36px;
+      font-size: 13px;
+      font-weight: bold;
+      font-family: inherit;
+      color: #000000;
+      background: #00f3ff;
+      border: 2px solid #ffffff;
+      border-radius: 30px;
+      cursor: pointer;
+      box-shadow: 0 0 15px #00f3ff;
+      transition: all 0.15s ease;
+    }
+    .btn:hover {
+      background: #ff0055;
+      color: #ffffff;
+      box-shadow: 0 0 22px #ff0055;
+      transform: scale(1.05);
+    }
+  </style>
+  <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+</head>
+<body>
+
+  <div class="game-container">
+    <header class="hud">
+      <div class="score-box">
+        <span class="score-label">JUGADOR</span>
+        <span id="player-score" class="score-val">0</span>
+      </div>
+      <div style="color: #444466; font-size: 12px;">PRIMERO A 7</div>
+      <div class="score-box">
+        <span class="score-label">CPU</span>
+        <span id="cpu-score" class="score-val">0</span>
+      </div>
+    </header>
+
+    <canvas id="canvas" width="800" height="500"></canvas>
+
+    <div id="overlay" class="overlay">
+      <h1 id="overlay-title">PONG ARCADE</h1>
+      <p id="overlay-msg">Demuestra tus reflejos contra la Inteligencia Artificial.</p>
+      
+      <div class="controls-hint">
+        🎮 <b>CONTROLES:</b><br>
+        W / Mover Arriba | S / Mover Abajo<br>
+        o usa las Flechas ↑ / ↓ de tu teclado
+      </div>
+
+      <button id="start-btn" class="btn">INICIAR JUEGO</button>
+    </div>
+  </div>
+
+  <script>
+    class SoundSystem {
+      constructor() {
+        this.ctx = null;
+      }
+      init() {
+        if (!this.ctx) {
+          const AudioContext = window.AudioContext || window.webkitAudioContext;
+          if (AudioContext) this.ctx = new AudioContext();
+        }
+        if (this.ctx && this.ctx.state === 'suspended') {
+          this.ctx.resume();
+        }
+      }
+      playPaddleHit() {
+        if (!this.ctx) return;
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.type = 'square';
+        osc.frequency.setValueAtTime(440, this.ctx.currentTime);
+        gain.gain.setValueAtTime(0.15, this.ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + 0.08);
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+        osc.start();
+        osc.stop(this.ctx.currentTime + 0.08);
+      }
+      playWallHit() {
+        if (!this.ctx) return;
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(220, this.ctx.currentTime);
+        gain.gain.setValueAtTime(0.12, this.ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + 0.05);
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+        osc.start();
+        osc.stop(this.ctx.currentTime + 0.05);
+      }
+      playScore() {
+        if (!this.ctx) return;
+        const now = this.ctx.currentTime;
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.type = 'sawtooth';
+        osc.frequency.setValueAtTime(150, now);
+        osc.frequency.linearRampToValueAtTime(60, now + 0.25);
+        gain.gain.setValueAtTime(0.2, now);
+        gain.gain.linearRampToValueAtTime(0.01, now + 0.25);
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+        osc.start(now);
+        osc.stop(now + 0.25);
+      }
+      playWin() {
+        if (!this.ctx) return;
+        const now = this.ctx.currentTime;
+        const notes = [261.63, 329.63, 392.00, 523.25];
+        notes.forEach((freq, idx) => {
+          const osc = this.ctx.createOscillator();
+          const gain = this.ctx.createGain();
+          osc.type = 'triangle';
+          osc.frequency.setValueAtTime(freq, now + idx * 0.08);
+          gain.gain.setValueAtTime(0.2, now + idx * 0.08);
+          gain.gain.linearRampToValueAtTime(0.01, now + (idx + 1) * 0.08);
+          osc.connect(gain);
+          gain.connect(this.ctx.destination);
+          osc.start(now + idx * 0.08);
+          osc.stop(now + (idx + 1) * 0.08);
+        });
+      }
+    }
+
+    function initPong() {
+      const canvas = document.getElementById('canvas');
+      const ctx = canvas.getContext('2d');
+
+      const playerScoreEl = document.getElementById('player-score');
+      const cpuScoreEl = document.getElementById('cpu-score');
+      const overlay = document.getElementById('overlay');
+      const overlayTitle = document.getElementById('overlay-title');
+      const overlayMsg = document.getElementById('overlay-msg');
+      const startBtn = document.getElementById('start-btn');
+
+      const sound = new SoundSystem();
+
+      const WIDTH = canvas.width;
+      const HEIGHT = canvas.height;
+      const WINNING_SCORE = 7;
+
+      let playerScore = 0;
+      let cpuScore = 0;
+      let playerWins = 0;
+      let gameState = 'MENU';
+
+      const keys = { up: false, down: false };
+
+      const paddleWidth = 14;
+      const paddleHeight = 85;
+
+      const player = {
+        x: 25,
+        y: HEIGHT / 2 - paddleHeight / 2,
+        w: paddleWidth,
+        h: paddleHeight,
+        speed: 7
+      };
+
+      const cpu = {
+        x: WIDTH - 25 - paddleWidth,
+        y: HEIGHT / 2 - paddleHeight / 2,
+        w: paddleWidth,
+        h: paddleHeight,
+        speed: 4.8
+      };
+
+      const ball = {
+        x: WIDTH / 2,
+        y: HEIGHT / 2,
+        size: 12,
+        vx: 0,
+        vy: 0,
+        pendingVx: 0,
+        pendingVy: 0,
+        speed: 2.2,         // Velocidad de salida lenta
+        targetSpeed: 5.0,   // Velocidad normal a alcanzar
+        maxSpeed: 11.0,     // Velocidad máxima con rebotes
+        cooldownTimer: 0,
+        trail: []
+      };
+
+      function resetBall(winner = 'player') {
+        ball.x = WIDTH / 2 - ball.size / 2;
+        ball.y = HEIGHT / 2 - ball.size / 2;
+        
+        ball.speed = 2.2;        // Sale bien despacio
+        ball.targetSpeed = 5.0;  // Ritmo normal del juego
+        ball.trail = [];
+
+        // La pelota se dirige hacia el lado que GANÓ el último punto
+        const direction = winner === 'player' ? -1 : 1;
+        const angle = (Math.random() * 0.4 - 0.2) * Math.PI;
+
+        ball.pendingVx = direction * ball.speed * Math.cos(angle);
+        ball.pendingVy = ball.speed * Math.sin(angle);
+        ball.vx = 0;
+        ball.vy = 0;
+
+        ball.cooldownTimer = 60; // 1 segundo de pausa
+      }
+
+      function update() {
+        if (gameState !== 'PLAYING') return;
+
+        // Movimiento del Jugador
+        if (keys.up) player.y -= player.speed;
+        if (keys.down) player.y += player.speed;
+        player.y = Math.max(0, Math.min(HEIGHT - player.h, player.y));
+
+        // Movimiento de la CPU
+        const cpuCenter = cpu.y + cpu.h / 2;
+        const ballTarget = ball.y;
+        if (Math.abs(cpuCenter - ballTarget) > 10) {
+          if (cpuCenter < ballTarget) {
+            cpu.y += cpu.speed;
+          } else {
+            cpu.y -= cpu.speed;
+          }
+        }
+        cpu.y = Math.max(0, Math.min(HEIGHT - cpu.h, cpu.y));
+
+        // Gestión del Cooldown de 1 segundo
+        if (ball.cooldownTimer > 0) {
+          ball.cooldownTimer--;
+          if (ball.cooldownTimer === 0) {
+            ball.vx = ball.pendingVx;
+            ball.vy = ball.pendingVy;
+          }
+          return;
+        }
+
+        // Aceleración paulatina tras el saque hasta alcanzar el ritmo normal
+        if (ball.speed < ball.targetSpeed) {
+          ball.speed = Math.min(ball.targetSpeed, ball.speed + 0.03);
+          const currentAngle = Math.atan2(ball.vy, ball.vx);
+          ball.vx = ball.speed * Math.cos(currentAngle);
+          ball.vy = ball.speed * Math.sin(currentAngle);
+        }
+
+        // Rastro de la pelota
+        ball.trail.push({ x: ball.x, y: ball.y });
+        if (ball.trail.length > 5) ball.trail.shift();
+
+        // Movimiento de la pelota
+        ball.x += ball.vx;
+        ball.y += ball.vy;
+
+        // Colisión Paredes Superior/Inferior
+        if (ball.y <= 0) {
+          ball.y = 0;
+          ball.vy = -ball.vy;
+          sound.playWallHit();
+        } else if (ball.y + ball.size >= HEIGHT) {
+          ball.y = HEIGHT - ball.size;
+          ball.vy = -ball.vy;
+          sound.playWallHit();
+        }
+
+        // Colisión Paleta: Jugador
+        if (
+          ball.x <= player.x + player.w &&
+          ball.x + ball.size >= player.x &&
+          ball.y + ball.size >= player.y &&
+          ball.y <= player.y + player.h &&
+          ball.vx < 0
+        ) {
+          const collidePoint = (ball.y + ball.size / 2) - (player.y + player.h / 2);
+          const normalizedPoint = collidePoint / (player.h / 2);
+          const angle = normalizedPoint * (Math.PI / 3);
+
+          ball.targetSpeed = Math.min(ball.maxSpeed, ball.targetSpeed + 0.4);
+          ball.speed = Math.max(ball.speed, ball.targetSpeed);
+          ball.vx = ball.speed * Math.cos(angle);
+          ball.vy = ball.speed * Math.sin(angle);
+          ball.x = player.x + player.w;
+          sound.playPaddleHit();
+        }
+
+        // Colisión Paleta: CPU
+        if (
+          ball.x + ball.size >= cpu.x &&
+          ball.x <= cpu.x + cpu.w &&
+          ball.y + ball.size >= cpu.y &&
+          ball.y <= cpu.y + cpu.h &&
+          ball.vx > 0
+        ) {
+          const collidePoint = (ball.y + ball.size / 2) - (cpu.y + cpu.h / 2);
+          const normalizedPoint = collidePoint / (cpu.h / 2);
+          const angle = normalizedPoint * (Math.PI / 3);
+
+          ball.targetSpeed = Math.min(ball.maxSpeed, ball.targetSpeed + 0.4);
+          ball.speed = Math.max(ball.speed, ball.targetSpeed);
+          ball.vx = -ball.speed * Math.cos(angle);
+          ball.vy = ball.speed * Math.sin(angle);
+          ball.x = cpu.x - ball.size;
+          sound.playPaddleHit();
+        }
+
+        // Puntuación
+        if (ball.x + ball.size < 0) {
+          cpuScore++;
+          cpuScoreEl.textContent = cpuScore;
+          sound.playScore();
+          checkGameOver('cpu');
+        } else if (ball.x > WIDTH) {
+          playerScore++;
+          window.parent.postMessage({ type: 'steamnt:achievement-progress', evento: 'puntaje', valor: playerScore }, '*');
+          playerScoreEl.textContent = playerScore;
+          sound.playScore();
+          checkGameOver('player');
+        }
+      }
+
+      function checkGameOver(scorer) {
+        if (playerScore >= WINNING_SCORE || cpuScore >= WINNING_SCORE) {
+          gameState = 'GAMEOVER';
+          if (playerScore >= WINNING_SCORE) {
+            playerWins++;
+            window.parent.postMessage({ type: 'steamnt:achievement-progress', evento: 'victorias', valor: playerWins }, '*');
+            window.parent.postMessage({ type: 'steamnt:achievement-progress', evento: 'partidas-ganadas', valor: playerWins }, '*');
+            overlayTitle.textContent = '¡VICTORIA!';
+            overlayTitle.style.color = '#00f3ff';
+            overlayMsg.textContent = '¡Has derrotado a la CPU!';
+            sound.playWin();
+          } else {
+            overlayTitle.textContent = 'DERROTA';
+            overlayTitle.style.color = '#ff0055';
+            overlayMsg.textContent = 'La CPU ha ganado esta partida.';
+          }
+          startBtn.textContent = 'REINTENTAR';
+          overlay.style.display = 'flex';
+        } else {
+          // Pasa 'scorer' para que la pelota salga hacia el lado del ganador del punto
+          resetBall(scorer);
+        }
+      }
+
+      function draw() {
+        ctx.fillStyle = '#050508';
+        ctx.fillRect(0, 0, WIDTH, HEIGHT);
+
+        ctx.strokeStyle = '#222238';
+        ctx.lineWidth = 4;
+        ctx.setLineDash([12, 12]);
+        ctx.beginPath();
+        ctx.moveTo(WIDTH / 2, 0);
+        ctx.lineTo(WIDTH / 2, HEIGHT);
+        ctx.stroke();
+        ctx.setLineDash([]);
+
+        ball.trail.forEach((t, i) => {
+          const alpha = (i + 1) / ball.trail.length * 0.3;
+          ctx.fillStyle = `rgba(0, 243, 255, ${alpha})`;
+          ctx.fillRect(t.x, t.y, ball.size, ball.size);
+        });
+
+        ctx.fillStyle = '#ffffff';
+        ctx.shadowColor = '#00f3ff';
+        ctx.shadowBlur = 10;
+        ctx.fillRect(ball.x, ball.y, ball.size, ball.size);
+        ctx.shadowBlur = 0;
+
+        ctx.fillStyle = '#00f3ff';
+        ctx.shadowColor = '#00f3ff';
+        ctx.shadowBlur = 8;
+        ctx.fillRect(player.x, player.y, player.w, player.h);
+
+        ctx.fillStyle = '#ff0055';
+        ctx.shadowColor = '#ff0055';
+        ctx.shadowBlur = 8;
+        ctx.fillRect(cpu.x, cpu.y, cpu.w, cpu.h);
+
+        ctx.shadowBlur = 0;
+
+        if (gameState === 'PLAYING' && ball.cooldownTimer > 0) {
+          ctx.fillStyle = '#ffe600';
+          ctx.font = '12px "Press Start 2P", monospace';
+          ctx.textAlign = 'center';
+          ctx.fillText('¡LISTO!', WIDTH / 2, HEIGHT / 2 - 25);
+          ctx.textAlign = 'left';
+        }
+      }
+
+      function gameLoop() {
+        update();
+        draw();
+        requestAnimationFrame(gameLoop);
+      }
+
+      window.addEventListener('keydown', e => {
+        sound.init();
+        if (e.key === 'w' || e.key === 'W' || e.key === 'ArrowUp') keys.up = true;
+        if (e.key === 's' || e.key === 'S' || e.key === 'ArrowDown') keys.down = true;
+      });
+
+      window.addEventListener('keyup', e => {
+        if (e.key === 'w' || e.key === 'W' || e.key === 'ArrowUp') keys.up = false;
+        if (e.key === 's' || e.key === 'S' || e.key === 'ArrowDown') keys.down = false;
+      });
+
+      startBtn.addEventListener('click', () => {
+        sound.init();
+        playerScore = 0;
+        cpuScore = 0;
+        playerScoreEl.textContent = '0';
+        cpuScoreEl.textContent = '0';
+        player.y = HEIGHT / 2 - paddleHeight / 2;
+        cpu.y = HEIGHT / 2 - paddleHeight / 2;
+        gameState = 'PLAYING';
+        overlay.style.display = 'none';
+        resetBall('player');
+      });
+
+      gameLoop();
+    }
+
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', initPong);
+    } else {
+      initPong();
+    }
+  </script>
+</body>
+</html>

@@ -1,0 +1,733 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Zen Puzzle - Rompecabezas Estético</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; user-select: none; font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; }
+    body, html { width: 100%; height: 100%; overflow: hidden; background: #07080d; color: #f3f4f6; }
+
+    /* PANTALLAS */
+    .screen { position: absolute; top: 0; left: 0; width: 100%; height: 100%; display: none; flex-direction: column; z-index: 1; }
+    .screen.active { display: flex; }
+
+    /* MENÚ DE INICIO ZEN Y AESTHETIC */
+    #screen-menu {
+      background: #07080d;
+      justify-content: center; align-items: center; z-index: 100; overflow: hidden; position: relative;
+    }
+
+    /* CANVAS DE FONDO CON ROMPECABEZAS DISPERSOS */
+    #menuBgCanvas {
+      position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+      z-index: 0; pointer-events: none;
+    }
+
+    /* EFECTOS AMBIENTALES DE ILUMINACIÓN */
+    .ambient-glow {
+      position: absolute; border-radius: 50%; filter: blur(120px); opacity: 0.25;
+      animation: floatGlow 18s infinite alternate ease-in-out; pointer-events: none; z-index: 1;
+    }
+    .glow-1 { width: 500px; height: 500px; background: #6366f1; top: -100px; left: -100px; }
+    .glow-2 { width: 600px; height: 600px; background: #06b6d4; bottom: -150px; right: -100px; animation-delay: -6s; }
+
+    @keyframes floatGlow {
+      0% { transform: translate(0, 0) scale(1); }
+      50% { transform: translate(50px, 30px) scale(1.08); }
+      100% { transform: translate(-30px, 60px) scale(0.95); }
+    }
+
+    /* TARJETA GLASSMORPHISM */
+    .zen-card {
+      background: rgba(15, 17, 26, 0.72); border: 1px solid rgba(255, 255, 255, 0.14);
+      border-radius: 24px; padding: 40px 45px; width: 90%; max-width: 480px;
+      box-shadow: 0 30px 60px rgba(0, 0, 0, 0.7), inset 0 1px 0 rgba(255, 255, 255, 0.15);
+      backdrop-filter: blur(24px); -webkit-backdrop-filter: blur(24px);
+      text-align: center; z-index: 10; position: relative;
+    }
+
+    .zen-tagline { font-size: 11px; text-transform: uppercase; letter-spacing: 3px; color: #a7f3d0; margin-bottom: 8px; font-weight: 600; }
+    .zen-title { font-size: 36px; font-weight: 300; color: #ffffff; margin-bottom: 12px; letter-spacing: -0.5px; }
+    .zen-subtitle { font-size: 13px; color: #9ca3af; margin-bottom: 28px; line-height: 1.6; font-weight: 300; }
+
+    .mode-selector { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 22px; }
+    .mode-btn {
+      background: rgba(255, 255, 255, 0.04); border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 14px; padding: 14px 10px; cursor: pointer; transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      text-align: center;
+    }
+    .mode-btn:hover { background: rgba(255, 255, 255, 0.08); border-color: rgba(255, 255, 255, 0.2); }
+    .mode-btn.active { background: rgba(99, 102, 241, 0.25); border-color: #818cf8; box-shadow: 0 0 20px rgba(99, 102, 241, 0.35); }
+    .mode-btn h4 { font-size: 14px; color: #fff; margin-bottom: 4px; font-weight: 500; }
+    .mode-btn p { font-size: 11px; color: #9ca3af; }
+
+    .form-group { text-align: left; margin-bottom: 18px; }
+    .form-group label { display: block; font-size: 12px; color: #d1d5db; margin-bottom: 8px; font-weight: 500; }
+    select {
+      width: 100%; background: rgba(0, 0, 0, 0.5); border: 1px solid rgba(255, 255, 255, 0.14);
+      color: #f3f4f6; padding: 12px 16px; border-radius: 12px; font-size: 13px; outline: none;
+      transition: all 0.2s; cursor: pointer;
+    }
+    select:hover, select:focus { border-color: #818cf8; background: rgba(0, 0, 0, 0.7); }
+
+    .btn-start {
+      width: 100%; background: linear-gradient(135deg, #6366f1, #3b82f6); border: none;
+      color: #fff; padding: 15px; border-radius: 14px; font-size: 15px; font-weight: 600;
+      cursor: pointer; transition: all 0.3s; margin-top: 8px;
+      box-shadow: 0 10px 25px rgba(99, 102, 241, 0.4);
+    }
+    .btn-start:hover { transform: translateY(-2px); box-shadow: 0 15px 30px rgba(99, 102, 241, 0.6); }
+
+    /* INTERFAZ DE JUEGO */
+    header {
+      background: rgba(15, 17, 26, 0.85); border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+      padding: 12px 24px; display: flex; justify-content: space-between; align-items: center;
+      backdrop-filter: blur(10px); z-index: 10;
+    }
+    .group { display: flex; align-items: center; gap: 12px; }
+    .badge { background: rgba(255, 255, 255, 0.06); border: 1px solid rgba(255, 255, 255, 0.1); padding: 6px 14px; border-radius: 20px; font-size: 12px; font-weight: 500; }
+    .timer-badge { font-family: monospace; color: #34d399; }
+    
+    .btn-sm {
+      padding: 7px 14px; font-size: 12px; background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(255, 255, 255, 0.1); color: #fff; border-radius: 10px; cursor: pointer; transition: 0.2s;
+    }
+    .btn-sm:hover { background: rgba(255, 255, 255, 0.15); }
+    .btn-sm.active { background: #6366f1; border-color: #818cf8; }
+
+    #main-layout { display: flex; flex: 1; position: relative; overflow: hidden; }
+    canvas { display: block; width: 100%; height: 100%; background: #07080c; cursor: grab; }
+    canvas:active { cursor: grabbing; }
+
+    /* LOADER OVERLAY */
+    #loader-overlay {
+      position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+      background: rgba(7, 8, 13, 0.88); display: none; justify-content: center; align-items: center;
+      flex-direction: column; gap: 15px; z-index: 50; backdrop-filter: blur(8px);
+    }
+    .spinner {
+      width: 40px; height: 40px; border: 3px solid rgba(255,255,255,0.1);
+      border-top-color: #818cf8; border-radius: 50%; animation: spin 0.8s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* MODAL VISTA PREVIA & RESULTADOS */
+    #preview-modal {
+      position: absolute; top: 75px; right: 25px; width: 220px; background: rgba(18, 20, 29, 0.9);
+      border: 1px solid rgba(255,255,255,0.1); border-radius: 14px; padding: 12px; display: none;
+      flex-direction: column; gap: 8px; z-index: 20; box-shadow: 0 20px 40px rgba(0,0,0,0.6); backdrop-filter: blur(12px);
+    }
+    #preview-modal canvas { border-radius: 8px; width: 100%; height: 140px; object-fit: cover; }
+
+    .modal-overlay {
+      position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8);
+      display: none; justify-content: center; align-items: center; z-index: 150; backdrop-filter: blur(10px);
+    }
+    .modal-card {
+      background: rgba(22, 25, 38, 0.95); border: 1px solid rgba(255, 255, 255, 0.12);
+      border-radius: 20px; padding: 35px; text-align: center; width: 360px; box-shadow: 0 25px 50px rgba(0,0,0,0.8);
+    }
+    .stars-display { font-size: 42px; margin: 15px 0; letter-spacing: 6px; }
+  </style>
+</head>
+<body>
+
+  <!-- PANTALLA DE INICIO (ZEN & AESTHETIC) -->
+  <div id="screen-menu" class="screen active">
+    <canvas id="menuBgCanvas"></canvas>
+    <div class="ambient-glow glow-1"></div>
+    <div class="ambient-glow glow-2"></div>
+
+    <div class="zen-card">
+      <div class="zen-tagline">Experiencia Sensorial</div>
+      <h1 class="zen-title">Zen Puzzle</h1>
+      <p class="zen-subtitle">Un refugio visual de paz y concentración. Selecciona tu modo y conecta cada pieza a tu propio ritmo.</p>
+
+      <div class="mode-selector">
+        <div class="mode-btn active" id="btn-m-free" onclick="setMode('free')">
+          <h4>Modo Relax</h4>
+          <p>Sin tiempo, elige tu nivel</p>
+        </div>
+        <div class="mode-btn" id="btn-m-comp" onclick="setMode('competitive')">
+          <h4>Desafío Zen</h4>
+          <p>30 Niveles por estrellas</p>
+        </div>
+      </div>
+
+      <div class="form-group" id="grp-level">
+        <label>Nivel de Dificultad (Piezas):</label>
+        <select id="sel-level"></select>
+      </div>
+
+      <div class="form-group">
+        <label>Galería Fotográfica:</label>
+        <select id="sel-theme">
+          <option value="paisaje">Paisajes Naturales</option>
+          <option value="animales">Fauna Silvestre</option>
+          <option value="plantas">Flora & Botánica</option>
+        </select>
+      </div>
+
+      <button class="btn-start" onclick="startGame()">INICIAR EXPERIENCIA</button>
+    </div>
+  </div>
+
+  <!-- PANTALLA DEL JUEGO -->
+  <div id="screen-game" class="screen">
+    <header>
+      <div class="group">
+        <button class="btn-sm" onclick="exitToMenu()">&larr; Menú</button>
+        <span class="badge" id="hud-level">Nivel 1</span>
+        <span class="badge timer-badge" id="hud-timer">00:00</span>
+      </div>
+
+      <div class="group">
+        <button class="btn-sm active" id="btn-f-all" onclick="setFilter('all')">Todas</button>
+        <button class="btn-sm" id="btn-f-border" onclick="setFilter('border')">Solo Bordes</button>
+        <button class="btn-sm" id="btn-f-inner" onclick="setFilter('inner')">Solo Centro</button>
+      </div>
+
+      <div class="group">
+        <button class="btn-sm" onclick="togglePreview()">Guía</button>
+        <button class="btn-sm" onclick="initLevel()">Reiniciar</button>
+      </div>
+    </header>
+
+    <div id="main-layout">
+      <div id="loader-overlay">
+        <div class="spinner"></div>
+        <span style="font-size: 13px; color: #a7f3d0; font-weight: 500;">Cargando fotografía HD...</span>
+      </div>
+
+      <canvas id="gameCanvas"></canvas>
+      
+      <div id="preview-modal">
+        <span style="font-size:11px; color:#9ca3af; text-align:center;">Fotografía Original</span>
+        <canvas id="previewCanvas"></canvas>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL DE VICTORIA -->
+  <div class="modal-overlay" id="modal-success">
+    <div class="modal-card">
+      <h2 style="color: #34d399; font-weight: 400;">Completado</h2>
+      <div class="stars-display" id="win-stars">⭐⭐⭐</div>
+      <p style="margin-bottom: 6px; color: #e5e7eb; font-size: 14px;" id="win-time">Tiempo: 00:00</p>
+      <p style="font-size: 12px; color: #9ca3af; margin-bottom: 25px;" id="win-detail">Excelente fluidez</p>
+      <button class="btn-start" id="btn-next" onclick="nextLevel()">Continuar</button>
+    </div>
+  </div>
+
+  <script>
+    // BASE DE DATOS FOTOGRÁFICA (30 FOTOGRAFÍAS REALES DISTINTAS POR TEMÁTICA)
+    const PHOTO_DATABASE = {
+      paisaje: [
+        '1506744038136-46273834b3fb', '1464822759023-fed622ff2c3b', '1501785888041-af3ef285b470', '1470071459604-3b5ec3a7fe05',
+        '1426604966848-d7adac402bff', '1472214103451-9374bd1c798e', '1511884642898-4c92249e20b6', '1434394354979-a235cd36269d',
+        '1500530855697-b586d89ba3ee', '1469854523086-cc02fe5d8800', '1507525428034-b723cf961d3e', '1519681393784-d120267933ba',
+        '1475924156734-496f6cac6ec1', '1497436072909-60f360e1d4b1', '1518495973542-4542c06a5843', '1433086966358-54859d0ed716',
+        '1506197603052-3cc9c3a201bd', '1441974231531-c6227db76b6e', '1470770841072-f978cf4d019e', '1502082553048-f009c37129b9',
+        '1532274402911-5a369e4c4bb5', '1508739773434-c26b3d09e071', '1513836279014-a89f7a76ae86', '1510312305653-8ed496efae75',
+        '1501854140801-50d01698950b', '1465146344425-f00d5f5c8f07', '1542224566-6e85f2e6772f', '1500382017468-9049fed747ef',
+        '1490730141103-6cac27aaab94', '1511576661531-b34d7da5d0bb'
+      ],
+      animales: [
+        '1546182990-dffeafbe841d', '1534188753412-3e26d0d618d6', '1564349683136-77e08dba1ef9', '1474511320723-9a56873867b5',
+        '1517849845537-4d257902454a', '1514888286974-6c03e2ca1dba', '1555169062-013468b47731', '1535591273668-578e31182c4f',
+        '1574063413132-355dbfd83e03', '1552053831-71594a27632d', '1456926631375-92c8ce872def', '1518020382113-a7e8fc38eac9',
+        '1530595467537-0b5996c41f2d', '1522069169874-c58ec4b76be5', '1560807707-8cc77767d783', '1534567153574-2b12153a87f0',
+        '1500479694472-551d1962308c', '1425082661705-1834bfd09dca', '1505148230895-d9a785a555fa', '1543466835-00a7907e9de1',
+        '1484406566174-9da000fda645', '1504006833117-8886a355efbf', '1516934024742-b461fba47600', '1508873696983-2df515122519',
+        '1573865526739-10659fec78a5', '1437622368342-7a3d73a34c8f', '1534759846116-5799c33ce22a', '1548767797-d8c844163c4c',
+        '1561731216-c3a4d99437d5', '1537151608828-ea2b11777ee8'
+      ],
+      plantas: [
+        '1518531933037-91b2f5f229cc', '1463936575829-25148e1db1b8', '1496062031456-07b8f162a322', '1509198397868-475647b2a1e5',
+        '1485955900006-10f4d324d411', '1520412099551-62b6bafeb5bb', '1446071103084-c257b5f70672', '1508610048659-a06b669e3321',
+        '1470058869958-2a77ade41c02', '1512428559087-560fa5ceab42', '1530968033775-2c92736b131e', '1501004318641-b39e6451bec6',
+        '1459411552884-841db9b3cc2a', '1502082553048-f009c37129b9', '1507746309198-e377f4e1f38a', '1516528387618-afa90b13e000',
+        '1526047932273-341f2a7631f9', '1533038590840-1cde6e668a91', '1508020963102-c6c723be5762', '1525310072745-f49212b5ac6d',
+        '1509316975850-ff9c5deb0cd9', '1477554193778-b5a28b030364', '1513836279014-a89f7a76ae86', '1506082609930-bc5659849c76',
+        '1465146344425-f00d5f5c8f07', '1508610048659-a06b669e3321', '1501004318641-b39e6451bec6', '1518531933037-91b2f5f229cc',
+        '1536147116438-62679a5e01f2', '1470058869958-2a77ade41c02'
+      ]
+    };
+
+    // ESTADO DEL JUEGO
+    let gameMode = 'free';
+    let currentLevel = 1;
+    let completedLevels = 0;
+    let currentTheme = 'paisaje';
+    let filterMode = 'all';
+
+    let levelTimer = 0, totalCompTime = 0, timerInterval = null;
+
+    const canvas = document.getElementById('gameCanvas');
+    const ctx = canvas.getContext('2d');
+    const prevCanvas = document.getElementById('previewCanvas');
+    const prevCtx = prevCanvas.getContext('2d');
+
+    let pieces = [], hEdges = [], vEdges = [];
+    let cols = 0, rows = 0, pieceWidth = 0, pieceHeight = 0;
+    let boardBounds = { x: 0, y: 0, width: 0, height: 0 };
+    let draggedPiece = null, dragOffset = { x: 0, y: 0 };
+
+    let imgCanvas = document.createElement('canvas');
+    let imgCtx = imgCanvas.getContext('2d');
+
+    // Inicializar selectores
+    const selLevel = document.getElementById('sel-level');
+    for (let i = 1; i <= 30; i++) {
+      const opt = document.createElement('option');
+      opt.value = i;
+      opt.innerText = `Nivel ${i} (~${getPieceCount(i)} piezas)`;
+      selLevel.appendChild(opt);
+    }
+
+    function setMode(mode) {
+      gameMode = mode;
+      document.getElementById('btn-m-free').className = 'mode-btn' + (mode === 'free' ? ' active' : '');
+      document.getElementById('btn-m-comp').className = 'mode-btn' + (mode === 'competitive' ? ' active' : '');
+      document.getElementById('grp-level').style.display = (mode === 'free') ? 'block' : 'none';
+    }
+
+    function getPieceCount(lvl) {
+      if (lvl === 1) return 10;
+      if (lvl === 30) return 500;
+      return Math.round(10 + (500 - 10) * Math.pow((lvl - 1) / 29, 1.35));
+    }
+
+    function calculateGrid(target) {
+      const aspect = 4 / 3;
+      let c = Math.round(Math.sqrt(target * aspect));
+      let r = Math.round(target / c);
+      return { cols: Math.max(2, c), rows: Math.max(2, r) };
+    }
+
+    /* GENERADOR DEL FONDO CON ROMPECABEZAS DISPERSOS Y PIEZAS SUELTAS */
+    function renderMenuBackground() {
+      const bgCanvas = document.getElementById('menuBgCanvas');
+      if (!bgCanvas) return;
+      bgCanvas.width = window.innerWidth;
+      bgCanvas.height = window.innerHeight;
+      const bCtx = bgCanvas.getContext('2d');
+
+      bCtx.clearRect(0, 0, bgCanvas.width, bgCanvas.height);
+
+      // Preparamos 10 imágenes de muestra de Unsplash para los cuadros armados
+      const sampleIds = [
+        PHOTO_DATABASE.paisaje[0], PHOTO_DATABASE.paisaje[3], PHOTO_DATABASE.paisaje[7],
+        PHOTO_DATABASE.animales[2], PHOTO_DATABASE.animales[5], PHOTO_DATABASE.animales[9],
+        PHOTO_DATABASE.plantas[1], PHOTO_DATABASE.plantas[4], PHOTO_DATABASE.plantas[8], PHOTO_DATABASE.paisaje[12]
+      ];
+
+      // Dibuja cuadros de rompecabezas armados desordenados con ángulos aleatorios
+      const puzzleFrames = [
+        { x: bgCanvas.width * 0.12, y: bgCanvas.height * 0.2, w: 220, h: 165, angle: -18, imgIdx: 0 },
+        { x: bgCanvas.width * 0.85, y: bgCanvas.height * 0.18, w: 250, h: 187, angle: 22, imgIdx: 1 },
+        { x: bgCanvas.width * 0.08, y: bgCanvas.height * 0.75, w: 240, h: 180, angle: 15, imgIdx: 2 },
+        { x: bgCanvas.width * 0.88, y: bgCanvas.height * 0.78, w: 230, h: 172, angle: -25, imgIdx: 3 },
+        { x: bgCanvas.width * 0.5,  y: bgCanvas.height * 0.1,  w: 200, h: 150, angle: -8,  imgIdx: 4 },
+        { x: bgCanvas.width * 0.52, y: bgCanvas.height * 0.9,  w: 260, h: 195, angle: 12,  imgIdx: 5 },
+        { x: bgCanvas.width * 0.28, y: bgCanvas.height * 0.48, w: 190, h: 142, angle: 30,  imgIdx: 6 },
+        { x: bgCanvas.width * 0.73, y: bgCanvas.height * 0.48, w: 210, h: 157, angle: -28, imgIdx: 7 }
+      ];
+
+      puzzleFrames.forEach(pf => {
+        const img = new Image();
+        img.crossOrigin = 'anonymous';
+        img.src = `https://images.unsplash.com/photo-${sampleIds[pf.imgIdx]}?auto=format&fit=crop&w=400&h=300&q=60`;
+        img.onload = () => {
+          bCtx.save();
+          bCtx.translate(pf.x, pf.y);
+          bCtx.rotate((pf.angle * Math.PI) / 180);
+          bCtx.globalAlpha = 0.35;
+
+          // Sombra suave del cuadro
+          bCtx.shadowColor = 'rgba(0,0,0,0.8)';
+          bCtx.shadowBlur = 20;
+          bCtx.shadowOffsetX = 8;
+          bCtx.shadowOffsetY = 12;
+
+          // Borde blanco de foto/cuadro
+          bCtx.fillStyle = '#1e202e';
+          bCtx.fillRect(-pf.w / 2 - 6, -pf.h / 2 - 6, pf.w + 12, pf.h + 12);
+
+          bCtx.drawImage(img, -pf.w / 2, -pf.h / 2, pf.w, pf.h);
+
+          // Rejilla de rompecabezas ensamblado sobre la imagen
+          bCtx.strokeStyle = 'rgba(255, 255, 255, 0.25)';
+          bCtx.lineWidth = 1;
+          const cCols = 5, cRows = 4;
+          const pw = pf.w / cCols, ph = pf.h / cRows;
+          for (let r = 0; r <= cRows; r++) {
+            bCtx.beginPath();
+            bCtx.moveTo(-pf.w / 2, -pf.h / 2 + r * ph);
+            bCtx.lineTo(pf.w / 2, -pf.h / 2 + r * ph);
+            bCtx.stroke();
+          }
+          for (let c = 0; c <= cCols; c++) {
+            bCtx.beginPath();
+            bCtx.moveTo(-pf.w / 2 + c * pw, -pf.h / 2);
+            bCtx.lineTo(-pf.w / 2 + c * pw, pf.h / 2);
+            bCtx.stroke();
+          }
+
+          bCtx.restore();
+        };
+      });
+
+      // Dibuja piezas de rompecabezas sueltas flotando aleatoriamente por la pantalla
+      const loosePieces = 35;
+      for (let i = 0; i < loosePieces; i++) {
+        const px = Math.random() * bgCanvas.width;
+        const py = Math.random() * bgCanvas.height;
+        const size = 28 + Math.random() * 26;
+        const rot = Math.random() * Math.PI * 2;
+
+        bCtx.save();
+        bCtx.translate(px, py);
+        bCtx.rotate(rot);
+        bCtx.globalAlpha = 0.25 + Math.random() * 0.2;
+
+        bCtx.shadowColor = 'rgba(0,0,0,0.6)';
+        bCtx.shadowBlur = 10;
+
+        // Dibujo de silueta de pieza suelta
+        bCtx.fillStyle = (i % 3 === 0) ? '#6366f1' : (i % 3 === 1 ? '#3b82f6' : '#10b981');
+        drawStandalonePiece(bCtx, 0, 0, size);
+        bCtx.fill();
+
+        bCtx.strokeStyle = 'rgba(255, 255, 255, 0.4)';
+        bCtx.lineWidth = 1.2;
+        bCtx.stroke();
+
+        bCtx.restore();
+      }
+    }
+
+    function drawStandalonePiece(ctxTarget, x, y, size) {
+      const s = size;
+      const tab = s * 0.28;
+      ctxTarget.beginPath();
+      ctxTarget.moveTo(x - s/2, y - s/2);
+      
+      // Borde superior con pestaña
+      ctxTarget.lineTo(x - s/6, y - s/2);
+      ctxTarget.bezierCurveTo(x - s/6, y - s/2 - tab, x + s/6, y - s/2 - tab, x + s/6, y - s/2);
+      ctxTarget.lineTo(x + s/2, y - s/2);
+
+      // Borde derecho
+      ctxTarget.lineTo(x + s/2, y - s/6);
+      ctxTarget.bezierCurveTo(x + s/2 + tab, x - s/6, x + s/2 + tab, x + s/6, x + s/2, y + s/6);
+      ctxTarget.lineTo(x + s/2, y + s/2);
+
+      // Borde inferior
+      ctxTarget.lineTo(x - s/2, y + s/2);
+
+      // Borde izquierdo
+      ctxTarget.lineTo(x - s/2, y - s/2);
+      ctxTarget.closePath();
+    }
+
+    window.addEventListener('load', renderMenuBackground);
+    window.addEventListener('resize', () => {
+      renderMenuBackground();
+      resizeCanvas();
+    });
+
+    function startGame() {
+      currentTheme = document.getElementById('sel-theme').value;
+      currentLevel = (gameMode === 'free') ? parseInt(selLevel.value) : 1;
+      totalCompTime = 0;
+
+      document.getElementById('screen-menu').classList.remove('active');
+      document.getElementById('screen-game').classList.add('active');
+      initLevel();
+    }
+
+    function exitToMenu() {
+      clearInterval(timerInterval);
+      document.getElementById('screen-game').classList.remove('active');
+      document.getElementById('screen-menu').classList.add('active');
+      renderMenuBackground();
+    }
+
+    function resizeCanvas() {
+      canvas.width = canvas.parentElement.clientWidth;
+      canvas.height = canvas.parentElement.clientHeight;
+      if (pieces.length > 0) updateLayout();
+    }
+
+    function updateLayout() {
+      const margin = 35;
+      const availableW = canvas.width * 0.58;
+      const availableH = canvas.height - margin * 2;
+      let bw = availableW, bh = bw / (4/3);
+
+      if (bh > availableH) { bh = availableH; bw = bh * (4/3); }
+
+      boardBounds = { x: margin, y: (canvas.height - bh) / 2, width: bw, height: bh };
+      pieceWidth = boardBounds.width / cols;
+      pieceHeight = boardBounds.height / rows;
+    }
+
+    function loadPhoto(theme, levelIndex, callback) {
+      const loader = document.getElementById('loader-overlay');
+      loader.style.display = 'flex';
+
+      const photoId = PHOTO_DATABASE[theme][(levelIndex - 1) % 30];
+      const imgUrl = `https://images.unsplash.com/photo-${photoId}?auto=format&fit=crop&w=1200&h=900&q=80`;
+
+      const img = new Image();
+      img.crossOrigin = 'anonymous';
+      img.onload = () => {
+        imgCanvas.width = 1200;
+        imgCanvas.height = 900;
+        imgCtx.drawImage(img, 0, 0, 1200, 900);
+        loader.style.display = 'none';
+        callback();
+      };
+      img.onerror = () => {
+        imgCanvas.width = 1200; imgCanvas.height = 900;
+        imgCtx.fillStyle = '#1e1b4b'; imgCtx.fillRect(0,0,1200,900);
+        imgCtx.fillStyle = '#818cf8'; imgCtx.font = '30px sans-serif';
+        imgCtx.fillText('Zen Puzzle Photo ' + levelIndex, 450, 450);
+        loader.style.display = 'none';
+        callback();
+      };
+      img.src = imgUrl;
+    }
+
+    function initLevel() {
+      resizeCanvas();
+      document.getElementById('hud-level').innerText = `Nivel ${currentLevel} (${getPieceCount(currentLevel)} pzs)`;
+
+      const grid = calculateGrid(getPieceCount(currentLevel));
+      cols = grid.cols; rows = grid.rows;
+      updateLayout();
+
+      loadPhoto(currentTheme, currentLevel, () => {
+        prevCanvas.width = imgCanvas.width;
+        prevCanvas.height = imgCanvas.height;
+        prevCtx.drawImage(imgCanvas, 0, 0);
+
+        hEdges = Array.from({ length: rows }, () => Array(cols - 1).fill(0).map(() => Math.random() < 0.5 ? 1 : -1));
+        vEdges = Array.from({ length: rows - 1 }, () => Array(cols).fill(0).map(() => Math.random() < 0.5 ? 1 : -1));
+
+        pieces = [];
+        const trayX = boardBounds.x + boardBounds.width + 35;
+        const trayW = canvas.width - trayX - 35;
+
+        for (let r = 0; r < rows; r++) {
+          for (let c = 0; c < cols; c++) {
+            const isBorder = (r === 0 || r === rows - 1 || c === 0 || c === cols - 1);
+            pieces.push({
+              r, c, isBorder,
+              x: trayX + Math.random() * Math.max(20, trayW - pieceWidth),
+              y: 35 + Math.random() * (canvas.height - 90 - pieceHeight),
+              targetX: boardBounds.x + c * pieceWidth,
+              targetY: boardBounds.y + r * pieceHeight,
+              isLocked: false
+            });
+          }
+        }
+
+        startTimer();
+        render();
+      });
+    }
+
+    function startTimer() {
+      clearInterval(timerInterval);
+      levelTimer = 0;
+      updateTimerDisplay();
+      timerInterval = setInterval(() => {
+        levelTimer++;
+        totalCompTime++;
+        updateTimerDisplay();
+      }, 1000);
+    }
+
+    function updateTimerDisplay() {
+      const show = (gameMode === 'competitive') ? totalCompTime : levelTimer;
+      const m = String(Math.floor(show / 60)).padStart(2, '0');
+      const s = String(show % 60).padStart(2, '0');
+      document.getElementById('hud-timer').innerText = `${m}:${s}`;
+    }
+
+    function drawPiecePath(cTarget, p, x, y, pw, ph) {
+      const tab = Math.min(pw, ph) * 0.22;
+      cTarget.beginPath(); cTarget.moveTo(x, y);
+
+      if (p.r === 0) cTarget.lineTo(x + pw, y);
+      else drawTab(cTarget, x, y, x + pw, y, vEdges[p.r - 1][p.c], tab);
+
+      if (p.c === cols - 1) cTarget.lineTo(x + pw, y + ph);
+      else drawTab(cTarget, x + pw, y, x + pw, y + ph, hEdges[p.r][p.c], tab);
+
+      if (p.r === rows - 1) cTarget.lineTo(x, y + ph);
+      else drawTab(cTarget, x + pw, y + ph, x, y + ph, -vEdges[p.r][p.c], tab);
+
+      if (p.c === 0) cTarget.lineTo(x, y);
+      else drawTab(cTarget, x, y + ph, x, y, -hEdges[p.r][p.c - 1], tab);
+
+      cTarget.closePath();
+    }
+
+    function drawTab(cTarget, x1, y1, x2, y2, dir, size) {
+      const dx = x2 - x1, dy = y2 - y1, len = Math.hypot(dx, dy);
+      const ux = dx / len, uy = dy / len, nx = -uy * dir, ny = ux * dir;
+
+      const p1x = x1 + ux * len * 0.35, p1y = y1 + uy * len * 0.35;
+      const p2x = x1 + ux * len * 0.65, p2y = y1 + uy * len * 0.65;
+
+      cTarget.lineTo(p1x, p1y);
+      cTarget.bezierCurveTo(p1x + nx*size*0.2, p1y + ny*size*0.2, p1x + nx*size + ux*len*0.05, p1y + ny*size + uy*len*0.05, (p1x+p2x)/2 + nx*size, (p1y+p2y)/2 + ny*size);
+      cTarget.bezierCurveTo(p2x + nx*size - ux*len*0.05, p2y + ny*size - uy*len*0.05, p2x + nx*size*0.2, p2y + ny*size*0.2, p2x, p2y);
+      cTarget.lineTo(x2, y2);
+    }
+
+    function render() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      // Marco Tablero
+      ctx.fillStyle = '#0f111a'; ctx.fillRect(boardBounds.x, boardBounds.y, boardBounds.width, boardBounds.height);
+      ctx.strokeStyle = 'rgba(255,255,255,0.08)'; ctx.lineWidth = 1.5; ctx.strokeRect(boardBounds.x, boardBounds.y, boardBounds.width, boardBounds.height);
+
+      // Guía translúcida
+      ctx.globalAlpha = 0.12;
+      ctx.drawImage(imgCanvas, boardBounds.x, boardBounds.y, boardBounds.width, boardBounds.height);
+      ctx.globalAlpha = 1.0;
+
+      pieces.forEach(p => {
+        if (!p.isLocked) {
+          if (filterMode === 'border' && !p.isBorder) return;
+          if (filterMode === 'inner' && p.isBorder) return;
+        }
+
+        ctx.save();
+        drawPiecePath(ctx, p, p.x, p.y, pieceWidth, pieceHeight);
+        ctx.clip();
+
+        const srcX = (p.c / cols) * imgCanvas.width, srcY = (p.r / rows) * imgCanvas.height;
+        const srcW = imgCanvas.width / cols, srcH = imgCanvas.height / rows;
+        const padW = pieceWidth * 0.3, padH = pieceHeight * 0.3;
+
+        ctx.drawImage(imgCanvas, srcX - srcW*0.3, srcY - srcH*0.3, srcW*1.6, srcH*1.6, p.x - padW, p.y - padH, pieceWidth + padW*2, pieceHeight + padH*2);
+        ctx.restore();
+
+        ctx.save();
+        drawPiecePath(ctx, p, p.x, p.y, pieceWidth, pieceHeight);
+        ctx.strokeStyle = p.isLocked ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.6)';
+        ctx.lineWidth = p.isLocked ? 1 : 1.5;
+        ctx.stroke();
+        ctx.restore();
+      });
+    }
+
+    // ARRASTRE
+    function getPos(e) {
+      const rect = canvas.getBoundingClientRect();
+      const cx = e.touches ? e.touches[0].clientX : e.clientX;
+      const cy = e.touches ? e.touches[0].clientY : e.clientY;
+      return { x: cx - rect.left, y: cy - rect.top };
+    }
+
+    function onDown(e) {
+      const pos = getPos(e);
+      for (let i = pieces.length - 1; i >= 0; i--) {
+        const p = pieces[i];
+        if (p.isLocked) continue;
+        if (filterMode === 'border' && !p.isBorder) continue;
+        if (filterMode === 'inner' && p.isBorder) continue;
+
+        if (pos.x >= p.x && pos.x <= p.x + pieceWidth && pos.y >= p.y && pos.y <= p.y + pieceHeight) {
+          draggedPiece = p;
+          dragOffset = { x: pos.x - p.x, y: pos.y - p.y };
+          pieces.splice(i, 1); pieces.push(p);
+          break;
+        }
+      }
+    }
+
+    function onMove(e) {
+      if (!draggedPiece) return;
+      const pos = getPos(e);
+      draggedPiece.x = pos.x - dragOffset.x;
+      draggedPiece.y = pos.y - dragOffset.y;
+      render();
+    }
+
+    function onUp() {
+      if (!draggedPiece) return;
+      const dist = Math.hypot(draggedPiece.x - draggedPiece.targetX, draggedPiece.y - draggedPiece.targetY);
+      if (dist < Math.min(pieceWidth, pieceHeight) * 0.4) {
+        draggedPiece.x = draggedPiece.targetX;
+        draggedPiece.y = draggedPiece.targetY;
+        draggedPiece.isLocked = true;
+        checkWin();
+      }
+      draggedPiece = null;
+      render();
+    }
+
+    canvas.addEventListener('mousedown', onDown);
+    canvas.addEventListener('mousemove', onMove);
+    window.addEventListener('mouseup', onUp);
+    canvas.addEventListener('touchstart', onDown, { passive: true });
+    canvas.addEventListener('touchmove', onMove, { passive: true });
+    window.addEventListener('touchend', onUp);
+
+    function setFilter(mode) {
+      filterMode = mode;
+      document.getElementById('btn-f-all').className = 'btn-sm' + (mode === 'all' ? ' active' : '');
+      document.getElementById('btn-f-border').className = 'btn-sm' + (mode === 'border' ? ' active' : '');
+      document.getElementById('btn-f-inner').className = 'btn-sm' + (mode === 'inner' ? ' active' : '');
+      render();
+    }
+
+    function togglePreview() {
+      const modal = document.getElementById('preview-modal');
+      modal.style.display = (modal.style.display === 'flex') ? 'none' : 'flex';
+    }
+
+    function checkWin() {
+      if (pieces.every(p => p.isLocked)) {
+        clearInterval(timerInterval);
+        completedLevels++;
+        window.parent.postMessage({ type: 'steamnt:achievement-progress', evento: 'nivel_alcanzado', valor: currentLevel }, '*');
+        window.parent.postMessage({ type: 'steamnt:achievement-progress', evento: 'victorias', valor: completedLevels }, '*');
+        window.parent.postMessage({ type: 'steamnt:achievement-progress', evento: 'partidas-ganadas', valor: completedLevels }, '*');
+
+        const target3 = pieces.length * 2.8;
+        const target2 = pieces.length * 5.0;
+
+        let stars = '⭐';
+        if (levelTimer <= target3) stars = '⭐⭐⭐';
+        else if (levelTimer <= target2) stars = '⭐⭐';
+
+        document.getElementById('win-stars').innerText = stars;
+        document.getElementById('win-time').innerText = `Tiempo de resolución: ${levelTimer}s`;
+        document.getElementById('win-detail').innerText = (gameMode === 'competitive') 
+          ? `Tiempo total acumulado: ${totalCompTime}s` 
+          : `Nivel ${currentLevel} completado con éxito.`;
+
+        document.getElementById('modal-success').style.display = 'flex';
+      }
+    }
+
+    function nextLevel() {
+      document.getElementById('modal-success').style.display = 'none';
+      if (gameMode === 'competitive' && currentLevel < 30) {
+        currentLevel++;
+        initLevel();
+      } else {
+        exitToMenu();
+      }
+    }
+  </script>
+</body>
+</html>

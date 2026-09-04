@@ -13,12 +13,17 @@ import {
   actualizarJuegoAdmin,
   actualizarUsuarioAdmin,
   ApiError,
+  crearLogroAdmin,
   eliminarJuegoAdmin,
   eliminarUsuarioAdmin,
   formatPrecio,
   listarJuegos,
   listarUsuarios,
+  logrosDeJuego,
+  subirArchivoJuegoAdmin,
 } from "@/lib/api";
+import { leerImagen, leerImagenes } from "@/lib/imagen";
+import { METRICAS_LOGRO, type MetricaLogro } from "@/lib/logros";
 import { useSesion } from "@/lib/sesion";
 import type { Genero, Juego, Usuario } from "@/lib/types";
 
@@ -37,6 +42,7 @@ const GENEROS: Genero[] = [
   "Terror",
   "Simulación",
 ];
+const MAX_IMAGENES_GALERIA = 12;
 
 function Administracion() {
   const { usuario, esSuperAdmin, tokenAcceso } = useSesion();
@@ -87,7 +93,20 @@ function PanelAdministracion({
   const [precio, setPrecio] = useState("0");
   const [genero, setGenero] = useState<Genero>("Indie");
   const [resumen, setResumen] = useState("");
+  const [portada, setPortada] = useState("");
+  const [galeria, setGaleria] = useState<string[]>([]);
+  const [archivo, setArchivo] = useState<File | null>(null);
+  const [nombreLogro, setNombreLogro] = useState("");
+  const [descripcionLogro, setDescripcionLogro] = useState("");
+  const [metricaLogro, setMetricaLogro] = useState<MetricaLogro>("puntaje");
+  const [objetivoLogro, setObjetivoLogro] = useState("1");
+  const [puntosLogro, setPuntosLogro] = useState("10");
   const [procesando, setProcesando] = useState(false);
+  const { data: logrosJuego = [] } = useQuery({
+    queryKey: ["logros-juego", juegoEditando?.id],
+    queryFn: () => logrosDeJuego(juegoEditando!.id),
+    enabled: Boolean(juegoEditando),
+  });
 
   const abrirUsuario = (usuario: Usuario) => {
     setUsuarioEditando(usuario);
@@ -105,6 +124,42 @@ function PanelAdministracion({
     setPrecio(String(juego.precio));
     setGenero(juego.genero);
     setResumen(juego.resumen ?? juego.descripcion);
+    setPortada("");
+    setGaleria(juego.galeria ?? []);
+    setArchivo(null);
+    setNombreLogro("");
+    setDescripcionLogro("");
+    setMetricaLogro("puntaje");
+    setObjetivoLogro("1");
+    setPuntosLogro("10");
+  };
+
+  const cargarPortada = async (file: File | undefined) => {
+    if (!file) return;
+    try {
+      setPortada(await leerImagen(file));
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "No se pudo cargar la portada.");
+    }
+  };
+
+  const agregarGaleria = async (files: FileList | null) => {
+    if (!files?.length) return;
+    try {
+      const nuevas = await leerImagenes(Array.from(files));
+      const unicas = nuevas.filter((imagen) => !galeria.includes(imagen));
+      const disponibles = MAX_IMAGENES_GALERIA - galeria.length;
+      if (disponibles <= 0) {
+        toast.error(`La galería admite hasta ${MAX_IMAGENES_GALERIA} imágenes.`);
+        return;
+      }
+      setGaleria([...galeria, ...unicas.slice(0, disponibles)]);
+      if (unicas.length > disponibles) {
+        toast.warning(`Se agregaron las primeras ${disponibles} imágenes disponibles.`);
+      }
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "No se pudieron cargar las imágenes.");
+    }
   };
 
   const guardarUsuario = async () => {
@@ -158,7 +213,12 @@ function PanelAdministracion({
         genero,
         descripcion: resumen,
         resumen,
+        ...(portada ? { imagen: portada } : {}),
+        galeria,
       });
+      if (archivo) {
+        await subirArchivoJuegoAdmin(token, juegoEditando.id, archivo);
+      }
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ["juegos-admin"] }),
         queryClient.invalidateQueries({ queryKey: ["juegos"] }),
@@ -168,6 +228,34 @@ function PanelAdministracion({
       toast.success("Juego actualizado");
     } catch (error) {
       toast.error(error instanceof ApiError ? error.message : "No se pudo actualizar el juego.");
+    } finally {
+      setProcesando(false);
+    }
+  };
+
+  const agregarLogro = async () => {
+    if (!juegoEditando) return;
+    setProcesando(true);
+    try {
+      await crearLogroAdmin(
+        token,
+        juegoEditando.id,
+        nombreLogro,
+        descripcionLogro,
+        Number(puntosLogro),
+        metricaLogro,
+        Number(objetivoLogro),
+      );
+      await queryClient.invalidateQueries({
+        queryKey: ["logros-juego", juegoEditando.id],
+      });
+      setNombreLogro("");
+      setDescripcionLogro("");
+      setObjetivoLogro("1");
+      setPuntosLogro("10");
+      toast.success("Logro agregado");
+    } catch (error) {
+      toast.error(error instanceof ApiError ? error.message : "No se pudo agregar el logro.");
     } finally {
       setProcesando(false);
     }
@@ -287,6 +375,139 @@ function PanelAdministracion({
               <Input value={resumen} onChange={(e) => setResumen(e.target.value)} />
             </Campo>
           </div>
+          <div className="mt-5 grid gap-4 sm:grid-cols-2">
+            <Campo etiqueta="Nueva portada (opcional)">
+              <Input
+                type="file"
+                accept="image/*"
+                className="cursor-pointer"
+                onChange={(event) => void cargarPortada(event.currentTarget.files?.[0])}
+              />
+              <p className="text-xs text-muted-foreground">
+                Reemplaza únicamente la imagen principal del juego.
+              </p>
+            </Campo>
+            <Campo etiqueta="Galería del juego (hasta 12 imágenes)">
+              <Input
+                type="file"
+                accept="image/*"
+                multiple
+                className="cursor-pointer"
+                onChange={(event) => {
+                  const input = event.currentTarget;
+                  void agregarGaleria(input.files).finally(() => {
+                    input.value = "";
+                  });
+                }}
+              />
+              <p className="text-xs text-muted-foreground">
+                Seleccioná varias juntas o repetí la selección para agregar más. Son independientes
+                de la portada.
+              </p>
+            </Campo>
+          </div>
+          <img
+            src={portada || juegoEditando.imagen}
+            alt={`Portada de ${juegoEditando.titulo}`}
+            className="mt-3 h-32 w-56 rounded-md border border-border object-cover"
+          />
+          <GaleriaAdmin
+            imagenes={galeria}
+            alQuitar={(indice) => setGaleria((actuales) => actuales.filter((_, i) => i !== indice))}
+          />
+          <div className="mt-5">
+            <Campo etiqueta="Subir o reemplazar archivo jugable">
+              <Input
+                type="file"
+                accept=".html,.htm,.zip,text/html,application/zip"
+                className="cursor-pointer"
+                onChange={(event) => setArchivo(event.currentTarget.files?.[0] ?? null)}
+              />
+              <p className="text-xs text-muted-foreground">
+                {archivo
+                  ? `Nuevo archivo: ${archivo.name}`
+                  : `Actual: ${juegoEditando.archivo_nombre ?? "sin archivo subido"}`}
+              </p>
+            </Campo>
+          </div>
+
+          <div className="mt-6 border-t border-border pt-5">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <div>
+                <h3 className="font-semibold">Logros del juego</h3>
+                <p className="text-xs text-muted-foreground">
+                  El administrador puede agregar logros igual que el desarrollador.
+                </p>
+              </div>
+              <Badge variant="secondary">{logrosJuego.length}</Badge>
+            </div>
+            {logrosJuego.length > 0 && (
+              <div className="mt-3 flex flex-wrap gap-2">
+                {logrosJuego.map((logro) => (
+                  <Badge key={logro.id} variant="outline">
+                    {logro.nombre} · {logro.puntos} pts
+                  </Badge>
+                ))}
+              </div>
+            )}
+            <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
+              <Campo etiqueta="Nombre visible">
+                <Input
+                  value={nombreLogro}
+                  onChange={(event) => setNombreLogro(event.target.value)}
+                  placeholder="Ej: Primeros pasos"
+                />
+              </Campo>
+              <Campo etiqueta="Descripción">
+                <Input
+                  value={descripcionLogro}
+                  onChange={(event) => setDescripcionLogro(event.target.value)}
+                  placeholder="Ej: Alcanzá 10 puntos"
+                />
+              </Campo>
+              <Campo etiqueta="Métrica">
+                <select
+                  value={metricaLogro}
+                  onChange={(event) => setMetricaLogro(event.target.value as MetricaLogro)}
+                  className="h-9 w-full rounded-md border border-input bg-sidebar px-3 text-sm"
+                >
+                  {METRICAS_LOGRO.map((metrica) => (
+                    <option key={metrica.valor} value={metrica.valor}>
+                      {metrica.etiqueta}
+                    </option>
+                  ))}
+                </select>
+              </Campo>
+              <Campo etiqueta="Objetivo requerido">
+                <Input
+                  type="number"
+                  min="0.01"
+                  step="any"
+                  value={objetivoLogro}
+                  onChange={(event) => setObjetivoLogro(event.target.value)}
+                />
+              </Campo>
+              <Campo etiqueta="Puntos">
+                <Input
+                  type="number"
+                  min="1"
+                  max="100"
+                  value={puntosLogro}
+                  onChange={(event) => setPuntosLogro(event.target.value)}
+                />
+              </Campo>
+            </div>
+            <Button
+              type="button"
+              size="sm"
+              variant="secondary"
+              className="mt-3"
+              disabled={procesando}
+              onClick={agregarLogro}
+            >
+              Agregar logro
+            </Button>
+          </div>
           <div className="mt-4 flex gap-2">
             <Button onClick={guardarJuego} disabled={procesando}>
               Guardar juego
@@ -390,6 +611,46 @@ function PanelAdministracion({
           </div>
         </section>
       </div>
+    </div>
+  );
+}
+
+function GaleriaAdmin({
+  imagenes,
+  alQuitar,
+}: {
+  imagenes: string[];
+  alQuitar: (indice: number) => void;
+}) {
+  return (
+    <div className="mt-4">
+      <p className="mb-2 text-xs font-medium">
+        Imágenes de la galería: {imagenes.length}/{MAX_IMAGENES_GALERIA}
+      </p>
+      {imagenes.length ? (
+        <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 lg:grid-cols-6">
+          {imagenes.map((imagen, indice) => (
+            <div key={`${imagen.slice(-32)}-${indice}`} className="relative">
+              <img
+                src={imagen}
+                alt={`Imagen ${indice + 1} de la galería`}
+                className="aspect-video w-full rounded-md border border-border object-cover"
+              />
+              <Button
+                type="button"
+                size="sm"
+                variant="destructive"
+                className="absolute right-1 top-1 h-6 px-2 text-xs"
+                onClick={() => alQuitar(indice)}
+              >
+                Quitar
+              </Button>
+            </div>
+          ))}
+        </div>
+      ) : (
+        <p className="text-xs text-muted-foreground">Todavía no hay imágenes adicionales.</p>
+      )}
     </div>
   );
 }

@@ -234,6 +234,10 @@
 
 <script>
 (function() {
+  function reportSteamNT(evento, valor) {
+    window.parent.postMessage({ type: 'steamnt:achievement-progress', evento, valor }, '*');
+  }
+
   const SIZE = 4;
   let grid = [];
   let score = 0;
@@ -396,6 +400,8 @@
             score += tile.value * 2;
             if (tile.value * 2 === 2048 && !won) {
               won = true;
+              reportSteamNT('victorias', 1);
+              reportSteamNT('partidas-ganadas', 1);
             }
           } else {
             grid[newR][newC] = tile;
@@ -407,6 +413,7 @@
 
     if (moved) {
       scoreEl.textContent = score;
+      reportSteamNT('puntaje', score);
       if (score > best) {
         best = score;
         bestEl.textContent = best;

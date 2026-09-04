@@ -231,8 +231,14 @@ const groundY = 380;
 const sling = { x: 140, y: 300 };
 const speedMultiplier = 0.32;
 
+function reportSteamNT(evento, valor) {
+    window.parent.postMessage({ type: 'steamnt:achievement-progress', evento, valor }, '*');
+}
+
 let currentLevelIdx = 0;
 let score = 0;
+let defeatedPigs = 0;
+let completedLevels = 0;
 let levelStars = JSON.parse(localStorage.getItem('ab_stars')) || Array(10).fill(0);
 
 // Definición de los 10 Niveles
@@ -611,6 +617,7 @@ function updatePhysics() {
                 
                 b.hp -= 0.5;
                 score += 150;
+                reportSteamNT('puntaje', score);
             }
         });
 
@@ -623,6 +630,7 @@ function updatePhysics() {
                 p.vy += currentBird.vy * 0.6;
                 p.hp--;
                 score += 800;
+                reportSteamNT('puntaje', score);
             }
         });
 
@@ -671,6 +679,7 @@ function updatePhysics() {
         if (b.hp <= 0) {
             activeBlocks.splice(i, 1);
             score += 200;
+            reportSteamNT('puntaje', score);
         }
     }
 
@@ -721,6 +730,9 @@ function updatePhysics() {
         if (p.hp <= 0) {
             activePigs.splice(i, 1);
             score += 1000;
+            reportSteamNT('puntaje', score);
+            defeatedPigs++;
+            reportSteamNT('enemigos_derrotados', defeatedPigs);
         }
     }
 
@@ -753,6 +765,11 @@ function checkEndGame(won) {
     modal.classList.remove('hidden');
 
     if (won) {
+        completedLevels++;
+        reportSteamNT('puntaje', score);
+        reportSteamNT('nivel_alcanzado', currentLevelIdx + 1);
+        reportSteamNT('victorias', completedLevels);
+        reportSteamNT('partidas-ganadas', completedLevels);
         playSfx('win');
         title.innerText = "¡NIVEL COMPLETADO!";
         
