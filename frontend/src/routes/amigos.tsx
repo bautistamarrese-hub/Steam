@@ -1,11 +1,23 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { toast } from "sonner";
 import { useQueries, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Award, Check, Clock, Gamepad2, Trophy, UserMinus, UserPlus, X } from "lucide-react";
+import { useState } from "react";
+import {
+  Award,
+  Check,
+  Clock,
+  Gamepad2,
+  Search,
+  Trophy,
+  UserMinus,
+  UserPlus,
+  X,
+} from "lucide-react";
 import { AvatarGamer } from "@/components/AvatarGamer";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
 import {
   aceptarSolicitud,
   amigosDe,
@@ -35,6 +47,11 @@ export const Route = createFileRoute("/amigos")({
 function Amigos() {
   const { usuario: yo, esSuperAdmin, abrirAcceso, refrescar } = useSesion();
   const queryClient = useQueryClient();
+  const [busquedaUsuario, setBusquedaUsuario] = useState("");
+  const [filtroRol, setFiltroRol] = useState<"todos" | "cliente" | "admin">("todos");
+  const [ordenUsuarios, setOrdenUsuarios] = useState<
+    "recientes" | "antiguos" | "mas-juegos" | "menos-juegos"
+  >("recientes");
   // GET /usuarios/{id}/amigos
   const { data: amigos = [] } = useQuery({
     queryKey: ["amigos", yo?.id],
@@ -64,6 +81,32 @@ function Amigos() {
       queryFn: () => estadisticas(usuario.id),
     })),
   });
+  const estadisticasPorUsuario = new Map(
+    otros.map((usuario, index) => [usuario.id, estadisticasUsuarios[index]?.data]),
+  );
+  const terminoBusqueda = busquedaUsuario.trim().toLocaleLowerCase("es");
+  const usuariosVisibles = otros
+    .filter(
+      (usuario) =>
+        `${usuario.nickname} ${usuario.email}`
+          .toLocaleLowerCase("es")
+          .includes(terminoBusqueda) && (filtroRol === "todos" || usuario.rol === filtroRol),
+    )
+    .sort((a, b) => {
+      if (ordenUsuarios === "mas-juegos")
+        return (
+          (estadisticasPorUsuario.get(b.id)?.cantidad_juegos ?? 0) -
+          (estadisticasPorUsuario.get(a.id)?.cantidad_juegos ?? 0)
+        );
+      if (ordenUsuarios === "menos-juegos")
+        return (
+          (estadisticasPorUsuario.get(a.id)?.cantidad_juegos ?? 0) -
+          (estadisticasPorUsuario.get(b.id)?.cantidad_juegos ?? 0)
+        );
+      const diferencia =
+        new Date(b.fecha_registro).getTime() - new Date(a.fecha_registro).getTime();
+      return ordenUsuarios === "recientes" ? diferencia : -diferencia;
+    });
   const amigosIds = new Set(amigos.map((amigo) => amigo.id));
 
   if (esSuperAdmin) {
@@ -144,13 +187,54 @@ function Amigos() {
         </Card>
       )}
 
+      <Card className="mt-8 gap-3 p-4">
+        <div className="flex items-center justify-between gap-3">
+          <h2 className="font-semibold">Buscar personas</h2>
+          <Badge variant="secondary">
+            {usuariosVisibles.length} de {otros.length}
+          </Badge>
+        </div>
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+          <Input
+            className="pl-9"
+            placeholder="Buscar nombre o email..."
+            value={busquedaUsuario}
+            onChange={(event) => setBusquedaUsuario(event.target.value)}
+          />
+        </div>
+        <div className="grid gap-3 sm:grid-cols-2">
+          <select
+            aria-label="Filtrar personas por tipo de cuenta"
+            value={filtroRol}
+            onChange={(event) => setFiltroRol(event.target.value as typeof filtroRol)}
+            className="h-9 rounded-md border border-input bg-sidebar px-3 text-sm"
+          >
+            <option value="todos">Todos los tipos</option>
+            <option value="cliente">Jugadores normales</option>
+            <option value="admin">Desarrolladores</option>
+          </select>
+          <select
+            aria-label="Ordenar personas"
+            value={ordenUsuarios}
+            onChange={(event) => setOrdenUsuarios(event.target.value as typeof ordenUsuarios)}
+            className="h-9 rounded-md border border-input bg-sidebar px-3 text-sm"
+          >
+            <option value="recientes">Menos tiempo en la aplicación</option>
+            <option value="antiguos">Más tiempo en la aplicación</option>
+            <option value="mas-juegos">Más juegos</option>
+            <option value="menos-juegos">Menos juegos</option>
+          </select>
+        </div>
+      </Card>
+
       <div className="mt-8 grid gap-3 sm:grid-cols-2">
-        {otros.map((u, index) => {
+        {usuariosVisibles.map((u) => {
           const amigo = amigosIds.has(u.id);
           const pendiente = enviadas.find((solicitud) => solicitud.para === u.id);
           const meEnvio = recibidas.find((solicitud) => solicitud.de === u.id);
           // GET /usuarios/{id}/estadisticas
-          const s = estadisticasUsuarios[index]?.data;
+          const s = estadisticasPorUsuario.get(u.id);
           return (
             <Card key={u.id} className="gap-3 p-4">
               <div className="flex items-center gap-3">
@@ -232,6 +316,11 @@ function Amigos() {
             </Card>
           );
         })}
+        {usuariosVisibles.length === 0 && (
+          <Card className="p-8 text-center text-sm text-muted-foreground sm:col-span-2">
+            No hay personas que coincidan con la búsqueda y los filtros seleccionados.
+          </Card>
+        )}
       </div>
     </div>
   );

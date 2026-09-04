@@ -53,7 +53,7 @@ const GENEROS: Array<Genero | "todos"> = [
 type RangoPrecio = "todos" | "gratis" | "menos-5000" | "5000-15000" | "mas-15000";
 
 function Tienda() {
-  const { usuario, abrirAcceso, refrescar } = useSesion();
+  const { usuario, esSuperAdmin, abrirAcceso, refrescar } = useSesion();
   const [q, setQ] = useState("");
   const [genero, setGenero] = useState<Genero | "todos">("todos");
   const [rangoPrecio, setRangoPrecio] = useState<RangoPrecio>("todos");
@@ -66,12 +66,12 @@ function Tienda() {
   const { data: comprados = [] } = useQuery({
     queryKey: ["biblioteca", usuario?.id],
     queryFn: () => biblioteca(usuario!.id),
-    enabled: Boolean(usuario),
+    enabled: Boolean(usuario && !esSuperAdmin),
   });
   const { data: deseados = [] } = useQuery({
     queryKey: ["wishlist", usuario?.id],
     queryFn: () => obtenerWishlist(usuario!.id),
-    enabled: Boolean(usuario),
+    enabled: Boolean(usuario && !esSuperAdmin),
   });
   const imagenesHero = Array.from(
     new Set([...juegos.map((juego) => juego.imagen), ...bancoImagenes.map((item) => item.imagen)]),
@@ -202,6 +202,7 @@ function Tienda() {
                 juego={juego}
                 wishlisted={deseado}
                 footer={
+                  esSuperAdmin ? undefined : (
                   <div className="flex gap-2">
                     <Button
                       size="sm"
@@ -234,6 +235,7 @@ function Tienda() {
                       Wishlist
                     </Button>
                   </div>
+                  )
                 }
               />
             );
