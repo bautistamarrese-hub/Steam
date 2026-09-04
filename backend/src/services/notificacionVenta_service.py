@@ -1,7 +1,11 @@
+from datetime import date, timedelta
+from typing import Literal
+
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from src.db.models.desarrolladorJuego_model import Juego
+from src.db.models.comprarJuego_model import Compra
 from src.db.models.notificacionVenta_model import NotificacionVenta
 from src.db.models.registroUsuario_model import Usuario
 
@@ -81,3 +85,83 @@ class NotificacionVentaService:
             raise ValueError("La notificaciÃ³n de venta no existe.")
         self.db.delete(notificacion)
         self.db.commit()
+
+    def resumen_ingresos(
+        self,
+        usuario: Usuario,
+        periodo: Literal["7d", "30d", "total"],
+    ) -> dict:
+        if usuario.desarrollador_id is None:
+            raise ValueError("La cuenta no pertenece a un desarrollador.")
+
+        ventas = (
+            self.db.query(Compra.fecha, Compra.precio_pagado)
+            .join(Juego, Juego.id == Compra.juego_id)
+            .filter(Juego.desarrollador_id == usuario.desarrollador_id)
+            .order_by(Compra.fecha.asc())
+            .all()
+        )
+        ganado_total = round(
+            sum(precio * self.PORCENTAJE_DESARROLLADOR for _, precio in ventas),
+            2,
+        )
+        gastado_total = round(
+            sum(
+                precio
+                for (precio,) in self.db.query(Compra.precio_pagado)
+                .filter(Compra.usuario_id == usuario.id)
+                .all()
+            ),
+            2,
+        )
+
+        ingresos_por_juego = [
+            {
+                "juego_id": juego_id,
+                "titulo": titulo,
+                "precio": precio,
+                "cantidad_ventas": cantidad_ventas,
+                "generado": round(float(total_vendido or 0) * self.PORCENTAJE_DESARROLLADOR, 2),
+            }
+            for juego_id, titulo, precio, cantidad_ventas, total_vendido in (
+                self.db.query(
+                    Juego.id,
+                    Juego.titulo,
+                    Juego.precio,
+                    func.count(Compra.id),
+                    func.coalesce(func.sum(Compra.precio_pagado), 0.0),
+                )
+                .outerjoin(Compra, Compra.juego_id == Juego.id)
+                .filter(Juego.desarrollador_id == usuario.desarrollador_id)
+                .group_by(Juego.id, Juego.titulo, Juego.precio)
+                .order_by(func.coalesce(func.sum(Compra.precio_pagado), 0.0).desc(), Juego.titulo)
+                .all()
+            )
+        ]
+
+        por_dia: dict[date, float] = {}
+        for fecha, precio in ventas:
+            dia = fecha.date()
+            por_dia[dia] = round(
+                por_dia.get(dia, 0.0) + precio * self.PORCENTAJE_DESARROLLADOR,
+                2,
+            )
+
+        hoy = date.today()
+        if periodo == "7d":
+            dias = [hoy - timedelta(days=offset) for offset in range(6, -1, -1)]
+        elif periodo == "30d":
+            dias = [hoy - timedelta(days=offset) for offset in range(29, -1, -1)]
+        else:
+            dias = sorted(por_dia) or [hoy]
+
+        serie = [{"fecha": dia, "monto": por_dia.get(dia, 0.0)} for dia in dias]
+        return {
+            "periodo": periodo,
+            "ganado_total": ganado_total,
+            "gastado_total": gastado_total,
+            "balance": round(ganado_total - gastado_total, 2),
+            "ingreso_periodo": round(sum(punto["monto"] for punto in serie), 2),
+            "serie": serie,
+            "juegos": ingresos_por_juego,
+        }

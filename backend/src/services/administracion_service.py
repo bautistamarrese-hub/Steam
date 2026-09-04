@@ -64,6 +64,30 @@ class AdministracionService:
         self.db.refresh(usuario)
         return usuario
 
+    def listar_usuarios(self) -> list[dict]:
+        filas = (
+            self.db.query(Usuario, func.count(Compra.id))
+            .outerjoin(Compra, Compra.usuario_id == Usuario.id)
+            .filter(Usuario.rol != "superadmin")
+            .group_by(Usuario.id)
+            .order_by(Usuario.fecha_registro.desc())
+            .all()
+        )
+        return [
+            {
+                "id": usuario.id,
+                "email": usuario.email,
+                "nickname": usuario.nickname,
+                "saldo": usuario.saldo,
+                "fecha_registro": usuario.fecha_registro,
+                "rol": usuario.rol,
+                "desarrollador_id": usuario.desarrollador_id,
+                "avatar": usuario.avatar,
+                "cantidad_juegos_comprados": cantidad,
+            }
+            for usuario, cantidad in filas
+        ]
+
     def eliminar_usuario(self, usuario_id: int) -> None:
         usuario = self._obtener_usuario_editable(usuario_id)
         desarrollador_id = usuario.desarrollador_id

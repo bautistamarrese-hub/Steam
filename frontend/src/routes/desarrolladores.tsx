@@ -1,5 +1,6 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute, Link } from "@tanstack/react-router";
+import { Pencil, Trash2 } from "lucide-react";
 import { useState, type Dispatch, type ReactNode, type SetStateAction } from "react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
@@ -236,6 +237,11 @@ function PanelDesarrollador() {
     setEPortada("");
     setECapturas(juego.galeria ?? []);
     setEArchivo(null);
+    window.requestAnimationFrame(() => {
+      document
+        .getElementById("edicion-juego-desarrollador")
+        ?.scrollIntoView({ behavior: "smooth", block: "start" });
+    });
   };
 
   const guardarEdicion = async () => {
@@ -305,8 +311,8 @@ function PanelDesarrollador() {
       <Card className="mt-6 p-6">
         <h2 className="text-lg font-semibold">Publicar un juego</h2>
         <p className="mt-1 text-sm text-muted-foreground">
-          El archivo es opcional. Si lo subís, debe ser un HTML o un ZIP con <code>index.html</code>
-          ; si no, se usa el minijuego de respaldo.
+          El archivo es opcional. Si lo subís, debe ser un único archivo <code>.html</code>; si no,
+          se usa el minijuego de respaldo.
         </p>
         <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
           <Campo etiqueta="Título">
@@ -387,14 +393,14 @@ function PanelDesarrollador() {
             key={`archivo-${formKey}`}
             id="archivo"
             type="file"
-            accept=".html,.htm,.zip,text/html,application/zip"
+            accept=".html,text/html"
             className="cursor-pointer"
             onChange={(event) => setArchivo(event.target.files?.[0] ?? null)}
           />
           <p className="text-xs text-muted-foreground">
             {archivo
               ? `Seleccionado: ${archivo.name} (${(archivo.size / 1024 / 1024).toFixed(2)} MB)`
-              : "Podés subir un .html o un .zip que incluya index.html."}
+              : "Podés subir un único archivo .html."}
           </p>
         </div>
 
@@ -440,14 +446,14 @@ function PanelDesarrollador() {
                 </Button>
               </div>
               <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
-                <Campo etiqueta="Nombre visible">
+                <CampoLogro etiqueta="Nombre visible">
                   <Input
                     placeholder="Ej: Primeros pasos"
                     value={logro.nombre}
                     onChange={(event) => actualizarLogro(indice, { nombre: event.target.value })}
                   />
-                </Campo>
-                <Campo etiqueta="Descripción para el jugador">
+                </CampoLogro>
+                <CampoLogro etiqueta="Descripción para el jugador">
                   <Input
                     placeholder="Ej: Alcanzá 10 puntos"
                     value={logro.descripcion}
@@ -455,8 +461,8 @@ function PanelDesarrollador() {
                       actualizarLogro(indice, { descripcion: event.target.value })
                     }
                   />
-                </Campo>
-                <Campo etiqueta="Métrica que informa el juego">
+                </CampoLogro>
+                <CampoLogro etiqueta="Métrica que informa el juego">
                   <select
                     value={logro.evento}
                     onChange={(event) =>
@@ -470,8 +476,8 @@ function PanelDesarrollador() {
                       </option>
                     ))}
                   </select>
-                </Campo>
-                <Campo etiqueta="Objetivo requerido">
+                </CampoLogro>
+                <CampoLogro etiqueta="Objetivo requerido">
                   <Input
                     type="number"
                     min="0.01"
@@ -480,8 +486,8 @@ function PanelDesarrollador() {
                     value={logro.objetivo}
                     onChange={(event) => actualizarLogro(indice, { objetivo: event.target.value })}
                   />
-                </Campo>
-                <Campo etiqueta="Puntos de recompensa">
+                </CampoLogro>
+                <CampoLogro etiqueta="Puntos de recompensa">
                   <Input
                     type="number"
                     min="1"
@@ -489,7 +495,7 @@ function PanelDesarrollador() {
                     value={logro.puntos}
                     onChange={(event) => actualizarLogro(indice, { puntos: event.target.value })}
                   />
-                </Campo>
+                </CampoLogro>
               </div>
             </div>
           ))}
@@ -501,20 +507,33 @@ function PanelDesarrollador() {
 
       <Card className="mt-8 p-6">
         <h2 className="text-lg font-semibold">Juegos de {dev.nombre}</h2>
-        <ul className="mt-4 divide-y divide-border">
+        <ul className="mt-4 space-y-3">
           {misJuegos.map((juego) => (
-            <li key={juego.id} className="flex items-center justify-between gap-3 py-2 text-sm">
-              <Link
-                to="/juegos/$juegoId"
-                params={{ juegoId: String(juego.id) }}
-                className="hover:text-primary"
-              >
-                {juego.titulo}
+            <li
+              key={juego.id}
+              className="grid items-center gap-4 rounded-lg border border-border bg-secondary/20 p-4 sm:grid-cols-[8rem_1fr_auto]"
+            >
+              <Link to="/juegos/$juegoId" params={{ juegoId: String(juego.id) }}>
+                <img
+                  src={juego.imagen}
+                  alt={`Portada de ${juego.titulo}`}
+                  className="aspect-video w-full rounded-md border border-border object-cover"
+                />
               </Link>
-              <div className="flex items-center gap-3">
-                <span className="text-accent">{formatPrecio(juego.precio)}</span>
+              <div className="min-w-0">
+                <Link
+                  to="/juegos/$juegoId"
+                  params={{ juegoId: String(juego.id) }}
+                  className="block truncate text-base font-semibold hover:text-primary"
+                >
+                  {juego.titulo}
+                </Link>
+                <p className="mt-1 text-sm text-muted-foreground">Categoría: {juego.genero}</p>
+                <p className="mt-1 font-semibold text-accent">{formatPrecio(juego.precio)}</p>
+              </div>
+              <div className="flex items-center gap-2 sm:justify-end">
                 <Button size="sm" variant="outline" onClick={() => abrirEdicion(juego)}>
-                  Modificar
+                  <Pencil className="h-4 w-4" /> Editar
                 </Button>
                 <Button
                   size="sm"
@@ -522,7 +541,8 @@ function PanelDesarrollador() {
                   disabled={eliminandoId === juego.id}
                   onClick={() => void borrar(juego)}
                 >
-                  {eliminandoId === juego.id ? "Borrando…" : "Borrar"}
+                  <Trash2 className="h-4 w-4" />
+                  {eliminandoId === juego.id ? "Eliminando…" : "Eliminar"}
                 </Button>
               </div>
             </li>
@@ -534,7 +554,7 @@ function PanelDesarrollador() {
       </Card>
 
       {editando && (
-        <Card className="mt-8 p-6">
+        <Card id="edicion-juego-desarrollador" className="mt-8 scroll-mt-24 p-6">
           <h2 className="text-lg font-semibold">Modificar «{editando.titulo}»</h2>
           <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
             <Campo etiqueta="Título">
@@ -605,7 +625,7 @@ function PanelDesarrollador() {
             <Input
               id="e-archivo"
               type="file"
-              accept=".html,.htm,.zip,text/html,application/zip"
+              accept=".html,text/html"
               className="cursor-pointer"
               onChange={(event) => setEArchivo(event.target.files?.[0] ?? null)}
             />
@@ -679,6 +699,15 @@ function Campo({ etiqueta, children }: { etiqueta: string; children: ReactNode }
   return (
     <div className="space-y-1">
       <Label>{etiqueta}</Label>
+      {children}
+    </div>
+  );
+}
+
+function CampoLogro({ etiqueta, children }: { etiqueta: string; children: ReactNode }) {
+  return (
+    <div className="flex min-w-0 flex-col">
+      <Label className="mb-1 flex min-h-10 items-end leading-tight">{etiqueta}</Label>
       {children}
     </div>
   );

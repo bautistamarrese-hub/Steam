@@ -2,12 +2,14 @@ import * as mock from "./mock-data";
 import type {
   Amistad,
   Compra,
+  DenunciaJuego,
   Desarrollador,
   EstadisticasUsuario,
   Genero,
   ItemBiblioteca,
   Juego,
   JuegoTop,
+  IngresosDesarrollador,
   Logro,
   LogroDesbloqueado,
   NotificacionVenta,
@@ -15,8 +17,10 @@ import type {
   Recarga,
   Resena,
   RolRegistro,
+  PeriodoIngresos,
   SolicitudAmistad,
   Usuario,
+  UsuarioAdministracion,
   WishlistItem,
 } from "./types";
 
@@ -271,6 +275,36 @@ export const eliminarUsuarioAdmin = (token: string, usuarioId: number): Promise<
     headers: autorizacion(token),
   });
 
+export const listarUsuariosAdmin = async (token: string): Promise<UsuarioAdministracion[]> =>
+  (
+    await request<Array<UsuarioApi & { cantidad_juegos_comprados: number }>>(
+      "/administracion/usuarios",
+      { headers: autorizacion(token) },
+    )
+  ).map((usuario) => ({
+    ...adaptarUsuario(usuario),
+    cantidad_juegos_comprados: usuario.cantidad_juegos_comprados,
+  }));
+
+export const listarDenunciasAdmin = (
+  token: string,
+  estado?: DenunciaJuego["estado"],
+): Promise<DenunciaJuego[]> =>
+  request(`/administracion/denuncias${query({ estado })}`, {
+    headers: autorizacion(token),
+  });
+
+export const resolverDenunciaAdmin = (
+  token: string,
+  denunciaId: number,
+  estado: "aceptada" | "rechazada",
+): Promise<DenunciaJuego> =>
+  request(`/administracion/denuncias/${denunciaId}`, {
+    method: "PUT",
+    headers: autorizacion(token),
+    body: JSON.stringify({ estado }),
+  });
+
 export const actualizarJuegoAdmin = async (
   token: string,
   juegoId: number,
@@ -434,15 +468,33 @@ export const MONTO_MAXIMO_RECARGA = 30000;
 export const soloDigitos = (value: string) => value.replace(/\D/g, "");
 export const tarjetaValida = (tarjeta: string) => soloDigitos(tarjeta).length === 16;
 export const cvvValido = (cvv: string) => soloDigitos(cvv).length === 3;
+export const titularTarjetaValido = (titular: string) =>
+  /^[\p{L}' -]+$/u.test(titular.trim()) && titular.trim().split(/\s+/).length >= 2;
+export const vencimientoTarjetaValido = (vencimiento: string) => {
+  const coincidencia = /^(0[1-9]|1[0-2])\/(\d{2})$/.exec(vencimiento.trim());
+  if (!coincidencia) return false;
+  const mes = Number(coincidencia[1]);
+  const anio = 2000 + Number(coincidencia[2]);
+  const ahora = new Date();
+  return (
+    anio > ahora.getFullYear() || (anio === ahora.getFullYear() && mes >= ahora.getMonth() + 1)
+  );
+};
 
 export async function recargarSaldo(
   usuarioId: number,
   monto: number,
   tarjeta: string,
   cvv: string,
+  titular: string,
+  vencimiento: string,
 ): Promise<Recarga> {
   if (!tarjetaValida(tarjeta)) throw new ApiError("La tarjeta debe tener 16 cifras.");
   if (!cvvValido(cvv)) throw new ApiError("El CVV debe tener 3 cifras.");
+  if (!titularTarjetaValido(titular))
+    throw new ApiError("IngresÃ¡ el nombre y apellido del titular de la tarjeta.");
+  if (!vencimientoTarjetaValido(vencimiento))
+    throw new ApiError("IngresÃ¡ una fecha de vencimiento vigente en formato MM/AA.");
   numeroFinito(monto, "El monto");
   if (monto < MONTO_MINIMO_RECARGA)
     throw new ApiError(`El monto mínimo de recarga es ${MONTO_MINIMO_RECARGA}.`);
@@ -450,7 +502,7 @@ export async function recargarSaldo(
     throw new ApiError(`El monto máximo de recarga es ${MONTO_MAXIMO_RECARGA}.`);
   return request(`/usuarios/${usuarioId}/recargar`, {
     method: "POST",
-    body: JSON.stringify({ monto }),
+    body: JSON.stringify({ monto, titular: titular.trim(), vencimiento: vencimiento.trim() }),
   });
 }
 
@@ -467,6 +519,21 @@ export const confirmarNotificacionVenta = (
   request(`/usuarios/${usuarioId}/notificaciones-ventas/${notificacionId}`, {
     method: "DELETE",
   });
+
+export const obtenerIngresosDesarrollador = (
+  usuarioId: number,
+  periodo: PeriodoIngresos,
+): Promise<IngresosDesarrollador> =>
+  request(`/usuarios/${usuarioId}/ingresos-desarrollador${query({ periodo })}`);
+
+export const denunciarJuego = (juegoId: number, motivo: string): Promise<DenunciaJuego> => {
+  const motivoLimpio = textoRequerido(motivo, "El motivo");
+  if (motivoLimpio.length < 10) throw new ApiError("El motivo debe tener al menos 10 caracteres.");
+  return request(`/juegos/${juegoId}/denuncias`, {
+    method: "POST",
+    body: JSON.stringify({ motivo: motivoLimpio }),
+  });
+};
 
 export const comprarJuego = (usuarioId: number, juegoId: number): Promise<Compra> =>
   request(`/usuarios/${usuarioId}/comprar/${juegoId}`, { method: "POST" });

@@ -1,7 +1,9 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useState } from "react";
 import { toast } from "sonner";
 import { JuegoCard } from "@/components/JuegoCard";
+import { SaldoInsuficienteDialog } from "@/components/SaldoInsuficienteDialog";
 import { AccesoRequerido } from "@/components/AccesoRequerido";
 import { Button } from "@/components/ui/button";
 import { ApiError, comprarJuego, obtenerWishlist, quitarDeWishlist } from "@/lib/api";
@@ -20,9 +22,19 @@ export const Route = createFileRoute("/wishlist")({
 });
 
 function Wishlist() {
-  const { usuario } = useSesion();
+  const { usuario, esSuperAdmin } = useSesion();
   if (!usuario) {
     return <AccesoRequerido detalle="Tenés que iniciar sesión para ver y modificar tu wishlist." />;
+  }
+  if (esSuperAdmin) {
+    return (
+      <div className="mx-auto max-w-2xl px-4 py-24 text-center">
+        <h1 className="text-2xl font-bold">Cuenta exclusivamente administrativa</h1>
+        <p className="mt-2 text-muted-foreground">
+          Esta cuenta no puede comprar juegos ni utilizar una wishlist.
+        </p>
+      </div>
+    );
   }
   return <WishlistConSesion />;
 }
@@ -31,6 +43,7 @@ function WishlistConSesion() {
   const usuario = useUsuario();
   const { refrescar } = useSesion();
   const queryClient = useQueryClient();
+  const [precioSinSaldo, setPrecioSinSaldo] = useState<number | null>(null);
   // GET /usuarios/{id}/wishlist (ordenada por fecha_agregado)
   const { data: items = [] } = useQuery({
     queryKey: ["wishlist", usuario.id],
@@ -71,12 +84,16 @@ function WishlistConSesion() {
                   <Button
                     size="sm"
                     className="flex-1"
-                    onClick={() =>
-                      accion(
+                    onClick={() => {
+                      if (usuario.saldo < item.juego.precio) {
+                        setPrecioSinSaldo(item.juego.precio);
+                        return;
+                      }
+                      void accion(
                         () => comprarJuego(usuario.id, item.juego_id),
                         `Compraste ${item.juego.titulo}`,
-                      )
-                    }
+                      );
+                    }}
                   >
                     Comprar
                   </Button>
@@ -101,6 +118,12 @@ function WishlistConSesion() {
       {items.length === 0 && (
         <p className="py-16 text-center text-muted-foreground">Tu wishlist está vacía.</p>
       )}
+      <SaldoInsuficienteDialog
+        abierto={precioSinSaldo !== null}
+        onOpenChange={(abierto) => !abierto && setPrecioSinSaldo(null)}
+        saldo={usuario.saldo}
+        precio={precioSinSaldo ?? 0}
+      />
     </div>
   );
 }

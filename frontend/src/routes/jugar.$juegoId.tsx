@@ -49,10 +49,20 @@ interface MensajeProgreso {
 type MensajeJuego = MensajeDesbloqueo | MensajeProgreso;
 
 function Jugar() {
-  const { usuario } = useSesion();
+  const { usuario, esSuperAdmin } = useSesion();
   if (!usuario) {
     return (
       <AccesoRequerido detalle="Tenés que iniciar sesión y tener el juego en tu biblioteca para jugar." />
+    );
+  }
+  if (esSuperAdmin) {
+    return (
+      <div className="mx-auto max-w-2xl px-4 py-24 text-center">
+        <h1 className="text-2xl font-bold">Cuenta exclusivamente administrativa</h1>
+        <p className="mt-2 text-muted-foreground">
+          La cuenta principal no puede jugar; solamente gestiona contenido desde el panel.
+        </p>
+      </div>
     );
   }
   return <JuegoConSesion />;

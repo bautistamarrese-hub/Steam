@@ -69,6 +69,42 @@ export interface NotificacionVenta {
   fecha_actualizacion: string;
 }
 
+export type PeriodoIngresos = "7d" | "30d" | "total";
+
+export interface IngresosDesarrollador {
+  periodo: PeriodoIngresos;
+  ganado_total: number;
+  gastado_total: number;
+  balance: number;
+  ingreso_periodo: number;
+  serie: Array<{ fecha: string; monto: number }>;
+  juegos: Array<{
+    juego_id: number;
+    titulo: string;
+    precio: number;
+    cantidad_ventas: number;
+    generado: number;
+  }>;
+}
+
+export interface UsuarioAdministracion extends Usuario {
+  cantidad_juegos_comprados: number;
+}
+
+export type EstadoDenuncia = "pendiente" | "aceptada" | "rechazada";
+
+export interface DenunciaJuego {
+  id: number;
+  usuario_id: number;
+  usuario_nickname: string;
+  juego_id: number;
+  juego_titulo: string;
+  motivo: string;
+  estado: EstadoDenuncia;
+  fecha: string;
+  fecha_resolucion?: string | null;
+}
+
 export interface Logro {
   id: number;
   juego_id: number;

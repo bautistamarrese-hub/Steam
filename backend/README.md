@@ -82,10 +82,11 @@ psql -U postgres -d steamdb -f .\src\db\migrations\20260902_perfiles_imagenes.sq
 psql -U postgres -d steamdb -f .\src\db\migrations\20260903_superadmin.sql
 psql -U postgres -d steamdb -f .\src\db\migrations\20260903_logros_automaticos.sql
 psql -U postgres -d steamdb -f .\src\db\migrations\20260904_notificaciones_ventas.sql
+psql -U postgres -d steamdb -f .\src\db\migrations\20260904_denuncias_juegos.sql
 ```
 
-Los juegos reproducibles deben ser un archivo `.html` o un `.zip` que incluya
-un `index.html`. Los archivos subidos se guardan localmente en `backend/storage`
+Los juegos reproducibles deben ser un unico archivo `.html`. Los archivos
+subidos se guardan localmente en `backend/storage`
 y por eso no se incluyen en Git.
 
 La migración `20260902_perfiles_imagenes.sql` agrega avatares y los campos
@@ -93,13 +94,16 @@ editoriales de los juegos (descripción, resumen, portada y galería), necesario
 para las pantallas de perfil y el panel de desarrolladores.
 
 La migración `20260903_superadmin.sql` crea la cuenta administradora principal
-usada por el panel global. El backend también verifica esta cuenta al iniciar
-sesión para que esté disponible en bases creadas por los tests o por SQLAlchemy.
-Sus credenciales iniciales son `admin@gmail.com`, contraseña `123456` y nombre
-de usuario `admin`.
+usada por el panel global. La cuenta y su contraseña cifrada se cargan una sola
+vez mediante esa migración y se leen desde PostgreSQL; el inicio de sesión no
+crea, modifica ni restablece credenciales desde el código de la aplicación.
 Desde el panel global puede editar cualquier juego, cambiar su portada y
 galería, subir o reemplazar el archivo jugable y agregar logros. Estas acciones
 usan endpoints administrativos protegidos con el token de la sesión.
+
+La migración `20260904_denuncias_juegos.sql` agrega la bandeja de denuncias y
+`20260904_notificaciones_ventas.sql` agrega las notificaciones acumuladas por
+ventas para cada desarrollador.
 
 La migración `20260903_logros_automaticos.sql` permite definir cada logro con
 una métrica y un valor objetivo. Un juego HTML reporta el valor acumulado así:

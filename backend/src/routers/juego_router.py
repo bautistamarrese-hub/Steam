@@ -2,7 +2,12 @@ from fastapi import APIRouter, Depends, File, Query, Response, UploadFile, statu
 from sqlalchemy.orm import Session
 from src.db.connection import get_db
 from src.db.models.registroUsuario_model import Usuario
-from src.middlewares.auth_middleware import get_current_user, require_developer, require_same_user
+from src.middlewares.auth_middleware import (
+    get_current_user,
+    get_feature_user,
+    require_developer,
+    require_same_user,
+)
 
 from src.schemas.juego_schema import (
     CreateJuegoSchema,
@@ -10,9 +15,11 @@ from src.schemas.juego_schema import (
     GetJuegoTopSchema,
     UpdateJuegoSchema,
 )
+from src.schemas.denunciaJuego_schema import CreateDenunciaJuegoSchema, GetDenunciaJuegoSchema
 from src.schemas.logro_schema import CreateLogroSchema, GetLogroSchema
 from src.schemas.resena_schema import CreateResenaSchema, GetResenaSchema
 from src.services.desarrolladorJuego_service import JuegoService
+from src.services.denunciaJuego_service import DenunciaJuegoService
 
 router = APIRouter(prefix="/juegos", tags=["juegos"])
 
@@ -106,7 +113,7 @@ def publicar_resena(
     id: int,
     payload: CreateResenaSchema,
     db: Session = Depends(get_db),
-    usuario: Usuario = Depends(get_current_user),
+    usuario: Usuario = Depends(get_feature_user),
 ):
     require_same_user(payload.usuario_id, usuario)
     return JuegoService(db).publicar_resena(id, payload)
@@ -114,3 +121,17 @@ def publicar_resena(
 @router.get("/{id}/resenas", response_model=list[GetResenaSchema])
 def obtener_resenas(id: int, db: Session = Depends(get_db)):
     return JuegoService(db).obtener_resenas(id)
+
+
+@router.post(
+    "/{id}/denuncias",
+    response_model=GetDenunciaJuegoSchema,
+    status_code=status.HTTP_201_CREATED,
+)
+def denunciar_juego(
+    id: int,
+    payload: CreateDenunciaJuegoSchema,
+    db: Session = Depends(get_db),
+    usuario: Usuario = Depends(get_feature_user),
+):
+    return DenunciaJuegoService(db).denunciar(id, usuario, payload.motivo)

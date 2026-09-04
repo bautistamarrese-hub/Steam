@@ -3,12 +3,15 @@ from sqlalchemy.orm import Session
 
 from src.db.connection import get_db
 from src.db.models.registroUsuario_model import Usuario
-from src.middlewares.auth_middleware import get_current_user, require_same_user
+from src.middlewares.auth_middleware import get_current_user, get_feature_user, require_same_user
 from src.schemas.amigo_schema import CreateAmigoSchema, GetAmigoSchema
 from src.schemas.compra_schema import GetCompraSchema, GetRecargaSchema
 from src.schemas.juego_schema import GetItemBibliotecaSchema
 from src.schemas.logro_schema import GetLogroDesbloqueadoSchema, ProgresoLogroSchema
-from src.schemas.notificacionVenta_schema import GetNotificacionVentaSchema
+from src.schemas.notificacionVenta_schema import (
+    GetIngresosDesarrolladorSchema,
+    GetNotificacionVentaSchema,
+)
 from src.schemas.solicitudAmistad_schema import GetSolicitudAmistadSchema
 from src.schemas.usuario_schema import (
     CreateUsuarioSchema,
@@ -63,7 +66,7 @@ async def actualizar_avatar(
     id: int,
     archivo: UploadFile = File(...),
     db: Session = Depends(get_db),
-    usuario: Usuario = Depends(get_current_user),
+    usuario: Usuario = Depends(get_feature_user),
 ):
     require_same_user(id, usuario)
     return await UsuarioService(db).guardar_avatar(id, archivo)
@@ -74,7 +77,7 @@ def recargar_saldo(
     id: int,
     payload: RecargarSaldoSchema,
     db: Session = Depends(get_db),
-    usuario: Usuario = Depends(get_current_user),
+    usuario: Usuario = Depends(get_feature_user),
 ):
     require_same_user(id, usuario)
     return UsuarioService(db).recargar_saldo(id, payload)
@@ -84,10 +87,24 @@ def recargar_saldo(
 def listar_recargas(
     id: int,
     db: Session = Depends(get_db),
-    usuario: Usuario = Depends(get_current_user),
+    usuario: Usuario = Depends(get_feature_user),
 ):
     require_same_user(id, usuario)
     return UsuarioService(db).listar_recargas(id)
+
+
+@router.get(
+    "/{id}/ingresos-desarrollador",
+    response_model=GetIngresosDesarrolladorSchema,
+)
+def obtener_ingresos_desarrollador(
+    id: int,
+    periodo: str = Query(default="7d", pattern="^(7d|30d|total)$"),
+    db: Session = Depends(get_db),
+    usuario: Usuario = Depends(get_feature_user),
+):
+    require_same_user(id, usuario)
+    return NotificacionVentaService(db).resumen_ingresos(usuario, periodo)
 
 
 @router.get(
@@ -97,7 +114,7 @@ def listar_recargas(
 def listar_notificaciones_ventas(
     id: int,
     db: Session = Depends(get_db),
-    usuario: Usuario = Depends(get_current_user),
+    usuario: Usuario = Depends(get_feature_user),
 ):
     require_same_user(id, usuario)
     return NotificacionVentaService(db).listar(id)
@@ -111,7 +128,7 @@ def confirmar_notificacion_venta(
     id: int,
     notificacion_id: int,
     db: Session = Depends(get_db),
-    usuario: Usuario = Depends(get_current_user),
+    usuario: Usuario = Depends(get_feature_user),
 ):
     require_same_user(id, usuario)
     NotificacionVentaService(db).confirmar(id, notificacion_id)
@@ -127,7 +144,7 @@ def comprar_juego(
     id: int,
     juego_id: int,
     db: Session = Depends(get_db),
-    usuario: Usuario = Depends(get_current_user),
+    usuario: Usuario = Depends(get_feature_user),
 ):
     require_same_user(id, usuario)
     return UsuarioService(db).comprar_juego(id, juego_id)
@@ -149,7 +166,7 @@ def agregar_wishlist(
     id: int,
     payload: CreateWishlistSchema,
     db: Session = Depends(get_db),
-    usuario: Usuario = Depends(get_current_user),
+    usuario: Usuario = Depends(get_feature_user),
 ):
     require_same_user(id, usuario)
     return UsuarioService(db).agregar_a_wishlist(id, payload)
@@ -159,7 +176,7 @@ def agregar_wishlist(
 def obtener_wishlist(
     id: int,
     db: Session = Depends(get_db),
-    usuario: Usuario = Depends(get_current_user),
+    usuario: Usuario = Depends(get_feature_user),
 ):
     require_same_user(id, usuario)
     return UsuarioService(db).obtener_wishlist(id)
@@ -170,7 +187,7 @@ def quitar_wishlist(
     id: int,
     juego_id: int,
     db: Session = Depends(get_db),
-    usuario: Usuario = Depends(get_current_user),
+    usuario: Usuario = Depends(get_feature_user),
 ):
     require_same_user(id, usuario)
     UsuarioService(db).quitar_de_wishlist(id, juego_id)
@@ -186,7 +203,7 @@ def desbloquear_logro(
     id: int,
     logro_id: int,
     db: Session = Depends(get_db),
-    usuario: Usuario = Depends(get_current_user),
+    usuario: Usuario = Depends(get_feature_user),
 ):
     require_same_user(id, usuario)
     return DesbloqueoLogroService(db).desbloquear_logro(id, logro_id)
@@ -201,7 +218,7 @@ def registrar_progreso_logros(
     juego_id: int,
     payload: ProgresoLogroSchema,
     db: Session = Depends(get_db),
-    usuario: Usuario = Depends(get_current_user),
+    usuario: Usuario = Depends(get_feature_user),
 ):
     require_same_user(id, usuario)
     return DesbloqueoLogroService(db).registrar_progreso(
@@ -224,7 +241,7 @@ def agregar_amigo(
     id: int,
     payload: CreateAmigoSchema,
     db: Session = Depends(get_db),
-    usuario: Usuario = Depends(get_current_user),
+    usuario: Usuario = Depends(get_feature_user),
 ):
     require_same_user(id, usuario)
     return UsuarioService(db).agregar_amigo(id, payload)
@@ -241,7 +258,7 @@ def obtener_amigos(id: int, db: Session = Depends(get_db)):
 def solicitudes_recibidas(
     id: int,
     db: Session = Depends(get_db),
-    usuario: Usuario = Depends(get_current_user),
+    usuario: Usuario = Depends(get_feature_user),
 ):
     require_same_user(id, usuario)
     return SolicitudAmistadService(db).recibidas(id)
@@ -251,7 +268,7 @@ def solicitudes_recibidas(
 def cantidad_solicitudes_recibidas(
     id: int,
     db: Session = Depends(get_db),
-    usuario: Usuario = Depends(get_current_user),
+    usuario: Usuario = Depends(get_feature_user),
 ):
     require_same_user(id, usuario)
     return SolicitudAmistadService(db).cantidad_recibidas(id)
@@ -263,7 +280,7 @@ def cantidad_solicitudes_recibidas(
 def solicitudes_enviadas(
     id: int,
     db: Session = Depends(get_db),
-    usuario: Usuario = Depends(get_current_user),
+    usuario: Usuario = Depends(get_feature_user),
 ):
     require_same_user(id, usuario)
     return SolicitudAmistadService(db).enviadas(id)
@@ -274,7 +291,7 @@ def eliminar_amigo(
     id: int,
     amigo_id: int,
     db: Session = Depends(get_db),
-    usuario: Usuario = Depends(get_current_user),
+    usuario: Usuario = Depends(get_feature_user),
 ):
     require_same_user(id, usuario)
     UsuarioService(db).eliminar_amigo(id, amigo_id)

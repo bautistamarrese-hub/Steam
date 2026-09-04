@@ -1,12 +1,22 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { Pencil, ShieldCheck, Trash2 } from "lucide-react";
-import { useState } from "react";
+import { Flag, Gamepad2, Pencil, Search, ShieldCheck, Trash2, Users, XCircle } from "lucide-react";
+import { useMemo, useState } from "react";
 import { toast } from "sonner";
 import { AccesoRequerido } from "@/components/AccesoRequerido";
+import { AvatarGamer } from "@/components/AvatarGamer";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import {
+  AlertDialog,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -17,15 +27,17 @@ import {
   eliminarJuegoAdmin,
   eliminarUsuarioAdmin,
   formatPrecio,
+  listarDenunciasAdmin,
   listarJuegos,
-  listarUsuarios,
+  listarUsuariosAdmin,
   logrosDeJuego,
   subirArchivoJuegoAdmin,
+  resolverDenunciaAdmin,
 } from "@/lib/api";
 import { leerImagen, leerImagenes } from "@/lib/imagen";
 import { METRICAS_LOGRO, type MetricaLogro } from "@/lib/logros";
 import { useSesion } from "@/lib/sesion";
-import type { Genero, Juego, Usuario } from "@/lib/types";
+import type { DenunciaJuego, Genero, Juego, UsuarioAdministracion } from "@/lib/types";
 
 export const Route = createFileRoute("/administracion")({
   head: () => ({ meta: [{ title: "Administración — Steamn't" }] }),
@@ -76,12 +88,19 @@ function PanelAdministracion({
   administradorId: number;
 }) {
   const queryClient = useQueryClient();
-  const { data: usuarios = [] } = useQuery({ queryKey: ["usuarios"], queryFn: listarUsuarios });
+  const { data: usuarios = [] } = useQuery({
+    queryKey: ["usuarios-admin"],
+    queryFn: () => listarUsuariosAdmin(token),
+  });
   const { data: juegos = [] } = useQuery({
     queryKey: ["juegos-admin"],
     queryFn: () => listarJuegos(),
   });
-  const [usuarioEditando, setUsuarioEditando] = useState<Usuario | null>(null);
+  const { data: denuncias = [] } = useQuery({
+    queryKey: ["denuncias-admin"],
+    queryFn: () => listarDenunciasAdmin(token),
+  });
+  const [usuarioEditando, setUsuarioEditando] = useState<UsuarioAdministracion | null>(null);
   const [juegoEditando, setJuegoEditando] = useState<Juego | null>(null);
   const [email, setEmail] = useState("");
   const [nickname, setNickname] = useState("");
@@ -102,13 +121,51 @@ function PanelAdministracion({
   const [objetivoLogro, setObjetivoLogro] = useState("1");
   const [puntosLogro, setPuntosLogro] = useState("10");
   const [procesando, setProcesando] = useState(false);
+  const [busquedaUsuario, setBusquedaUsuario] = useState("");
+  const [busquedaJuego, setBusquedaJuego] = useState("");
+  const [filtroRolUsuarios, setFiltroRolUsuarios] = useState<"todos" | "cliente" | "admin">(
+    "todos",
+  );
+  const [filtroGeneroJuegos, setFiltroGeneroJuegos] = useState<Genero | "todos">("todos");
+  const [ordenUsuarios, setOrdenUsuarios] = useState<
+    "recientes" | "antiguos" | "mas-juegos" | "menos-juegos"
+  >("recientes");
+  const [denunciaAEliminar, setDenunciaAEliminar] = useState<DenunciaJuego | null>(null);
   const { data: logrosJuego = [] } = useQuery({
     queryKey: ["logros-juego", juegoEditando?.id],
     queryFn: () => logrosDeJuego(juegoEditando!.id),
     enabled: Boolean(juegoEditando),
   });
 
-  const abrirUsuario = (usuario: Usuario) => {
+  const usuariosFiltrados = useMemo(() => {
+    const termino = busquedaUsuario.trim().toLocaleLowerCase("es");
+    return usuarios
+      .filter(
+        (usuario) =>
+          `${usuario.nickname} ${usuario.email}`.toLocaleLowerCase("es").includes(termino) &&
+          (filtroRolUsuarios === "todos" || usuario.rol === filtroRolUsuarios),
+      )
+      .sort((a, b) => {
+        if (ordenUsuarios === "mas-juegos")
+          return b.cantidad_juegos_comprados - a.cantidad_juegos_comprados;
+        if (ordenUsuarios === "menos-juegos")
+          return a.cantidad_juegos_comprados - b.cantidad_juegos_comprados;
+        const diferencia =
+          new Date(b.fecha_registro).getTime() - new Date(a.fecha_registro).getTime();
+        return ordenUsuarios === "recientes" ? diferencia : -diferencia;
+      });
+  }, [busquedaUsuario, filtroRolUsuarios, ordenUsuarios, usuarios]);
+  const juegosFiltrados = useMemo(() => {
+    const termino = busquedaJuego.trim().toLocaleLowerCase("es");
+    return juegos.filter(
+      (juego) =>
+        juego.titulo.toLocaleLowerCase("es").includes(termino) &&
+        (filtroGeneroJuegos === "todos" || juego.genero === filtroGeneroJuegos),
+    );
+  }, [busquedaJuego, filtroGeneroJuegos, juegos]);
+  const denunciasPendientes = denuncias.filter((denuncia) => denuncia.estado === "pendiente");
+
+  const abrirUsuario = (usuario: UsuarioAdministracion) => {
     setUsuarioEditando(usuario);
     setEmail(usuario.email);
     setNickname(usuario.nickname);
@@ -132,6 +189,11 @@ function PanelAdministracion({
     setMetricaLogro("puntaje");
     setObjetivoLogro("1");
     setPuntosLogro("10");
+    window.requestAnimationFrame(() => {
+      document
+        .getElementById("edicion-juego-administrador")
+        ?.scrollIntoView({ behavior: "smooth", block: "start" });
+    });
   };
 
   const cargarPortada = async (file: File | undefined) => {
@@ -174,7 +236,7 @@ function PanelAdministracion({
         ...(rol === "admin" && estudio.trim() ? { estudio } : {}),
         ...(password ? { password } : {}),
       });
-      await queryClient.invalidateQueries({ queryKey: ["usuarios"] });
+      await queryClient.invalidateQueries({ queryKey: ["usuarios-admin"] });
       setUsuarioEditando(null);
       toast.success("Usuario actualizado");
     } catch (error) {
@@ -184,13 +246,13 @@ function PanelAdministracion({
     }
   };
 
-  const borrarUsuario = async (usuario: Usuario) => {
+  const borrarUsuario = async (usuario: UsuarioAdministracion) => {
     if (!window.confirm(`¿Eliminar definitivamente al usuario ${usuario.nickname}?`)) return;
     setProcesando(true);
     try {
       await eliminarUsuarioAdmin(token, usuario.id);
       await Promise.all([
-        queryClient.invalidateQueries({ queryKey: ["usuarios"] }),
+        queryClient.invalidateQueries({ queryKey: ["usuarios-admin"] }),
         queryClient.invalidateQueries({ queryKey: ["juegos-admin"] }),
         queryClient.invalidateQueries({ queryKey: ["juegos"] }),
       ]);
@@ -281,15 +343,128 @@ function PanelAdministracion({
     }
   };
 
+  const ignorarDenuncia = async (denunciaId: number) => {
+    setProcesando(true);
+    try {
+      await resolverDenunciaAdmin(token, denunciaId, "rechazada");
+      await queryClient.invalidateQueries({ queryKey: ["denuncias-admin"] });
+      toast.success("Denuncia ignorada");
+    } catch (error) {
+      toast.error(error instanceof ApiError ? error.message : "No se pudo resolver la denuncia.");
+    } finally {
+      setProcesando(false);
+    }
+  };
+
+  const eliminarJuegoDenunciado = async () => {
+    if (!denunciaAEliminar) return;
+    setProcesando(true);
+    try {
+      await eliminarJuegoAdmin(token, denunciaAEliminar.juego_id);
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["denuncias-admin"] }),
+        queryClient.invalidateQueries({ queryKey: ["juegos-admin"] }),
+        queryClient.invalidateQueries({ queryKey: ["juegos"] }),
+        queryClient.invalidateQueries({ queryKey: ["top-ventas"] }),
+        queryClient.invalidateQueries({ queryKey: ["mejor-valorados"] }),
+      ]);
+      toast.success(`${denunciaAEliminar.juego_titulo} fue eliminado`);
+      setDenunciaAEliminar(null);
+    } catch (error) {
+      toast.error(error instanceof ApiError ? error.message : "No se pudo eliminar el juego.");
+    } finally {
+      setProcesando(false);
+    }
+  };
+
   return (
     <div className="mx-auto max-w-6xl px-4 py-10">
-      <div className="flex items-center gap-3">
-        <ShieldCheck className="h-8 w-8 text-primary" />
-        <div>
-          <h1 className="text-3xl font-bold">Administración global</h1>
-          <p className="text-muted-foreground">Gestioná usuarios y todos los juegos publicados.</p>
+      <Card className="overflow-hidden border-primary/30 bg-gradient-to-br from-primary/20 via-card to-accent/10 p-0">
+        <div className="p-7">
+          <div className="flex items-center gap-3">
+            <div className="rounded-xl bg-primary/20 p-3">
+              <ShieldCheck className="h-8 w-8 text-primary" />
+            </div>
+            <div>
+              <h1 className="text-3xl font-bold">Administración global</h1>
+              <p className="text-muted-foreground">
+                Editá contenido, gestioná cuentas y revisá denuncias desde un único panel.
+              </p>
+            </div>
+          </div>
+          <div className="mt-6 grid gap-3 sm:grid-cols-3">
+            <ResumenPanel icono={Users} etiqueta="Cuentas" valor={usuarios.length} />
+            <ResumenPanel icono={Gamepad2} etiqueta="Juegos" valor={juegos.length} />
+            <ResumenPanel
+              icono={Flag}
+              etiqueta="Denuncias pendientes"
+              valor={denunciasPendientes.length}
+            />
+          </div>
         </div>
-      </div>
+      </Card>
+
+      <section className="mt-8">
+        <div className="flex items-center justify-between">
+          <div>
+            <h2 className="flex items-center gap-2 text-xl font-semibold">
+              <Flag className="h-5 w-5 text-destructive" /> Denuncias de juegos
+            </h2>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Tomar elimina el juego denunciado; ignorar cierra el reporte sin modificarlo.
+            </p>
+          </div>
+          <Badge variant={denunciasPendientes.length ? "destructive" : "secondary"}>
+            {denunciasPendientes.length} pendientes
+          </Badge>
+        </div>
+        <div className="mt-3 grid gap-3 md:grid-cols-2">
+          {denunciasPendientes.map((denuncia) => (
+            <Card key={denuncia.id} className="p-5">
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <Link
+                    to="/juegos/$juegoId"
+                    params={{ juegoId: String(denuncia.juego_id) }}
+                    className="font-semibold hover:text-primary"
+                  >
+                    {denuncia.juego_titulo}
+                  </Link>
+                  <p className="text-xs text-muted-foreground">
+                    Reportado por {denuncia.usuario_nickname} ·{" "}
+                    {new Date(denuncia.fecha).toLocaleDateString("es-AR")}
+                  </p>
+                </div>
+                <Badge variant="outline">Pendiente</Badge>
+              </div>
+              <p className="mt-3 rounded-md bg-secondary/50 p-3 text-sm">{denuncia.motivo}</p>
+              <div className="mt-4 flex gap-2">
+                <Button
+                  size="sm"
+                  variant="destructive"
+                  disabled={procesando}
+                  onClick={() => setDenunciaAEliminar(denuncia)}
+                >
+                  <Trash2 className="h-4 w-4" /> Tomar - Eliminar
+                </Button>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  disabled={procesando}
+                  onClick={() => ignorarDenuncia(denuncia.id)}
+                >
+                  <XCircle className="h-4 w-4" /> Ignorar
+                </Button>
+              </div>
+            </Card>
+          ))}
+          {denunciasPendientes.length === 0 && (
+            <Card className="p-6 text-sm text-muted-foreground md:col-span-2">
+              No hay denuncias pendientes.
+            </Card>
+          )}
+        </div>
+      </section>
 
       {usuarioEditando && (
         <Card className="mt-8 p-6">
@@ -345,7 +520,7 @@ function PanelAdministracion({
       )}
 
       {juegoEditando && (
-        <Card className="mt-8 p-6">
+        <Card id="edicion-juego-administrador" className="mt-8 scroll-mt-24 p-6">
           <h2 className="text-lg font-semibold">Modificar juego: {juegoEditando.titulo}</h2>
           <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
             <Campo etiqueta="Título">
@@ -419,7 +594,7 @@ function PanelAdministracion({
             <Campo etiqueta="Subir o reemplazar archivo jugable">
               <Input
                 type="file"
-                accept=".html,.htm,.zip,text/html,application/zip"
+                accept=".html,text/html"
                 className="cursor-pointer"
                 onChange={(event) => setArchivo(event.currentTarget.files?.[0] ?? null)}
               />
@@ -523,17 +698,67 @@ function PanelAdministracion({
         <section>
           <div className="flex items-center justify-between">
             <h2 className="text-xl font-semibold">Usuarios</h2>
-            <Badge variant="secondary">{usuarios.length}</Badge>
+            <Badge variant="secondary">
+              {usuariosFiltrados.length} de {usuarios.length}
+            </Badge>
           </div>
-          <div className="mt-3 space-y-2">
-            {usuarios.map((usuario) => {
+          <Card className="mt-3 gap-3 p-4">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                className="pl-9"
+                placeholder="Buscar nombre o email..."
+                value={busquedaUsuario}
+                onChange={(event) => setBusquedaUsuario(event.target.value)}
+              />
+            </div>
+            <div className="grid gap-3 sm:grid-cols-2">
+              <select
+                aria-label="Filtrar usuarios por tipo de cuenta"
+                value={filtroRolUsuarios}
+                onChange={(event) =>
+                  setFiltroRolUsuarios(event.target.value as typeof filtroRolUsuarios)
+                }
+                className="h-9 rounded-md border border-input bg-sidebar px-3 text-sm"
+              >
+                <option value="todos">Todos los tipos</option>
+                <option value="cliente">Jugadores normales</option>
+                <option value="admin">Desarrolladores</option>
+              </select>
+              <select
+                aria-label="Ordenar usuarios"
+                value={ordenUsuarios}
+                onChange={(event) => setOrdenUsuarios(event.target.value as typeof ordenUsuarios)}
+                className="h-9 rounded-md border border-input bg-sidebar px-3 text-sm"
+              >
+                <option value="recientes">Menos tiempo en la aplicación</option>
+                <option value="antiguos">Más tiempo en la aplicación</option>
+                <option value="mas-juegos">Más juegos comprados</option>
+                <option value="menos-juegos">Menos juegos comprados</option>
+              </select>
+            </div>
+          </Card>
+          <div className="mt-3 space-y-3">
+            {usuariosFiltrados.map((usuario) => {
               const protegido = usuario.id === administradorId || usuario.rol === "superadmin";
               return (
-                <Card key={usuario.id} className="flex-row items-center gap-3 p-4">
+                <Card
+                  key={usuario.id}
+                  className="grid items-center gap-4 p-4 sm:grid-cols-[5rem_1fr_auto]"
+                >
+                  <AvatarGamer
+                    nickname={usuario.nickname}
+                    avatar={usuario.avatar}
+                    className="h-20 w-20"
+                  />
                   <div className="min-w-0 flex-1">
                     <p className="truncate font-semibold">{usuario.nickname}</p>
                     <p className="truncate text-xs text-muted-foreground">
                       {usuario.email} · {formatPrecio(usuario.saldo)}
+                    </p>
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      {usuario.cantidad_juegos_comprados} juegos comprados · alta{" "}
+                      {new Date(usuario.fecha_registro).toLocaleDateString("es-AR")}
                     </p>
                     <Badge className="mt-2" variant={protegido ? "default" : "secondary"}>
                       {usuario.rol === "superadmin"
@@ -543,39 +768,79 @@ function PanelAdministracion({
                           : "Jugador"}
                     </Badge>
                   </div>
-                  <Button
-                    size="icon"
-                    variant="outline"
-                    disabled={protegido || procesando}
-                    aria-label={`Modificar ${usuario.nickname}`}
-                    onClick={() => abrirUsuario(usuario)}
-                  >
-                    <Pencil className="h-4 w-4" />
-                  </Button>
-                  <Button
-                    size="icon"
-                    variant="destructive"
-                    disabled={protegido || procesando}
-                    aria-label={`Eliminar ${usuario.nickname}`}
-                    onClick={() => borrarUsuario(usuario)}
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
+                  <div className="flex gap-2 sm:justify-end">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      disabled={protegido || procesando}
+                      onClick={() => abrirUsuario(usuario)}
+                    >
+                      <Pencil className="h-4 w-4" /> Editar
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="destructive"
+                      disabled={protegido || procesando}
+                      onClick={() => borrarUsuario(usuario)}
+                    >
+                      <Trash2 className="h-4 w-4" /> Eliminar
+                    </Button>
+                  </div>
                 </Card>
               );
             })}
+            {usuariosFiltrados.length === 0 && (
+              <Card className="p-6 text-center text-sm text-muted-foreground">
+                No hay usuarios que coincidan con la búsqueda y el tipo seleccionado.
+              </Card>
+            )}
           </div>
         </section>
 
         <section>
           <div className="flex items-center justify-between">
             <h2 className="text-xl font-semibold">Todos los juegos</h2>
-            <Badge variant="secondary">{juegos.length}</Badge>
+            <Badge variant="secondary">
+              {juegosFiltrados.length} de {juegos.length}
+            </Badge>
           </div>
+          <Card className="mt-3 gap-3 p-4">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                className="pl-9"
+                placeholder="Buscar nombre del juego..."
+                value={busquedaJuego}
+                onChange={(event) => setBusquedaJuego(event.target.value)}
+              />
+            </div>
+            <select
+              aria-label="Filtrar juegos por categoría"
+              value={filtroGeneroJuegos}
+              onChange={(event) =>
+                setFiltroGeneroJuegos(event.target.value as typeof filtroGeneroJuegos)
+              }
+              className="h-9 rounded-md border border-input bg-sidebar px-3 text-sm"
+            >
+              <option value="todos">Todas las categorías</option>
+              {GENEROS.map((categoria) => (
+                <option key={categoria} value={categoria}>
+                  {categoria}
+                </option>
+              ))}
+            </select>
+          </Card>
           <div className="mt-3 space-y-2">
-            {juegos.map((juego) => (
-              <Card key={juego.id} className="flex-row items-center gap-3 p-4">
-                <img src={juego.imagen} alt="" className="h-14 w-20 rounded object-cover" />
+            {juegosFiltrados.map((juego) => (
+              <Card
+                key={juego.id}
+                className="grid items-center gap-4 p-4 sm:grid-cols-[8rem_1fr_auto]"
+              >
+                <img
+                  src={juego.imagen}
+                  alt={`Portada de ${juego.titulo}`}
+                  className="aspect-video w-full rounded-md border border-border object-cover"
+                />
                 <div className="min-w-0 flex-1">
                   <Link
                     to="/juegos/$juegoId"
@@ -584,32 +849,84 @@ function PanelAdministracion({
                   >
                     {juego.titulo}
                   </Link>
-                  <p className="text-xs text-muted-foreground">
-                    {juego.genero} · {formatPrecio(juego.precio)}
+                  <p className="text-xs text-muted-foreground">Categoría: {juego.genero}</p>
+                  <p className="mt-1 text-sm font-semibold text-accent">
+                    {formatPrecio(juego.precio)}
                   </p>
                 </div>
-                <Button
-                  size="icon"
-                  variant="outline"
-                  disabled={procesando}
-                  aria-label={`Modificar ${juego.titulo}`}
-                  onClick={() => abrirJuego(juego)}
-                >
-                  <Pencil className="h-4 w-4" />
-                </Button>
-                <Button
-                  size="icon"
-                  variant="destructive"
-                  disabled={procesando}
-                  aria-label={`Eliminar ${juego.titulo}`}
-                  onClick={() => borrarJuego(juego)}
-                >
-                  <Trash2 className="h-4 w-4" />
-                </Button>
+                <div className="flex gap-2 sm:justify-end">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    disabled={procesando}
+                    onClick={() => abrirJuego(juego)}
+                  >
+                    <Pencil className="h-4 w-4" /> Editar
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="destructive"
+                    disabled={procesando}
+                    onClick={() => borrarJuego(juego)}
+                  >
+                    <Trash2 className="h-4 w-4" /> Eliminar
+                  </Button>
+                </div>
               </Card>
             ))}
+            {juegosFiltrados.length === 0 && (
+              <Card className="p-6 text-center text-sm text-muted-foreground">
+                No hay juegos que coincidan con la búsqueda y la categoría seleccionada.
+              </Card>
+            )}
           </div>
         </section>
+      </div>
+
+      <AlertDialog
+        open={Boolean(denunciaAEliminar)}
+        onOpenChange={(abierto) => !abierto && !procesando && setDenunciaAEliminar(null)}
+      >
+        <AlertDialogContent className="border-destructive/50">
+          <AlertDialogHeader>
+            <AlertDialogTitle>¿Eliminar el juego denunciado?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Vas a eliminar definitivamente <strong>{denunciaAEliminar?.juego_titulo}</strong>, sus
+              compras asociadas, reseñas, logros y archivos. Esta acción no se puede deshacer.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={procesando}>Cancelar</AlertDialogCancel>
+            <Button
+              variant="destructive"
+              disabled={procesando}
+              onClick={() => void eliminarJuegoDenunciado()}
+            >
+              <Trash2 className="h-4 w-4" />
+              {procesando ? "Eliminando..." : "Confirmar eliminación"}
+            </Button>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </div>
+  );
+}
+
+function ResumenPanel({
+  icono: Icono,
+  etiqueta,
+  valor,
+}: {
+  icono: React.ComponentType<{ className?: string }>;
+  etiqueta: string;
+  valor: number;
+}) {
+  return (
+    <div className="flex items-center gap-3 rounded-lg border border-border/70 bg-background/60 p-4">
+      <Icono className="h-5 w-5 text-primary" />
+      <div>
+        <p className="text-2xl font-bold">{valor}</p>
+        <p className="text-xs text-muted-foreground">{etiqueta}</p>
       </div>
     </div>
   );

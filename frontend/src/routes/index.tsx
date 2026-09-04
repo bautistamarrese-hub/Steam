@@ -4,6 +4,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Search } from "lucide-react";
 import { toast } from "sonner";
 import { JuegoCard } from "@/components/JuegoCard";
+import { SaldoInsuficienteDialog } from "@/components/SaldoInsuficienteDialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -49,11 +50,14 @@ const GENEROS: Array<Genero | "todos"> = [
   "Terror",
   "Simulación",
 ];
+type RangoPrecio = "todos" | "gratis" | "menos-5000" | "5000-15000" | "mas-15000";
 
 function Tienda() {
   const { usuario, abrirAcceso, refrescar } = useSesion();
   const [q, setQ] = useState("");
   const [genero, setGenero] = useState<Genero | "todos">("todos");
+  const [rangoPrecio, setRangoPrecio] = useState<RangoPrecio>("todos");
+  const [precioSinSaldo, setPrecioSinSaldo] = useState<number | null>(null);
   const queryClient = useQueryClient();
   const { data: juegos = [] } = useQuery({
     queryKey: ["juegos", genero, q],
@@ -74,6 +78,13 @@ function Tienda() {
   ).slice(0, 6);
   const compradosIds = new Set(comprados.map((item) => item.juego.id));
   const deseadosIds = new Set(deseados.map((item) => item.juego_id));
+  const juegosVisibles = juegos.filter((juego) => {
+    if (rangoPrecio === "gratis") return juego.precio === 0;
+    if (rangoPrecio === "menos-5000") return juego.precio > 0 && juego.precio < 5000;
+    if (rangoPrecio === "5000-15000") return juego.precio >= 5000 && juego.precio <= 15000;
+    if (rangoPrecio === "mas-15000") return juego.precio > 15000;
+    return true;
+  });
 
   const accion = async (fn: (usuarioId: number) => Promise<unknown>, ok: string) => {
     if (!usuario) {
@@ -139,14 +150,28 @@ function Tienda() {
 
       <section className="mx-auto max-w-6xl px-4 py-10">
         <div className="mb-6 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-          <div className="relative w-full md:max-w-xs">
-            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-            <Input
-              value={q}
-              onChange={(e) => setQ(e.target.value)}
-              placeholder="Buscar juegos..."
-              className="pl-9"
-            />
+          <div className="grid w-full gap-3 sm:grid-cols-[1fr_auto] md:max-w-xl">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                value={q}
+                onChange={(e) => setQ(e.target.value)}
+                placeholder="Buscar juegos..."
+                className="pl-9"
+              />
+            </div>
+            <select
+              aria-label="Filtrar juegos por precio"
+              value={rangoPrecio}
+              onChange={(event) => setRangoPrecio(event.target.value as RangoPrecio)}
+              className="h-9 rounded-md border border-input bg-sidebar px-3 text-sm text-foreground"
+            >
+              <option value="todos">Todos los precios</option>
+              <option value="gratis">Gratis</option>
+              <option value="menos-5000">Menos de $5.000</option>
+              <option value="5000-15000">De $5.000 a $15.000</option>
+              <option value="mas-15000">Más de $15.000</option>
+            </select>
           </div>
           <div className="flex flex-wrap gap-2">
             {GENEROS.map((g) => (
@@ -166,7 +191,7 @@ function Tienda() {
         </div>
 
         <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
-          {juegos.map((juego) => {
+          {juegosVisibles.map((juego) => {
             const comprado = compradosIds.has(juego.id);
             const deseado = deseadosIds.has(juego.id);
             const esPropio = usuario?.desarrollador_id === juego.desarrollador_id;
@@ -182,12 +207,16 @@ function Tienda() {
                       size="sm"
                       className="flex-1"
                       disabled={enBiblioteca}
-                      onClick={() =>
-                        accion(
+                      onClick={() => {
+                        if (usuario && usuario.saldo < juego.precio) {
+                          setPrecioSinSaldo(juego.precio);
+                          return;
+                        }
+                        void accion(
                           (usuarioId) => comprarJuego(usuarioId, juego.id),
                           `Compraste ${juego.titulo}`,
-                        )
-                      }
+                        );
+                      }}
                     >
                       {esPropio ? "Es tu juego" : comprado ? "En biblioteca" : "Comprar"}
                     </Button>
@@ -210,10 +239,18 @@ function Tienda() {
             );
           })}
         </div>
-        {juegos.length === 0 && (
-          <p className="py-16 text-center text-muted-foreground">No encontramos juegos.</p>
+        {juegosVisibles.length === 0 && (
+          <p className="py-16 text-center text-muted-foreground">
+            No encontramos juegos que coincidan con la búsqueda y los filtros elegidos.
+          </p>
         )}
       </section>
+      <SaldoInsuficienteDialog
+        abierto={precioSinSaldo !== null}
+        onOpenChange={(abierto) => !abierto && setPrecioSinSaldo(null)}
+        saldo={usuario?.saldo ?? 0}
+        precio={precioSinSaldo ?? 0}
+      />
     </div>
   );
 }

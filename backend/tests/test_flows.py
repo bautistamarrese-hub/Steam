@@ -13,6 +13,14 @@ class RecursoAutenticado(dict):
 _HEADERS_POR_DESARROLLADOR: dict[int, dict[str, str]] = {}
 
 
+def datos_recarga(monto: float) -> dict:
+    return {
+        "monto": monto,
+        "titular": "Persona de Prueba",
+        "vencimiento": "12/99",
+    }
+
+
 def assert_status(response, expected: int):
     assert response.status_code == expected, response.text
     return response.json() if response.content else None
@@ -391,7 +399,7 @@ def test_eliminar_juego_valida_propietario_y_limpia_dependencias(
         client.post(
             f"/api/usuarios/{comprador['id']}/recargar",
             headers=comprador.headers,
-            json={"monto": 500},
+            json=datos_recarga(500),
         ),
         200,
     )
@@ -471,7 +479,23 @@ def test_recarga_wishlist_compra_biblioteca_y_estadisticas(client: TestClient):
         client.post(
             f"/api/usuarios/{usuario['id']}/recargar",
             headers=usuario.headers,
-            json={"monto": 99},
+            json=datos_recarga(99),
+        ),
+        422,
+    )
+    assert_status(
+        client.post(
+            f"/api/usuarios/{usuario['id']}/recargar",
+            headers=usuario.headers,
+            json={**datos_recarga(500), "titular": "SinApellido"},
+        ),
+        422,
+    )
+    assert_status(
+        client.post(
+            f"/api/usuarios/{usuario['id']}/recargar",
+            headers=usuario.headers,
+            json={**datos_recarga(500), "vencimiento": "01/20"},
         ),
         422,
     )
@@ -479,7 +503,7 @@ def test_recarga_wishlist_compra_biblioteca_y_estadisticas(client: TestClient):
         client.post(
             f"/api/usuarios/{usuario['id']}/recargar",
             headers=usuario.headers,
-            json={"monto": 500},
+            json=datos_recarga(500),
         ),
         200,
     )
@@ -566,7 +590,7 @@ def test_compra_acredita_y_acumula_el_sesenta_por_ciento_para_el_desarrollador(
             client.post(
                 f"/api/usuarios/{comprador['id']}/recargar",
                 headers=comprador.headers,
-                json={"monto": 500},
+                json=datos_recarga(500),
             ),
             200,
         )
@@ -608,7 +632,7 @@ def test_compra_acredita_y_acumula_el_sesenta_por_ciento_para_el_desarrollador(
         client.post(
             f"/api/usuarios/{otro_comprador['id']}/recargar",
             headers=otro_comprador.headers,
-            json={"monto": 100},
+            json=datos_recarga(100),
         ),
         200,
     )
@@ -668,6 +692,41 @@ def test_compra_acredita_y_acumula_el_sesenta_por_ciento_para_el_desarrollador(
         204,
     )
 
+    otro_estudio = crear_desarrollador(client, "Estudio ajeno")
+    juego_ajeno = publicar_juego(
+        client,
+        otro_estudio["id"],
+        "Compra del desarrollador",
+        precio=100,
+    )
+    assert_status(
+        client.post(
+            f"/api/usuarios/{desarrollador['id']}/comprar/{juego_ajeno['id']}",
+            headers=desarrollador.headers,
+        ),
+        201,
+    )
+
+    ingresos = assert_status(
+        client.get(
+            f"/api/usuarios/{desarrollador['id']}/ingresos-desarrollador?periodo=7d",
+            headers=desarrollador.headers,
+        ),
+        200,
+    )
+    assert ingresos["ganado_total"] == 360
+    assert ingresos["gastado_total"] == 100
+    assert ingresos["balance"] == 260
+    assert ingresos["ingreso_periodo"] == 360
+    assert sum(punto["monto"] for punto in ingresos["serie"]) == 360
+    assert_status(
+        client.get(
+            f"/api/usuarios/{desarrollador['id']}/ingresos-desarrollador",
+            headers=compradores[0].headers,
+        ),
+        403,
+    )
+
     juego_gratis = publicar_juego(
         client,
         desarrollador["desarrollador_id"],
@@ -692,6 +751,18 @@ def test_compra_acredita_y_acumula_el_sesenta_por_ciento_para_el_desarrollador(
         )
         == []
     )
+    ingresos_con_gratis = assert_status(
+        client.get(
+            f"/api/usuarios/{desarrollador['id']}/ingresos-desarrollador?periodo=total",
+            headers=desarrollador.headers,
+        ),
+        200,
+    )
+    ingresos_por_titulo = {item["titulo"]: item for item in ingresos_con_gratis["juegos"]}
+    assert ingresos_por_titulo["Juego gratuito sin ingreso"]["precio"] == 0
+    assert ingresos_por_titulo["Juego gratuito sin ingreso"]["generado"] == 0
+    assert ingresos_por_titulo["Juego gratuito sin ingreso"]["cantidad_ventas"] == 1
+    assert ingresos_por_titulo[juego["titulo"]]["generado"] == 300
 
 
 def test_resena_y_logros_solo_para_juego_comprado(client: TestClient):
@@ -1122,7 +1193,7 @@ def test_acciones_privadas_validan_la_identidad_y_propiedad(client: TestClient):
         client.post(
             f"/api/usuarios/{dos['id']}/recargar",
             headers=uno.headers,
-            json={"monto": 100},
+            json=datos_recarga(100),
         ),
         403,
     )
@@ -1231,6 +1302,30 @@ def test_superadmin_precargado_administra_usuarios_y_todos_los_juegos(
         desarrollador["desarrollador_id"],
         "Juego administrado",
         precio=150,
+    )
+
+    usuarios_admin = assert_status(
+        client.get("/api/administracion/usuarios", headers=headers),
+        200,
+    )
+    jugador_admin = next(item for item in usuarios_admin if item["id"] == jugador["id"])
+    assert jugador_admin["cantidad_juegos_comprados"] == 0
+    assert all(item["rol"] != "superadmin" for item in usuarios_admin)
+
+    assert_status(
+        client.post(
+            f"/api/usuarios/{acceso['usuario']['id']}/comprar/{juego['id']}",
+            headers=headers,
+        ),
+        403,
+    )
+    assert_status(
+        client.post(
+            "/api/solicitudes",
+            headers=headers,
+            json={"de": acceso["usuario"]["id"], "para": jugador["id"]},
+        ),
+        403,
     )
 
     assert_status(
@@ -1352,3 +1447,78 @@ def test_administracion_rechaza_sesiones_no_autorizadas(client: TestClient):
         headers={"Authorization": f"Bearer {acceso_jugador['access_token']}"},
     )
     assert_status(sin_rol, 403)
+
+
+def test_denuncias_de_juegos_respetan_propiedad_y_resolucion_admin(client: TestClient):
+    propietario = registrar(client, "denuncia_dev", rol="admin", estudio="Denuncias Studio")
+    denunciante = registrar(client, "denuncia_usuario")
+    juego = publicar_juego(
+        client,
+        propietario["desarrollador_id"],
+        "Juego denunciable",
+        precio=50,
+    )
+
+    assert_status(
+        client.post(
+            f"/api/juegos/{juego['id']}/denuncias",
+            headers=propietario.headers,
+            json={"motivo": "No deberia poder denunciar mi propio juego."},
+        ),
+        400,
+    )
+    denuncia = assert_status(
+        client.post(
+            f"/api/juegos/{juego['id']}/denuncias",
+            headers=denunciante.headers,
+            json={"motivo": "El contenido publicado incumple las reglas de la plataforma."},
+        ),
+        201,
+    )
+    assert denuncia["estado"] == "pendiente"
+    assert denuncia["usuario_nickname"] == denunciante["nickname"]
+    assert denuncia["juego_titulo"] == juego["titulo"]
+    assert_status(
+        client.post(
+            f"/api/juegos/{juego['id']}/denuncias",
+            headers=denunciante.headers,
+            json={"motivo": "Intento de denuncia pendiente duplicada."},
+        ),
+        400,
+    )
+    assert_status(
+        client.get("/api/administracion/denuncias", headers=denunciante.headers),
+        403,
+    )
+
+    acceso_admin = assert_status(
+        client.post(
+            "/api/usuarios/login",
+            json={"email": "admin@gmail.com", "password": "123456"},
+        ),
+        200,
+    )
+    headers_admin = {"Authorization": f"Bearer {acceso_admin['access_token']}"}
+    pendientes = assert_status(
+        client.get("/api/administracion/denuncias?estado=pendiente", headers=headers_admin),
+        200,
+    )
+    assert [item["id"] for item in pendientes] == [denuncia["id"]]
+    resuelta = assert_status(
+        client.put(
+            f"/api/administracion/denuncias/{denuncia['id']}",
+            headers=headers_admin,
+            json={"estado": "aceptada"},
+        ),
+        200,
+    )
+    assert resuelta["estado"] == "aceptada"
+    assert resuelta["fecha_resolucion"] is not None
+    assert_status(
+        client.put(
+            f"/api/administracion/denuncias/{denuncia['id']}",
+            headers=headers_admin,
+            json={"estado": "rechazada"},
+        ),
+        400,
+    )

@@ -11,6 +11,8 @@ os.environ.setdefault("JWT_SECRET", "test-secret")
 
 from src.app import app
 from src.db.connection import Base, get_db
+from src.db.models.registroUsuario_model import Usuario
+from src.utils.hash import hash_password
 
 
 @pytest.fixture()
@@ -27,6 +29,18 @@ def client():
 
     TestingSession = sessionmaker(bind=engine, autocommit=False, autoflush=False)
     Base.metadata.create_all(bind=engine)
+    seed_db = TestingSession()
+    seed_db.add(
+        Usuario(
+            email="admin@gmail.com",
+            nickname="admin",
+            password_hash=hash_password("123456"),
+            rol="superadmin",
+            saldo=0,
+        )
+    )
+    seed_db.commit()
+    seed_db.close()
 
     def override_get_db():
         db = TestingSession()

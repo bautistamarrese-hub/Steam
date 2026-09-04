@@ -33,13 +33,13 @@ export const Route = createFileRoute("/amigos")({
 });
 
 function Amigos() {
-  const { usuario: yo, abrirAcceso, refrescar } = useSesion();
+  const { usuario: yo, esSuperAdmin, abrirAcceso, refrescar } = useSesion();
   const queryClient = useQueryClient();
   // GET /usuarios/{id}/amigos
   const { data: amigos = [] } = useQuery({
     queryKey: ["amigos", yo?.id],
     queryFn: () => amigosDe(yo!.id),
-    enabled: Boolean(yo),
+    enabled: Boolean(yo && !esSuperAdmin),
   });
   const { data: usuarios = [] } = useQuery({
     queryKey: ["usuarios"],
@@ -48,14 +48,16 @@ function Amigos() {
   const { data: recibidas = [] } = useQuery({
     queryKey: ["solicitudes-recibidas", yo?.id],
     queryFn: () => solicitudesRecibidas(yo!.id),
-    enabled: Boolean(yo),
+    enabled: Boolean(yo && !esSuperAdmin),
   });
   const { data: enviadas = [] } = useQuery({
     queryKey: ["solicitudes-enviadas", yo?.id],
     queryFn: () => solicitudesEnviadas(yo!.id),
-    enabled: Boolean(yo),
+    enabled: Boolean(yo && !esSuperAdmin),
   });
-  const otros = usuarios.filter((u) => u.id !== yo?.id && u.rol !== "superadmin");
+  const otros = esSuperAdmin
+    ? []
+    : usuarios.filter((u) => u.id !== yo?.id && u.rol !== "superadmin");
   const estadisticasUsuarios = useQueries({
     queries: otros.map((usuario) => ({
       queryKey: ["estadisticas", usuario.id],
@@ -63,6 +65,17 @@ function Amigos() {
     })),
   });
   const amigosIds = new Set(amigos.map((amigo) => amigo.id));
+
+  if (esSuperAdmin) {
+    return (
+      <div className="mx-auto max-w-2xl px-4 py-24 text-center">
+        <h1 className="text-2xl font-bold">Cuenta exclusivamente administrativa</h1>
+        <p className="mt-2 text-muted-foreground">
+          La cuenta principal no participa en amistades. Usá el panel de administración.
+        </p>
+      </div>
+    );
+  }
 
   const accion = async (fn: () => Promise<unknown>, ok: string) => {
     if (!yo) {

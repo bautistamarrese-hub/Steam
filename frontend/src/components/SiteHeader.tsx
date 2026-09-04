@@ -30,8 +30,6 @@ const LINKS_SUPERADMIN = [
   { to: "/", label: "Tienda", requiereSesion: false },
   { to: "/administracion", label: "Administración", requiereSesion: true },
   { to: "/top", label: "Top", requiereSesion: false },
-  { to: "/amigos", label: "Amigos", requiereSesion: false },
-  { to: "/perfil", label: "Perfil", requiereSesion: true },
 ] as const;
 
 export function SiteHeader() {
@@ -41,7 +39,7 @@ export function SiteHeader() {
   const { data: solicitudesPendientes = 0 } = useQuery({
     queryKey: ["solicitudes-recibidas-count", usuario?.id],
     queryFn: () => cantidadSolicitudesRecibidas(usuario!.id),
-    enabled: Boolean(usuario),
+    enabled: Boolean(usuario && !esSuperAdmin),
     refetchInterval: 15_000,
   });
   const contadorSolicitudes = solicitudesPendientes > 9 ? "+9" : String(solicitudesPendientes);
@@ -101,24 +99,28 @@ export function SiteHeader() {
           )}
           {usuario ? (
             <>
-              <Link
-                to="/perfil"
-                hash="billetera"
-                className="flex items-center gap-2 rounded-md border border-border bg-card px-3 py-1.5 text-sm"
-              >
-                <Wallet className="h-4 w-4 text-accent" />
-                <span className="font-semibold">Saldo: {formatSaldo(usuario.saldo)}</span>
-              </Link>
-              <Link to="/perfil" className="flex items-center gap-2">
-                <AvatarGamer
-                  nickname={usuario.nickname}
-                  avatar={usuario.avatar}
-                  className="h-8 w-8"
-                />
-                <span className="hidden text-sm text-muted-foreground 2xl:inline">
-                  {usuario.nickname}
-                </span>
-              </Link>
+              {!esSuperAdmin && (
+                <>
+                  <Link
+                    to="/perfil"
+                    hash="billetera"
+                    className="flex items-center gap-2 rounded-md border border-border bg-card px-3 py-1.5 text-sm"
+                  >
+                    <Wallet className="h-4 w-4 text-accent" />
+                    <span className="font-semibold">Saldo: {formatSaldo(usuario.saldo)}</span>
+                  </Link>
+                  <Link to="/perfil" className="flex items-center gap-2">
+                    <AvatarGamer
+                      nickname={usuario.nickname}
+                      avatar={usuario.avatar}
+                      className="h-8 w-8"
+                    />
+                    <span className="hidden text-sm text-muted-foreground 2xl:inline">
+                      {usuario.nickname}
+                    </span>
+                  </Link>
+                </>
+              )}
               <button
                 onClick={cerrarSesion}
                 aria-label="Cerrar sesión"

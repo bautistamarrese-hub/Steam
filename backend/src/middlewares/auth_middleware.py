@@ -45,6 +45,18 @@ def require_developer(current_user: Usuario, developer_id: int) -> None:
         raise ForbiddenError("Esta operación requiere la cuenta desarrolladora propietaria.")
 
 
+def require_user_features(current_user: Usuario) -> None:
+    if current_user.rol == "superadmin":
+        raise ForbiddenError(
+            "La cuenta administradora principal solo puede operar desde el panel de administracion."
+        )
+
+
+def get_feature_user(current_user: Usuario = Depends(get_current_user)) -> Usuario:
+    require_user_features(current_user)
+    return current_user
+
+
 def require_superadmin(current_user: Usuario) -> None:
     if current_user.rol != "superadmin":
         raise ForbiddenError("Esta operación requiere la cuenta administradora principal.")

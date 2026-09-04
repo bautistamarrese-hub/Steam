@@ -1,9 +1,10 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
-import { Gamepad2, Lock, ThumbsDown, ThumbsUp, Trophy } from "lucide-react";
+import { Flag, Gamepad2, Lock, ThumbsDown, ThumbsUp, Trophy } from "lucide-react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
+import { SaldoInsuficienteDialog } from "@/components/SaldoInsuficienteDialog";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -15,6 +16,7 @@ import {
   biblioteca,
   comprarJuego,
   crearLogro,
+  denunciarJuego,
   formatPrecio,
   guardarResena,
   logrosDeJuego,
@@ -34,7 +36,7 @@ export const Route = createFileRoute("/juegos/$juegoId")({
 
 function DetalleJuego() {
   const id = Number(Route.useParams().juegoId);
-  const { usuario, esAdmin, abrirAcceso, refrescar } = useSesion();
+  const { usuario, esAdmin, esSuperAdmin, abrirAcceso, refrescar } = useSesion();
   const queryClient = useQueryClient();
   const [texto, setTexto] = useState("");
   const [nombreLogro, setNombreLogro] = useState("");
@@ -43,6 +45,8 @@ function DetalleJuego() {
   const [objetivoLogro, setObjetivoLogro] = useState("1");
   const [principal, setPrincipal] = useState<string | null>(null);
   const [ampliada, setAmpliada] = useState<string | null>(null);
+  const [motivoDenuncia, setMotivoDenuncia] = useState("");
+  const [mostrarSaldoInsuficiente, setMostrarSaldoInsuficiente] = useState(false);
 
   const { data: juego, isError } = useQuery({
     queryKey: ["juego", id],
@@ -177,47 +181,62 @@ function DetalleJuego() {
               <Badge variant="outline">Lanzamiento {juego.fecha_lanzamiento}</Badge>
             </div>
             <p className="mt-6 text-3xl font-bold text-accent">{formatPrecio(juego.precio)}</p>
-            <div className="mt-4 flex gap-2">
-              <Button
-                disabled={enBiblioteca}
-                onClick={() =>
-                  accion(() => comprarJuego(usuario!.id, id), `Compraste ${juego.titulo}`)
-                }
-              >
-                {esMiJuego ? "Es tu juego" : comprado ? "Ya en tu biblioteca" : "Comprar ahora"}
-              </Button>
-              <Button
-                variant="secondary"
-                disabled={enBiblioteca || deseado}
-                onClick={() =>
-                  accion(() => agregarAWishlist(usuario!.id, id), "Agregado a la wishlist")
-                }
-              >
-                {esMiJuego ? "Ya es tuyo" : deseado ? "En tu wishlist" : "Agregar a wishlist"}
-              </Button>
-              {enBiblioteca && (
-                <Button asChild variant="secondary">
-                  <Link
-                    to="/jugar/$juegoId"
-                    params={{ juegoId: String(id) }}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                  >
-                    <Gamepad2 className="h-4 w-4" /> Jugar
-                  </Link>
+            {!esSuperAdmin && (
+              <div className="mt-4 flex flex-wrap gap-2">
+                <Button
+                  disabled={enBiblioteca}
+                  onClick={() => {
+                    if (!usuario) {
+                      abrirAcceso("Tenés que iniciar sesión para comprar este juego.");
+                      return;
+                    }
+                    if (usuario.saldo < juego.precio) {
+                      setMostrarSaldoInsuficiente(true);
+                      return;
+                    }
+                    void accion(() => comprarJuego(usuario.id, id), `Compraste ${juego.titulo}`);
+                  }}
+                >
+                  {esMiJuego ? "Es tu juego" : comprado ? "Ya en tu biblioteca" : "Comprar ahora"}
                 </Button>
-              )}
-              {!usuario && (
                 <Button
                   variant="secondary"
+                  disabled={enBiblioteca || deseado}
                   onClick={() =>
-                    abrirAcceso("Tenés que iniciar sesión y comprar el juego para jugar.")
+                    accion(() => agregarAWishlist(usuario!.id, id), "Agregado a la wishlist")
                   }
                 >
-                  <Gamepad2 className="h-4 w-4" /> Jugar
+                  {esMiJuego ? "Ya es tuyo" : deseado ? "En tu wishlist" : "Agregar a wishlist"}
                 </Button>
-              )}
-            </div>
+                {enBiblioteca && (
+                  <Button asChild variant="secondary">
+                    <Link
+                      to="/jugar/$juegoId"
+                      params={{ juegoId: String(id) }}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
+                      <Gamepad2 className="h-4 w-4" /> Jugar
+                    </Link>
+                  </Button>
+                )}
+                {!usuario && (
+                  <Button
+                    variant="secondary"
+                    onClick={() =>
+                      abrirAcceso("Tenés que iniciar sesión y comprar el juego para jugar.")
+                    }
+                  >
+                    <Gamepad2 className="h-4 w-4" /> Jugar
+                  </Button>
+                )}
+              </div>
+            )}
+            {esSuperAdmin && (
+              <p className="mt-4 rounded-md border border-border bg-secondary/40 p-3 text-sm text-muted-foreground">
+                La cuenta administradora solo puede editar o eliminar este juego desde su panel.
+              </p>
+            )}
           </div>
         </div>
       </section>
@@ -225,39 +244,41 @@ function DetalleJuego() {
       <div className="mx-auto max-w-4xl space-y-10 px-4 py-10">
         <section>
           <h2 className="text-xl font-semibold">Reseñas ({resenas.length})</h2>
-          <Card className="mt-4 p-4">
-            <h3 className="font-semibold">
-              {miResena ? "Editar mi reseña" : "Escribir una reseña"}
-            </h3>
-            <p className="text-xs text-muted-foreground">Solo podés reseñar juegos comprados.</p>
-            <Textarea
-              className="mt-3"
-              value={texto}
-              onChange={(event) => setTexto(event.target.value)}
-              disabled={!usuario || !comprado}
-            />
-            <div className="mt-3 flex gap-2">
-              <Button
-                size="sm"
-                disabled={Boolean(usuario) && !comprado}
-                onClick={() =>
-                  accion(() => guardarResena(usuario!.id, id, true, texto), "Reseña publicada")
-                }
-              >
-                <ThumbsUp className="h-4 w-4" /> Recomiendo
-              </Button>
-              <Button
-                size="sm"
-                variant="secondary"
-                disabled={Boolean(usuario) && !comprado}
-                onClick={() =>
-                  accion(() => guardarResena(usuario!.id, id, false, texto), "Reseña publicada")
-                }
-              >
-                <ThumbsDown className="h-4 w-4" /> No recomiendo
-              </Button>
-            </div>
-          </Card>
+          {!esSuperAdmin && (
+            <Card className="mt-4 p-4">
+              <h3 className="font-semibold">
+                {miResena ? "Editar mi reseña" : "Escribir una reseña"}
+              </h3>
+              <p className="text-xs text-muted-foreground">Solo podés reseñar juegos comprados.</p>
+              <Textarea
+                className="mt-3"
+                value={texto}
+                onChange={(event) => setTexto(event.target.value)}
+                disabled={!usuario || !comprado}
+              />
+              <div className="mt-3 flex gap-2">
+                <Button
+                  size="sm"
+                  disabled={Boolean(usuario) && !comprado}
+                  onClick={() =>
+                    accion(() => guardarResena(usuario!.id, id, true, texto), "Reseña publicada")
+                  }
+                >
+                  <ThumbsUp className="h-4 w-4" /> Recomiendo
+                </Button>
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  disabled={Boolean(usuario) && !comprado}
+                  onClick={() =>
+                    accion(() => guardarResena(usuario!.id, id, false, texto), "Reseña publicada")
+                  }
+                >
+                  <ThumbsDown className="h-4 w-4" /> No recomiendo
+                </Button>
+              </div>
+            </Card>
+          )}
           <div className="mt-4 grid gap-3 md:grid-cols-2">
             {resenas.map((resena) => (
               <Card key={resena.id} className="gap-2 p-4">
@@ -278,6 +299,40 @@ function DetalleJuego() {
             ))}
           </div>
         </section>
+
+        {!esSuperAdmin && !esMiJuego && (
+          <section>
+            <Card className="border-destructive/30 p-5">
+              <div className="flex items-center gap-2">
+                <Flag className="h-5 w-5 text-destructive" />
+                <h2 className="text-lg font-semibold">Denunciar este juego</h2>
+              </div>
+              <p className="mt-1 text-sm text-muted-foreground">
+                Explicá el problema para que el administrador pueda revisarlo.
+              </p>
+              <Textarea
+                className="mt-3"
+                minLength={10}
+                maxLength={1000}
+                placeholder="Describí el motivo de la denuncia..."
+                value={motivoDenuncia}
+                onChange={(event) => setMotivoDenuncia(event.target.value)}
+              />
+              <Button
+                className="mt-3"
+                variant="destructive"
+                onClick={() =>
+                  accion(async () => {
+                    await denunciarJuego(id, motivoDenuncia);
+                    setMotivoDenuncia("");
+                  }, "Denuncia enviada para revisión")
+                }
+              >
+                <Flag className="h-4 w-4" /> Enviar denuncia
+              </Button>
+            </Card>
+          </section>
+        )}
 
         <section>
           <h2 className="text-xl font-semibold">Logros ({logros.length})</h2>
@@ -405,6 +460,12 @@ function DetalleJuego() {
           />
         </div>
       )}
+      <SaldoInsuficienteDialog
+        abierto={mostrarSaldoInsuficiente}
+        onOpenChange={setMostrarSaldoInsuficiente}
+        saldo={usuario?.saldo ?? 0}
+        precio={juego.precio}
+      />
     </div>
   );
 }
