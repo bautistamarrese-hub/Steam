@@ -128,6 +128,19 @@ function DetalleJuego() {
   const enBiblioteca = comprado || esMiJuego;
   const capturas = [juego.imagen, ...(juego.galeria ?? [])];
   const imagenPrincipal = principal ?? juego.imagen;
+  const totalValoraciones = resenas.length;
+  const valoracionesPositivas = resenas.filter((resena) => resena.recomienda).length;
+  const porcentajePositivas = totalValoraciones
+    ? Math.round((valoracionesPositivas / totalValoraciones) * 100)
+    : 0;
+  const estiloValoracion =
+    totalValoraciones === 0
+      ? "border-border bg-secondary/50 text-muted-foreground"
+      : porcentajePositivas >= 70
+        ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-400"
+        : porcentajePositivas >= 40
+          ? "border-amber-500/30 bg-amber-500/10 text-amber-400"
+          : "border-destructive/30 bg-destructive/10 text-destructive";
 
   return (
     <div>
@@ -170,7 +183,21 @@ function DetalleJuego() {
             </p>
           </div>
           <div>
-            <h1 className="text-3xl font-bold">{juego.titulo}</h1>
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <h1 className="min-w-0 text-3xl font-bold">{juego.titulo}</h1>
+              <div
+                className={`flex shrink-0 items-center gap-2 rounded-lg border px-3 py-2 ${estiloValoracion}`}
+                aria-label={`${porcentajePositivas}% de valoraciones positivas sobre ${totalValoraciones} valoraciones`}
+              >
+                <ThumbsUp className="h-5 w-5" aria-hidden="true" />
+                <div className="leading-tight">
+                  <p className="font-bold">{porcentajePositivas}% positivas</p>
+                  <p className="text-xs opacity-80">
+                    {totalValoraciones} {totalValoraciones === 1 ? "valoración" : "valoraciones"}
+                  </p>
+                </div>
+              </div>
+            </div>
             <p className="mt-2 font-medium">{juego.resumen ?? juego.descripcion}</p>
             {juego.resumen && (
               <p className="mt-2 text-sm text-muted-foreground">{juego.descripcion}</p>
