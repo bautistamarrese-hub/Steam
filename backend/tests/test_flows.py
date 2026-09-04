@@ -479,6 +479,75 @@ def test_resena_y_logros_solo_para_juego_comprado(client: TestClient):
     assert stats["top_completados"][0]["porcentaje"] == 100
 
 
+def test_logros_se_desbloquean_automaticamente_por_progreso(client: TestClient):
+    jugador = registrar(client, "progreso_auto")
+    ajeno = registrar(client, "progreso_ajeno")
+    desarrollador = crear_desarrollador(client, "Métricas SA")
+    juego = publicar_juego(client, desarrollador["id"], "Juego medible", precio=0)
+    logros_url = f"/api/juegos/{juego['id']}/logros"
+
+    logro_cinco = assert_status(
+        client.post(
+            logros_url,
+            json={
+                "nombre": "Cinco puntos",
+                "descripcion": "Alcanzá 5 puntos.",
+                "puntos": 10,
+                "requisito_evento": "puntaje",
+                "requisito_valor": 5,
+            },
+        ),
+        201,
+    )
+    logro_diez = assert_status(
+        client.post(
+            logros_url,
+            json={
+                "nombre": "Diez puntos",
+                "descripcion": "Alcanzá 10 puntos.",
+                "puntos": 20,
+                "requisito_evento": "puntaje",
+                "requisito_valor": 10,
+            },
+        ),
+        201,
+    )
+    assert_status(
+        client.post(
+            logros_url,
+            json={
+                "nombre": "Requisito incompleto",
+                "descripcion": "",
+                "puntos": 5,
+                "requisito_evento": "puntaje",
+            },
+        ),
+        422,
+    )
+
+    progreso_url = f"/api/usuarios/{jugador['id']}/juegos/{juego['id']}/progreso"
+    assert_status(client.post(progreso_url, json={"evento": "puntaje", "valor": 4}), 400)
+    assert_status(client.post(f"/api/usuarios/{jugador['id']}/comprar/{juego['id']}"), 201)
+
+    assert assert_status(
+        client.post(progreso_url, json={"evento": "puntaje", "valor": 4}), 200
+    ) == []
+    primero = assert_status(
+        client.post(progreso_url, json={"evento": "puntaje", "valor": 5}), 200
+    )
+    assert [item["logro_id"] for item in primero] == [logro_cinco["id"]]
+    segundo = assert_status(
+        client.post(progreso_url, json={"evento": "puntaje", "valor": 10}), 200
+    )
+    assert [item["logro_id"] for item in segundo] == [logro_diez["id"]]
+    assert assert_status(
+        client.post(progreso_url, json={"evento": "puntaje", "valor": 20}), 200
+    ) == []
+
+    ajeno_url = f"/api/usuarios/{ajeno['id']}/juegos/{juego['id']}/progreso"
+    assert_status(client.post(ajeno_url, json={"evento": "puntaje", "valor": 20}), 400)
+
+
 def test_amistad_bidireccional_sin_duplicados(client: TestClient):
     uno = registrar(client, "amigo_uno")
     dos = registrar(client, "amigo_dos")

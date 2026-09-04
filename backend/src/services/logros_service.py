@@ -1,5 +1,7 @@
 from typing import Optional
+
 from sqlalchemy.orm import Session
+
 from src.db.models.desarrolladorJuego_model import Juego
 from src.db.models.logros_model import Logro
 
@@ -9,7 +11,13 @@ class LogroService:
         self.db = db
 
     def crear_logro(
-        self, juego_id: int, nombre: str, descripcion: Optional[str], puntos: int
+        self,
+        juego_id: int,
+        nombre: str,
+        descripcion: Optional[str],
+        puntos: int,
+        requisito_evento: Optional[str] = None,
+        requisito_valor: Optional[float] = None,
     ) -> Logro:
         if not self.db.query(Juego).filter(Juego.id == juego_id).first():
             raise ValueError("El juego no existe.")
@@ -30,7 +38,9 @@ class LogroService:
             juego_id=juego_id,
             nombre=nombre,
             descripcion=descripcion,
-            puntos=puntos
+            puntos=puntos,
+            requisito_evento=requisito_evento,
+            requisito_valor=requisito_valor,
         )
         self.db.add(nuevo_logro)
         self.db.commit()

@@ -35,6 +35,7 @@ porque esos campos no existen en el modelo actual de `Juego`.
 | Reseñas | `GET`, `POST /api/juegos/{id}/resenas` | detalle de juego |
 | Logros del juego | `GET`, `POST /api/juegos/{id}/logros` | detalle y panel dev |
 | Logros desbloqueados | `GET /api/usuarios/{id}/logros`, `POST /api/usuarios/{id}/logros/{logro_id}` | detalle y perfil público |
+| Progreso automático de logros | `POST /api/usuarios/{id}/juegos/{juego_id}/progreso` | reproductor de juegos |
 | Amigos | `GET`, `POST /api/usuarios/{id}/amigos`; `DELETE /api/usuarios/{id}/amigos/{amigo_id}` | comunidad y perfil público |
 | Solicitudes de amistad | `POST /api/solicitudes`; `PUT`, `DELETE /api/solicitudes/{id}`; `GET /api/usuarios/{id}/solicitudes/{recibidas,enviadas}` | comunidad y perfil público |
 | Rankings | `GET /api/juegos/top-ventas`, `GET /api/juegos/mejor-valorados` | top |
@@ -86,6 +87,10 @@ los campos editoriales sin borrar los datos existentes.
 El script `src/db/migrations/20260903_superadmin.sql` crea o normaliza la cuenta
 administradora principal; el servicio de login también garantiza su existencia
 de forma idempotente.
+El script `src/db/migrations/20260903_logros_automaticos.sql` agrega una métrica
+y un objetivo opcionales a los logros anteriores. Los logros nuevos usan esos
+campos para evaluarse automáticamente a partir del progreso informado por el
+juego.
 
 ## Verificación automatizada
 

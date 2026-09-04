@@ -154,7 +154,7 @@ function PanelAdministracion({
     try {
       await actualizarJuegoAdmin(token, juegoEditando.id, juegoEditando.desarrollador_id, {
         titulo,
-        precio: Number(precio),
+        precio: Number(precio.replace(",", ".")),
         genero,
         descripcion: resumen,
         resumen,
@@ -265,8 +265,9 @@ function PanelAdministracion({
             </Campo>
             <Campo etiqueta="Precio">
               <Input
-                type="number"
-                min="0"
+                type="text"
+                inputMode="decimal"
+                placeholder="0.00"
                 value={precio}
                 onChange={(e) => setPrecio(e.target.value)}
               />

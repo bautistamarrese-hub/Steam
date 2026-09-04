@@ -41,6 +41,12 @@ CREATE TABLE logro (
     nombre VARCHAR(100) NOT NULL,
     descripcion TEXT,
     puntos INT DEFAULT 0,
+    requisito_evento VARCHAR(100),
+    requisito_valor DOUBLE PRECISION,
+    CONSTRAINT check_requisito_logro_completo CHECK (
+        (requisito_evento IS NULL AND requisito_valor IS NULL)
+        OR (requisito_evento IS NOT NULL AND requisito_valor > 0)
+    ),
     FOREIGN KEY (juego_id) REFERENCES juego(id)
 );
 

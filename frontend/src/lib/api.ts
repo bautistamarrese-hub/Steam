@@ -468,14 +468,27 @@ export const crearLogro = (
   nombre: string,
   descripcion: string,
   puntos: number,
+  requisitoEvento?: string,
+  requisitoValor?: number,
 ): Promise<Logro> => {
   const nombreLimpio = textoRequerido(nombre, "El nombre del logro");
   numeroFinito(puntos, "Los puntos");
   if (!Number.isInteger(puntos) || puntos < 1 || puntos > 100)
     throw new ApiError("Los puntos deben ser un número entero entre 1 y 100.");
+  const eventoLimpio = requisitoEvento?.trim().toLowerCase();
+  const tieneEvento = Boolean(eventoLimpio);
+  if (tieneEvento !== (requisitoValor !== undefined))
+    throw new ApiError("La clave de progreso y el objetivo deben completarse juntos.");
+  if (requisitoValor !== undefined && (!Number.isFinite(requisitoValor) || requisitoValor <= 0))
+    throw new ApiError("El objetivo del logro debe ser mayor que cero.");
   return request(`/juegos/${juegoId}/logros`, {
     method: "POST",
-    body: JSON.stringify({ nombre: nombreLimpio, descripcion: descripcion.trim(), puntos }),
+    body: JSON.stringify({
+      nombre: nombreLimpio,
+      descripcion: descripcion.trim(),
+      puntos,
+      ...(tieneEvento ? { requisito_evento: eventoLimpio, requisito_valor: requisitoValor } : {}),
+    }),
   });
 };
 
@@ -484,6 +497,17 @@ export const obtenerLogrosDesbloqueados = (usuarioId: number): Promise<LogroDesb
 
 export const desbloquearLogro = (usuarioId: number, logroId: number): Promise<LogroDesbloqueado> =>
   request(`/usuarios/${usuarioId}/logros/${logroId}`, { method: "POST" });
+
+export const reportarProgresoLogros = (
+  usuarioId: number,
+  juegoId: number,
+  evento: string,
+  valor: number,
+): Promise<LogroDesbloqueado[]> =>
+  request(`/usuarios/${usuarioId}/juegos/${juegoId}/progreso`, {
+    method: "POST",
+    body: JSON.stringify({ evento: evento.trim().toLowerCase(), valor }),
+  });
 
 export const amigosDe = async (usuarioId: number): Promise<Usuario[]> =>
   (await request<UsuarioApi[]>(`/usuarios/${usuarioId}/amigos`)).map(adaptarUsuario);

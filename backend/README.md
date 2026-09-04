@@ -81,6 +81,7 @@ pip install -r requirements.txt
 psql -U postgres -d steamdb -f .\src\db\migrations\20260831_juegos_archivos.sql
 psql -U postgres -d steamdb -f .\src\db\migrations\20260902_perfiles_imagenes.sql
 psql -U postgres -d steamdb -f .\src\db\migrations\20260903_superadmin.sql
+psql -U postgres -d steamdb -f .\src\db\migrations\20260903_logros_automaticos.sql
 ```
 
 Los juegos reproducibles deben ser un archivo `.html` o un `.zip` que incluya
@@ -96,6 +97,21 @@ usada por el panel global. El backend también verifica esta cuenta al iniciar
 sesión para que esté disponible en bases creadas por los tests o por SQLAlchemy.
 Sus credenciales iniciales son `admin@gmail.com`, contraseña `123456` y nombre
 de usuario `admin`.
+
+La migración `20260903_logros_automaticos.sql` permite definir cada logro con
+una métrica y un valor objetivo. Un juego HTML reporta el valor acumulado así:
+
+```javascript
+parent.postMessage(
+  { type: "steamnt:achievement-progress", evento: "puntaje", valor: 10 },
+  "*",
+);
+```
+
+El backend compara el progreso con todos los requisitos del juego y registra
+automáticamente los logros alcanzados. La plataforma también reporta
+`iniciar_juego`, `tiempo_jugado_segundos` y, para el minijuego de respaldo,
+`puntaje`.
 
 Abrir http://localhost:8000/docs para ver Swagger.
 

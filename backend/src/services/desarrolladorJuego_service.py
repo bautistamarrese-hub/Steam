@@ -249,6 +249,8 @@ class JuegoService:
             nombre=payload.nombre.strip(),
             descripcion=payload.descripcion,
             puntos=payload.puntos,
+            requisito_evento=payload.requisito_evento,
+            requisito_valor=payload.requisito_valor,
         )
         self.db.add(logro)
         self.db.commit()

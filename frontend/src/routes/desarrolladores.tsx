@@ -1,6 +1,6 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useState, type ReactNode } from "react";
+import { useState, type Dispatch, type ReactNode, type SetStateAction } from "react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { AccesoRequerido } from "@/components/AccesoRequerido";
@@ -20,6 +20,7 @@ import {
   subirArchivoJuego,
 } from "@/lib/api";
 import { leerImagen, leerImagenes } from "@/lib/imagen";
+import { METRICAS_LOGRO, type MetricaLogro } from "@/lib/logros";
 import { useSesion, useUsuario } from "@/lib/sesion";
 import type { Genero, Juego } from "@/lib/types";
 
@@ -46,9 +47,22 @@ const GENEROS: Genero[] = [
   "Terror",
   "Simulación",
 ];
+const MAX_IMAGENES_GALERIA = 12;
 
-type BorradorLogro = { nombre: string; descripcion: string; puntos: string };
-const logroVacio = (): BorradorLogro => ({ nombre: "", descripcion: "", puntos: "10" });
+type BorradorLogro = {
+  nombre: string;
+  descripcion: string;
+  puntos: string;
+  evento: MetricaLogro;
+  objetivo: string;
+};
+const logroVacio = (): BorradorLogro => ({
+  nombre: "",
+  descripcion: "",
+  puntos: "10",
+  evento: "puntaje",
+  objetivo: "1",
+});
 
 function Desarrolladores() {
   const { usuario } = useSesion();
@@ -128,10 +142,24 @@ function PanelDesarrollador() {
     }
   };
 
-  const cargarVarias = async (files: FileList | null, guardar: (valor: string[]) => void) => {
+  const cargarVarias = async (
+    files: FileList | null,
+    actuales: string[],
+    guardar: Dispatch<SetStateAction<string[]>>,
+  ) => {
     if (!files?.length) return;
     try {
-      guardar(await leerImagenes(Array.from(files)));
+      const nuevas = await leerImagenes(Array.from(files));
+      const unicas = nuevas.filter((imagen) => !actuales.includes(imagen));
+      const disponibles = MAX_IMAGENES_GALERIA - actuales.length;
+      if (disponibles <= 0) {
+        toast.error(`La galería admite hasta ${MAX_IMAGENES_GALERIA} imágenes.`);
+        return;
+      }
+      guardar([...actuales, ...unicas.slice(0, disponibles)]);
+      if (unicas.length > disponibles) {
+        toast.warning(`Se agregaron las primeras ${disponibles} imágenes disponibles.`);
+      }
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "No se pudieron cargar las imágenes");
     }
@@ -144,7 +172,7 @@ function PanelDesarrollador() {
       const juego = await publicarJuego({
         titulo,
         desarrollador_id: dev.id,
-        precio: Number(precio),
+        precio: Number(precio.replace(",", ".")),
         genero,
         fecha_lanzamiento: new Date().toISOString().slice(0, 10),
         descripcion: resumen || "Nuevo lanzamiento publicado desde el panel de desarrolladores.",
@@ -156,7 +184,14 @@ function PanelDesarrollador() {
       if (archivo) await subirArchivoJuego(juego.id, archivo);
       await Promise.all(
         logros.map((logro) =>
-          crearLogro(juego.id, logro.nombre, logro.descripcion, Number(logro.puntos)),
+          crearLogro(
+            juego.id,
+            logro.nombre,
+            logro.descripcion,
+            Number(logro.puntos),
+            logro.evento,
+            Number(logro.objetivo),
+          ),
         ),
       );
       await queryClient.invalidateQueries({ queryKey: ["juegos-desarrollador", dev.id] });
@@ -194,7 +229,7 @@ function PanelDesarrollador() {
     setEResumen(juego.resumen ?? juego.descripcion);
     setEGenero(juego.genero);
     setEPortada("");
-    setECapturas([]);
+    setECapturas(juego.galeria ?? []);
     setEArchivo(null);
   };
 
@@ -204,12 +239,12 @@ function PanelDesarrollador() {
     try {
       await actualizarJuego(editando.id, dev.id, {
         titulo: eTitulo,
-        precio: Number(ePrecio),
+        precio: Number(ePrecio.replace(",", ".")),
         genero: eGenero,
         descripcion: eResumen,
         resumen: eResumen,
         ...(ePortada ? { imagen: ePortada } : {}),
-        ...(eCapturas.length ? { galeria: eCapturas } : {}),
+        galeria: eCapturas,
       });
       if (eArchivo) await subirArchivoJuego(editando.id, eArchivo);
       await Promise.all([
@@ -274,8 +309,9 @@ function PanelDesarrollador() {
           </Campo>
           <Campo etiqueta="Precio">
             <Input
-              type="number"
-              min="0"
+              type="text"
+              inputMode="decimal"
+              placeholder="0.00"
               value={precio}
               onChange={(event) => setPrecio(event.target.value)}
             />
@@ -308,17 +344,18 @@ function PanelDesarrollador() {
               onChange={(event) => cargarUna(event.target.files?.[0], setPortada)}
             />
           </Campo>
-          <Campo etiqueta="Capturas del juego (opcional)">
+          <Campo etiqueta="Galería del juego (opcional, hasta 12 imágenes)">
             <Input
               key={`capturas-${formKey}`}
               type="file"
               accept="image/*"
               multiple
               className="cursor-pointer"
-              onChange={(event) => cargarVarias(event.target.files, setCapturas)}
+              onChange={(event) => cargarVarias(event.target.files, capturas, setCapturas)}
             />
             <p className="text-xs text-muted-foreground">
-              {capturas.length ? `${capturas.length} captura(s) cargada(s)` : "Sin capturas."}
+              Podés seleccionar varias a la vez o volver a elegir para agregar más. Estas imágenes
+              aparecen en la ficha del juego y son distintas de la portada.
             </p>
           </Campo>
         </div>
@@ -329,6 +366,10 @@ function PanelDesarrollador() {
             className="mt-3 h-32 w-56 rounded-md border border-border object-cover"
           />
         )}
+        <VistaGaleria
+          imagenes={capturas}
+          alQuitar={(indice) => setCapturas((actuales) => actuales.filter((_, i) => i !== indice))}
+        />
 
         <div className="mt-4 space-y-1">
           <Label htmlFor="archivo">Archivo del juego (opcional)</Label>
@@ -351,7 +392,9 @@ function PanelDesarrollador() {
           <div className="flex items-center justify-between gap-4">
             <div>
               <h3 className="font-semibold">Logros (opcionales)</h3>
-              <p className="text-xs text-muted-foreground">Se guardan junto con la publicación.</p>
+              <p className="text-sm text-muted-foreground">
+                Cada logro tiene una condición de desbloqueo y una recompensa de puntos.
+              </p>
             </div>
             <Button
               type="button"
@@ -362,32 +405,82 @@ function PanelDesarrollador() {
               Agregar logro
             </Button>
           </div>
+          <div className="mt-4 rounded-md border border-border bg-muted/30 p-3 text-xs text-muted-foreground">
+            <p>
+              <strong className="text-foreground">Métrica:</strong> es el dato del juego que se usa
+              para comprobar el requisito. Elegí una de las opciones disponibles.
+            </p>
+            <p className="mt-1">
+              <strong className="text-foreground">Objetivo:</strong> es el valor que debe alcanzar
+              esa métrica. <strong className="text-foreground">Puntos:</strong> es la recompensa que
+              recibe el jugador; no forma parte del requisito.
+            </p>
+          </div>
           {logros.map((logro, indice) => (
-            <div key={indice} className="mt-3 grid gap-2 sm:grid-cols-[2fr_3fr_90px_auto]">
-              <Input
-                placeholder="Nombre"
-                value={logro.nombre}
-                onChange={(event) => actualizarLogro(indice, { nombre: event.target.value })}
-              />
-              <Input
-                placeholder="Descripción"
-                value={logro.descripcion}
-                onChange={(event) => actualizarLogro(indice, { descripcion: event.target.value })}
-              />
-              <Input
-                type="number"
-                min="1"
-                max="100"
-                value={logro.puntos}
-                onChange={(event) => actualizarLogro(indice, { puntos: event.target.value })}
-              />
-              <Button
-                type="button"
-                variant="ghost"
-                onClick={() => setLogros((actuales) => actuales.filter((_, i) => i !== indice))}
-              >
-                Quitar
-              </Button>
+            <div key={indice} className="mt-4 rounded-md border border-border p-4">
+              <div className="flex items-center justify-between gap-3">
+                <p className="font-medium">Logro {indice + 1}</p>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="ghost"
+                  onClick={() => setLogros((actuales) => actuales.filter((_, i) => i !== indice))}
+                >
+                  Quitar logro
+                </Button>
+              </div>
+              <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
+                <Campo etiqueta="Nombre visible">
+                  <Input
+                    placeholder="Ej: Primeros pasos"
+                    value={logro.nombre}
+                    onChange={(event) => actualizarLogro(indice, { nombre: event.target.value })}
+                  />
+                </Campo>
+                <Campo etiqueta="Descripción para el jugador">
+                  <Input
+                    placeholder="Ej: Alcanzá 10 puntos"
+                    value={logro.descripcion}
+                    onChange={(event) =>
+                      actualizarLogro(indice, { descripcion: event.target.value })
+                    }
+                  />
+                </Campo>
+                <Campo etiqueta="Métrica que informa el juego">
+                  <select
+                    value={logro.evento}
+                    onChange={(event) =>
+                      actualizarLogro(indice, { evento: event.target.value as MetricaLogro })
+                    }
+                    className="h-9 w-full rounded-md border border-input bg-sidebar px-3 text-sm text-foreground [&>option]:bg-sidebar [&>option]:text-foreground"
+                  >
+                    {METRICAS_LOGRO.map((metrica) => (
+                      <option key={metrica.valor} value={metrica.valor}>
+                        {metrica.etiqueta}
+                      </option>
+                    ))}
+                  </select>
+                </Campo>
+                <Campo etiqueta="Objetivo requerido">
+                  <Input
+                    type="number"
+                    min="0.01"
+                    step="any"
+                    placeholder="Ej: 10"
+                    value={logro.objetivo}
+                    onChange={(event) => actualizarLogro(indice, { objetivo: event.target.value })}
+                  />
+                </Campo>
+                <Campo etiqueta="Puntos de recompensa">
+                  <Input
+                    type="number"
+                    min="1"
+                    max="100"
+                    value={logro.puntos}
+                    onChange={(event) => actualizarLogro(indice, { puntos: event.target.value })}
+                  />
+                </Campo>
+              </div>
             </div>
           ))}
         </div>
@@ -439,8 +532,9 @@ function PanelDesarrollador() {
             </Campo>
             <Campo etiqueta="Precio">
               <Input
-                type="number"
-                min="0"
+                type="text"
+                inputMode="decimal"
+                placeholder="0.00"
                 value={ePrecio}
                 onChange={(event) => setEPrecio(event.target.value)}
               />
@@ -471,21 +565,26 @@ function PanelDesarrollador() {
                 onChange={(event) => cargarUna(event.target.files?.[0], setEPortada)}
               />
             </Campo>
-            <Campo etiqueta="Reemplazar capturas (opcional)">
+            <Campo etiqueta="Galería del juego (hasta 12 imágenes)">
               <Input
                 type="file"
                 accept="image/*"
                 multiple
                 className="cursor-pointer"
-                onChange={(event) => cargarVarias(event.target.files, setECapturas)}
+                onChange={(event) => cargarVarias(event.target.files, eCapturas, setECapturas)}
               />
               <p className="text-xs text-muted-foreground">
-                {eCapturas.length
-                  ? `${eCapturas.length} captura(s) nueva(s)`
-                  : "Se mantienen las actuales."}
+                Las imágenes elegidas se agregan a las actuales. Podés quitar cualquiera desde la
+                vista previa.
               </p>
             </Campo>
           </div>
+          <VistaGaleria
+            imagenes={eCapturas}
+            alQuitar={(indice) =>
+              setECapturas((actuales) => actuales.filter((_, i) => i !== indice))
+            }
+          />
           <div className="mt-4 space-y-1">
             <Label htmlFor="e-archivo">Reemplazar archivo del juego (opcional)</Label>
             <Input
@@ -516,6 +615,47 @@ function PanelDesarrollador() {
           </div>
         </Card>
       )}
+    </div>
+  );
+}
+
+function VistaGaleria({
+  imagenes,
+  alQuitar,
+}: {
+  imagenes: string[];
+  alQuitar: (indice: number) => void;
+}) {
+  if (!imagenes.length) {
+    return (
+      <p className="mt-3 text-xs text-muted-foreground">Todavía no hay imágenes en la galería.</p>
+    );
+  }
+  return (
+    <div className="mt-3">
+      <p className="mb-2 text-xs font-medium">
+        Galería: {imagenes.length}/{MAX_IMAGENES_GALERIA} imágenes
+      </p>
+      <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 lg:grid-cols-6">
+        {imagenes.map((imagen, indice) => (
+          <div key={`${imagen.slice(-32)}-${indice}`} className="relative">
+            <img
+              src={imagen}
+              alt={`Imagen ${indice + 1} de la galería`}
+              className="aspect-video w-full rounded-md border border-border object-cover"
+            />
+            <Button
+              type="button"
+              size="sm"
+              variant="destructive"
+              className="absolute right-1 top-1 h-6 px-2 text-xs"
+              onClick={() => alQuitar(indice)}
+            >
+              Quitar
+            </Button>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }

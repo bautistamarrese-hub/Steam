@@ -66,6 +66,10 @@ export interface Logro {
   nombre: string;
   descripcion: string;
   puntos: number;
+  /** Métrica acumulada que informa el juego, por ejemplo "puntaje" o "victorias". */
+  requisito_evento?: string | null;
+  /** Valor mínimo de la métrica requerido para desbloquearlo. */
+  requisito_valor?: number | null;
 }
 
 export interface LogroDesbloqueado {

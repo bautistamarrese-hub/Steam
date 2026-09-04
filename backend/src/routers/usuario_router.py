@@ -5,7 +5,7 @@ from src.db.connection import get_db
 from src.schemas.amigo_schema import CreateAmigoSchema, GetAmigoSchema
 from src.schemas.compra_schema import GetCompraSchema, GetRecargaSchema
 from src.schemas.juego_schema import GetItemBibliotecaSchema
-from src.schemas.logro_schema import GetLogroDesbloqueadoSchema
+from src.schemas.logro_schema import GetLogroDesbloqueadoSchema, ProgresoLogroSchema
 from src.schemas.solicitudAmistad_schema import GetSolicitudAmistadSchema
 from src.schemas.usuario_schema import (
     CreateUsuarioSchema,
@@ -109,6 +109,24 @@ def quitar_wishlist(id: int, juego_id: int, db: Session = Depends(get_db)):
 )
 def desbloquear_logro(id: int, logro_id: int, db: Session = Depends(get_db)):
     return DesbloqueoLogroService(db).desbloquear_logro(id, logro_id)
+
+
+@router.post(
+    "/{id}/juegos/{juego_id}/progreso",
+    response_model=list[GetLogroDesbloqueadoSchema],
+)
+def registrar_progreso_logros(
+    id: int,
+    juego_id: int,
+    payload: ProgresoLogroSchema,
+    db: Session = Depends(get_db),
+):
+    return DesbloqueoLogroService(db).registrar_progreso(
+        id,
+        juego_id,
+        payload.evento,
+        payload.valor,
+    )
 
 
 @router.get("/{id}/logros", response_model=list[GetLogroDesbloqueadoSchema])

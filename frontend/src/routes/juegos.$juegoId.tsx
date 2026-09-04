@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import {
   agregarAWishlist,
@@ -23,6 +24,7 @@ import {
   obtenerWishlist,
   resenasDeJuego,
 } from "@/lib/api";
+import { METRICAS_LOGRO, type MetricaLogro } from "@/lib/logros";
 import { useSesion } from "@/lib/sesion";
 
 export const Route = createFileRoute("/juegos/$juegoId")({
@@ -37,6 +39,8 @@ function DetalleJuego() {
   const [texto, setTexto] = useState("");
   const [nombreLogro, setNombreLogro] = useState("");
   const [puntos, setPuntos] = useState("10");
+  const [eventoLogro, setEventoLogro] = useState<MetricaLogro>("puntaje");
+  const [objetivoLogro, setObjetivoLogro] = useState("1");
   const [principal, setPrincipal] = useState<string | null>(null);
   const [ampliada, setAmpliada] = useState<string | null>(null);
 
@@ -288,6 +292,11 @@ function DetalleJuego() {
                   <div className="min-w-0 flex-1">
                     <p className="font-medium">{logro.nombre}</p>
                     <p className="text-sm text-muted-foreground">{logro.descripcion}</p>
+                    {logro.requisito_evento && logro.requisito_valor != null && (
+                      <p className="mt-1 text-xs text-muted-foreground">
+                        Requisito: {logro.requisito_evento} ≥ {logro.requisito_valor}
+                      </p>
+                    )}
                   </div>
                   <Badge variant="secondary">{logro.puntos} pts</Badge>
                   <Badge variant={hecho ? "default" : "outline"}>
@@ -301,17 +310,55 @@ function DetalleJuego() {
           {esMiJuego && (
             <Card className="mt-6 p-4">
               <h3 className="font-semibold">Nuevo logro</h3>
-              <div className="mt-3 grid gap-3 sm:grid-cols-[2fr_1fr]">
-                <Input
-                  value={nombreLogro}
-                  onChange={(event) => setNombreLogro(event.target.value)}
-                  placeholder="Nombre"
-                />
-                <Input
-                  type="number"
-                  value={puntos}
-                  onChange={(event) => setPuntos(event.target.value)}
-                />
+              <p className="mt-1 text-xs text-muted-foreground">
+                La métrica es el dato que informa el juego; el objetivo es el valor necesario para
+                desbloquear el logro. Los puntos son solamente la recompensa.
+              </p>
+              <div className="mt-3 grid gap-3 sm:grid-cols-2">
+                <div className="space-y-1">
+                  <Label>Nombre visible</Label>
+                  <Input
+                    value={nombreLogro}
+                    onChange={(event) => setNombreLogro(event.target.value)}
+                    placeholder="Ej: Primeros pasos"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <Label>Métrica que informa el juego</Label>
+                  <select
+                    value={eventoLogro}
+                    onChange={(event) => setEventoLogro(event.target.value as MetricaLogro)}
+                    className="h-9 w-full rounded-md border border-input bg-sidebar px-3 text-sm text-foreground [&>option]:bg-sidebar [&>option]:text-foreground"
+                  >
+                    {METRICAS_LOGRO.map((metrica) => (
+                      <option key={metrica.valor} value={metrica.valor}>
+                        {metrica.etiqueta}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div className="space-y-1">
+                  <Label>Objetivo requerido</Label>
+                  <Input
+                    type="number"
+                    min="0.01"
+                    step="any"
+                    value={objetivoLogro}
+                    onChange={(event) => setObjetivoLogro(event.target.value)}
+                    placeholder="Ej: 10"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <Label>Puntos de recompensa</Label>
+                  <Input
+                    type="number"
+                    min="1"
+                    max="100"
+                    value={puntos}
+                    onChange={(event) => setPuntos(event.target.value)}
+                    placeholder="Entre 1 y 100"
+                  />
+                </div>
               </div>
               <Button
                 className="mt-3"
@@ -323,6 +370,8 @@ function DetalleJuego() {
                       nombreLogro,
                       "Logro creado desde el panel.",
                       Number(puntos),
+                      eventoLogro,
+                      Number(objetivoLogro),
                     );
                     setNombreLogro("");
                   }, "Logro creado")

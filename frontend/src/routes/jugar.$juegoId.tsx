@@ -13,6 +13,7 @@ import {
   logrosDeJuego,
   obtenerJuego,
   obtenerLogrosDesbloqueados,
+  reportarProgresoLogros,
 } from "@/lib/api";
 import { useSesion, useUsuario } from "@/lib/sesion";
 import type { Logro } from "@/lib/types";
@@ -32,11 +33,19 @@ export const Route = createFileRoute("/jugar/$juegoId")({
   component: Jugar,
 });
 
-interface MensajeLogro {
+interface MensajeDesbloqueo {
   type: "steamnt:unlock-achievement";
   logroId?: number;
   logroNombre?: string;
 }
+
+interface MensajeProgreso {
+  type: "steamnt:achievement-progress";
+  evento: string;
+  valor: number;
+}
+
+type MensajeJuego = MensajeDesbloqueo | MensajeProgreso;
 
 function Jugar() {
   const { usuario } = useSesion();
@@ -56,6 +65,7 @@ function JuegoConSesion() {
   const zonaRef = useRef<HTMLDivElement>(null);
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const desbloqueandoRef = useRef(new Set<number>());
+  const progresoMaximoRef = useRef(new Map<string, number>());
   const [pantallaCompleta, setPantallaCompleta] = useState(false);
   const [puntaje, setPuntaje] = useState(0);
   const [objetivo, setObjetivo] = useState({ x: 50, y: 50 });
@@ -124,34 +134,115 @@ function JuegoConSesion() {
     [comprado, desbloqueadosIds, queryClient, usuario.id],
   );
 
-  // Los juegos HTML pueden avisar un logro con:
-  // parent.postMessage({ type: "steamnt:unlock-achievement", logroId: 1 }, "*")
+  const reportarProgreso = useCallback(
+    async (evento: string, valor: number) => {
+      const clave = evento.trim().toLowerCase();
+      if (!comprado || !clave || !Number.isFinite(valor) || valor < 0) return;
+
+      const relevantes = logros.filter(
+        (logro) =>
+          logro.requisito_evento?.toLowerCase() === clave &&
+          logro.requisito_valor != null &&
+          !desbloqueadosIds.has(logro.id),
+      );
+      if (!relevantes.length) return;
+
+      const anterior = progresoMaximoRef.current.get(clave) ?? -1;
+      if (valor <= anterior) return;
+      progresoMaximoRef.current.set(clave, valor);
+
+      const puedeDesbloquear = relevantes.some(
+        (logro) => logro.requisito_valor != null && valor >= logro.requisito_valor,
+      );
+      if (!puedeDesbloquear) return;
+
+      try {
+        const nuevos = await reportarProgresoLogros(usuario.id, id, clave, valor);
+        if (!nuevos.length) return;
+        await queryClient.invalidateQueries({
+          queryKey: ["logros-desbloqueados", usuario.id],
+        });
+        nuevos.forEach((desbloqueo) => {
+          const logro = logros.find((item) => item.id === desbloqueo.logro_id);
+          if (logro) {
+            toast.success(`¡Logro desbloqueado! ${logro.nombre} (+${logro.puntos} pts)`);
+          }
+        });
+      } catch (error) {
+        progresoMaximoRef.current.delete(clave);
+        toast.error(error instanceof ApiError ? error.message : "No se pudo registrar el progreso");
+      }
+    },
+    [comprado, desbloqueadosIds, id, logros, queryClient, usuario.id],
+  );
+
+  // Los juegos HTML informan una métrica acumulada con:
+  // parent.postMessage(
+  //   { type: "steamnt:achievement-progress", evento: "puntaje", valor: 10 },
+  //   "*",
+  // )
+  // Se conserva el mensaje directo anterior para no romper juegos ya publicados.
   useEffect(() => {
     const recibirMensaje = (event: MessageEvent<unknown>) => {
       if (event.source !== iframeRef.current?.contentWindow || !puedeJugar) return;
-      const data = event.data as Partial<MensajeLogro> | null;
-      if (!data || data.type !== "steamnt:unlock-achievement") return;
-      const logro = logros.find(
-        (item) =>
-          item.id === Number(data.logroId) ||
-          (typeof data.logroNombre === "string" && item.nombre === data.logroNombre),
-      );
-      if (logro) void otorgarLogro(logro);
+      const data = event.data as Partial<MensajeJuego> | null;
+      if (!data) return;
+      if (
+        data.type === "steamnt:achievement-progress" &&
+        typeof data.evento === "string" &&
+        typeof data.valor === "number"
+      ) {
+        void reportarProgreso(data.evento, data.valor);
+        return;
+      }
+      if (data.type === "steamnt:unlock-achievement") {
+        const logro = logros.find(
+          (item) =>
+            item.id === Number(data.logroId) ||
+            (typeof data.logroNombre === "string" && item.nombre === data.logroNombre),
+        );
+        if (logro) void otorgarLogro(logro);
+      }
     };
     window.addEventListener("message", recibirMensaje);
     return () => window.removeEventListener("message", recibirMensaje);
-  }, [logros, otorgarLogro, puedeJugar]);
+  }, [logros, otorgarLogro, puedeJugar, reportarProgreso]);
+
+  useEffect(() => {
+    if (!comprado) return;
+    void reportarProgreso("iniciar_juego", 1);
+  }, [comprado, reportarProgreso]);
+
+  useEffect(() => {
+    if (
+      !comprado ||
+      !logros.some(
+        (logro) =>
+          logro.requisito_evento === "tiempo_jugado_segundos" && !desbloqueadosIds.has(logro.id),
+      )
+    ) {
+      return;
+    }
+    let segundos = 0;
+    const intervalo = window.setInterval(() => {
+      segundos += 1;
+      void reportarProgreso("tiempo_jugado_segundos", segundos);
+    }, 1000);
+    return () => window.clearInterval(intervalo);
+  }, [comprado, desbloqueadosIds, logros, reportarProgreso]);
 
   // El minijuego de respaldo conserva el flujo del frontend recibido cuando el
   // desarrollador todavía no subió un HTML jugable.
   useEffect(() => {
     if (juego?.archivo_url || puntaje === 0 || !comprado) return;
+    void reportarProgreso("puntaje", puntaje);
     [...logros]
+      .filter((logro) => !logro.requisito_evento)
       .sort((a, b) => a.puntos - b.puntos)
       .forEach((logro, indice) => {
         if (puntaje >= (indice + 1) * 3) void otorgarLogro(logro);
       });
-  }, [comprado, juego?.archivo_url, logros, otorgarLogro, puntaje]);
+  }, [comprado, juego?.archivo_url, logros, otorgarLogro, puntaje, reportarProgreso]);
 
   const alternarPantalla = async () => {
     const zona = zonaRef.current;

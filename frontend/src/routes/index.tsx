@@ -15,6 +15,7 @@ import {
   listarJuegos,
   obtenerWishlist,
 } from "@/lib/api";
+import { bancoImagenes } from "@/lib/mock-data";
 import { useSesion } from "@/lib/sesion";
 import type { Genero } from "@/lib/types";
 
@@ -68,6 +69,9 @@ function Tienda() {
     queryFn: () => obtenerWishlist(usuario!.id),
     enabled: Boolean(usuario),
   });
+  const imagenesHero = Array.from(
+    new Set([...juegos.map((juego) => juego.imagen), ...bancoImagenes.map((item) => item.imagen)]),
+  ).slice(0, 6);
   const compradosIds = new Set(comprados.map((item) => item.juego.id));
   const deseadosIds = new Set(deseados.map((item) => item.juego_id));
 
@@ -91,8 +95,28 @@ function Tienda() {
 
   return (
     <div>
-      <section className="bg-hero border-b border-border">
-        <div className="mx-auto max-w-6xl px-4 py-16">
+      <section className="relative isolate overflow-hidden border-b border-border bg-hero">
+        <div aria-hidden="true" className="absolute inset-0 z-0 grid grid-cols-3 grid-rows-2">
+          {imagenesHero.map((imagen, indice) => (
+            <img
+              key={imagen}
+              src={imagen}
+              alt=""
+              className={`h-full w-full object-cover opacity-70 ${
+                indice % 2 === 0 ? "scale-105" : ""
+              }`}
+            />
+          ))}
+        </div>
+        <div
+          aria-hidden="true"
+          className="absolute inset-0 z-10 bg-gradient-to-r from-background via-background/90 to-background/30"
+        />
+        <div
+          aria-hidden="true"
+          className="absolute inset-0 z-10 bg-gradient-to-t from-background/75 via-transparent to-background/30"
+        />
+        <div className="relative z-20 mx-auto max-w-6xl px-4 py-16">
           <Badge variant="secondary" className="mb-4">
             Nuevos lanzamientos cada semana
           </Badge>

@@ -1,4 +1,4 @@
-import { Link } from "@tanstack/react-router";
+import { Link, useNavigate } from "@tanstack/react-router";
 import { Gamepad2, LogIn, LogOut, ShieldCheck, Wallet, Wrench } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -35,7 +35,12 @@ const LINKS_SUPERADMIN = [
 
 export function SiteHeader() {
   const { usuario, esAdmin, esSuperAdmin, abrirAcceso, logout } = useSesion();
+  const navigate = useNavigate();
   const links = esSuperAdmin ? LINKS_SUPERADMIN : esAdmin ? LINKS_ADMIN : LINKS_CLIENTE;
+  const cerrarSesion = () => {
+    logout();
+    void navigate({ to: "/", replace: true });
+  };
   const interceptarPrivado = (
     event: React.MouseEvent<HTMLAnchorElement>,
     requiereSesion: boolean,
@@ -97,7 +102,7 @@ export function SiteHeader() {
                 </span>
               </Link>
               <button
-                onClick={logout}
+                onClick={cerrarSesion}
                 aria-label="Cerrar sesión"
                 className="rounded-md border border-border p-2 text-muted-foreground hover:text-foreground"
               >
