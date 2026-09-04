@@ -2,6 +2,8 @@ from fastapi import APIRouter, Depends, File, Query, Response, UploadFile, statu
 from sqlalchemy.orm import Session
 
 from src.db.connection import get_db
+from src.db.models.registroUsuario_model import Usuario
+from src.middlewares.auth_middleware import get_current_user, require_same_user
 from src.schemas.amigo_schema import CreateAmigoSchema, GetAmigoSchema
 from src.schemas.compra_schema import GetCompraSchema, GetRecargaSchema
 from src.schemas.juego_schema import GetItemBibliotecaSchema
@@ -44,6 +46,11 @@ def listar_usuarios(email: str | None = Query(default=None), db: Session = Depen
     return UsuarioService(db).listar(email)
 
 
+@router.get("/me", response_model=GetUsuarioSchema)
+def obtener_sesion_actual(usuario: Usuario = Depends(get_current_user)):
+    return usuario
+
+
 @router.get("/{id}", response_model=GetUsuarioSchema)
 def obtener_usuario(id: int, db: Session = Depends(get_db)):
     return UsuarioService(db).obtener(id)
@@ -51,18 +58,33 @@ def obtener_usuario(id: int, db: Session = Depends(get_db)):
 
 @router.put("/{id}/avatar", response_model=GetUsuarioSchema)
 async def actualizar_avatar(
-    id: int, archivo: UploadFile = File(...), db: Session = Depends(get_db)
+    id: int,
+    archivo: UploadFile = File(...),
+    db: Session = Depends(get_db),
+    usuario: Usuario = Depends(get_current_user),
 ):
+    require_same_user(id, usuario)
     return await UsuarioService(db).guardar_avatar(id, archivo)
 
 
 @router.post("/{id}/recargar", response_model=GetRecargaSchema)
-def recargar_saldo(id: int, payload: RecargarSaldoSchema, db: Session = Depends(get_db)):
+def recargar_saldo(
+    id: int,
+    payload: RecargarSaldoSchema,
+    db: Session = Depends(get_db),
+    usuario: Usuario = Depends(get_current_user),
+):
+    require_same_user(id, usuario)
     return UsuarioService(db).recargar_saldo(id, payload)
 
 
 @router.get("/{id}/recargas", response_model=list[GetRecargaSchema])
-def listar_recargas(id: int, db: Session = Depends(get_db)):
+def listar_recargas(
+    id: int,
+    db: Session = Depends(get_db),
+    usuario: Usuario = Depends(get_current_user),
+):
+    require_same_user(id, usuario)
     return UsuarioService(db).listar_recargas(id)
 
 
@@ -71,7 +93,13 @@ def listar_recargas(id: int, db: Session = Depends(get_db)):
     response_model=GetCompraSchema,
     status_code=status.HTTP_201_CREATED,
 )
-def comprar_juego(id: int, juego_id: int, db: Session = Depends(get_db)):
+def comprar_juego(
+    id: int,
+    juego_id: int,
+    db: Session = Depends(get_db),
+    usuario: Usuario = Depends(get_current_user),
+):
+    require_same_user(id, usuario)
     return UsuarioService(db).comprar_juego(id, juego_id)
 
 
@@ -87,17 +115,34 @@ def obtener_biblioteca(
     response_model=GetWishlistSchema,
     status_code=status.HTTP_201_CREATED,
 )
-def agregar_wishlist(id: int, payload: CreateWishlistSchema, db: Session = Depends(get_db)):
+def agregar_wishlist(
+    id: int,
+    payload: CreateWishlistSchema,
+    db: Session = Depends(get_db),
+    usuario: Usuario = Depends(get_current_user),
+):
+    require_same_user(id, usuario)
     return UsuarioService(db).agregar_a_wishlist(id, payload)
 
 
 @router.get("/{id}/wishlist", response_model=list[GetWishlistSchema])
-def obtener_wishlist(id: int, db: Session = Depends(get_db)):
+def obtener_wishlist(
+    id: int,
+    db: Session = Depends(get_db),
+    usuario: Usuario = Depends(get_current_user),
+):
+    require_same_user(id, usuario)
     return UsuarioService(db).obtener_wishlist(id)
 
 
 @router.delete("/{id}/wishlist/{juego_id}", status_code=status.HTTP_204_NO_CONTENT)
-def quitar_wishlist(id: int, juego_id: int, db: Session = Depends(get_db)):
+def quitar_wishlist(
+    id: int,
+    juego_id: int,
+    db: Session = Depends(get_db),
+    usuario: Usuario = Depends(get_current_user),
+):
+    require_same_user(id, usuario)
     UsuarioService(db).quitar_de_wishlist(id, juego_id)
     return Response(status_code=status.HTTP_204_NO_CONTENT)
 
@@ -107,7 +152,13 @@ def quitar_wishlist(id: int, juego_id: int, db: Session = Depends(get_db)):
     response_model=GetLogroDesbloqueadoSchema,
     status_code=status.HTTP_201_CREATED,
 )
-def desbloquear_logro(id: int, logro_id: int, db: Session = Depends(get_db)):
+def desbloquear_logro(
+    id: int,
+    logro_id: int,
+    db: Session = Depends(get_db),
+    usuario: Usuario = Depends(get_current_user),
+):
+    require_same_user(id, usuario)
     return DesbloqueoLogroService(db).desbloquear_logro(id, logro_id)
 
 
@@ -120,7 +171,9 @@ def registrar_progreso_logros(
     juego_id: int,
     payload: ProgresoLogroSchema,
     db: Session = Depends(get_db),
+    usuario: Usuario = Depends(get_current_user),
 ):
+    require_same_user(id, usuario)
     return DesbloqueoLogroService(db).registrar_progreso(
         id,
         juego_id,
@@ -137,7 +190,13 @@ def obtener_logros_desbloqueados(id: int, db: Session = Depends(get_db)):
 @router.post(
     "/{id}/amigos", response_model=GetAmigoSchema, status_code=status.HTTP_201_CREATED
 )
-def agregar_amigo(id: int, payload: CreateAmigoSchema, db: Session = Depends(get_db)):
+def agregar_amigo(
+    id: int,
+    payload: CreateAmigoSchema,
+    db: Session = Depends(get_db),
+    usuario: Usuario = Depends(get_current_user),
+):
+    require_same_user(id, usuario)
     return UsuarioService(db).agregar_amigo(id, payload)
 
 
@@ -149,19 +208,35 @@ def obtener_amigos(id: int, db: Session = Depends(get_db)):
 @router.get(
     "/{id}/solicitudes/recibidas", response_model=list[GetSolicitudAmistadSchema]
 )
-def solicitudes_recibidas(id: int, db: Session = Depends(get_db)):
+def solicitudes_recibidas(
+    id: int,
+    db: Session = Depends(get_db),
+    usuario: Usuario = Depends(get_current_user),
+):
+    require_same_user(id, usuario)
     return SolicitudAmistadService(db).recibidas(id)
 
 
 @router.get(
     "/{id}/solicitudes/enviadas", response_model=list[GetSolicitudAmistadSchema]
 )
-def solicitudes_enviadas(id: int, db: Session = Depends(get_db)):
+def solicitudes_enviadas(
+    id: int,
+    db: Session = Depends(get_db),
+    usuario: Usuario = Depends(get_current_user),
+):
+    require_same_user(id, usuario)
     return SolicitudAmistadService(db).enviadas(id)
 
 
 @router.delete("/{id}/amigos/{amigo_id}", status_code=status.HTTP_204_NO_CONTENT)
-def eliminar_amigo(id: int, amigo_id: int, db: Session = Depends(get_db)):
+def eliminar_amigo(
+    id: int,
+    amigo_id: int,
+    db: Session = Depends(get_db),
+    usuario: Usuario = Depends(get_current_user),
+):
+    require_same_user(id, usuario)
     UsuarioService(db).eliminar_amigo(id, amigo_id)
     return Response(status_code=status.HTTP_204_NO_CONTENT)
 

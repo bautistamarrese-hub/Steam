@@ -16,6 +16,7 @@ from src.db.models.logros_model import Logro
 from src.db.models.reseñas_model import Resena
 from src.db.models.registroUsuario_model import Usuario
 from src.db.models.wishlist_model import Wishlist
+from src.utils.logros import normalizar_evento_logro
 
 
 class JuegoService:
@@ -249,7 +250,7 @@ class JuegoService:
             nombre=payload.nombre.strip(),
             descripcion=payload.descripcion,
             puntos=payload.puntos,
-            requisito_evento=payload.requisito_evento,
+            requisito_evento=normalizar_evento_logro(payload.requisito_evento),
             requisito_valor=payload.requisito_valor,
         )
         self.db.add(logro)
@@ -322,7 +323,7 @@ class JuegoService:
         porcentaje = positivas * 100.0 / total
         query = self.db.query(
             Juego, total.label("total_resenas"), porcentaje.label("porcentaje")
-        ).join(Resena, Resena.juego_id == Juego.id).group_by(Juego.id).having(total >= 20)
+        ).join(Resena, Resena.juego_id == Juego.id).group_by(Juego.id).having(total >= 5)
         if genero:
             query = query.filter(Juego.genero == genero)
         return [

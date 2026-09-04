@@ -4,6 +4,7 @@ from sqlalchemy.orm import Session
 from src.db.models.amigos_model import Amigos
 from src.db.models.solicitudAmistad_model import SolicitudAmistad
 from src.services.registroUsuario_service import UsuarioService
+from src.utils.errors import ForbiddenError
 
 
 class SolicitudAmistadService:
@@ -20,8 +21,10 @@ class SolicitudAmistadService:
             raise ValueError("La solicitud no existe.")
         return solicitud
 
-    def enviar(self, payload) -> SolicitudAmistad:
+    def enviar(self, payload, usuario_actual_id: int) -> SolicitudAmistad:
         de, para = payload.de, payload.para
+        if de != usuario_actual_id:
+            raise ForbiddenError("No podés enviar solicitudes en nombre de otra cuenta.")
         UsuarioService(self.db).obtener(de)
         UsuarioService(self.db).obtener(para)
         if de == para:
@@ -67,8 +70,12 @@ class SolicitudAmistadService:
             .all()
         )
 
-    def responder(self, solicitud_id: int, estado: str) -> SolicitudAmistad:
+    def responder(
+        self, solicitud_id: int, estado: str, usuario_actual_id: int
+    ) -> SolicitudAmistad:
         solicitud = self._obtener(solicitud_id)
+        if solicitud.para != usuario_actual_id:
+            raise ForbiddenError("Solo el destinatario puede responder esta solicitud.")
         if solicitud.estado != "pendiente":
             raise ValueError("La solicitud ya fue respondida.")
 
@@ -85,8 +92,10 @@ class SolicitudAmistadService:
         self.db.refresh(solicitud)
         return solicitud
 
-    def cancelar(self, solicitud_id: int) -> None:
+    def cancelar(self, solicitud_id: int, usuario_actual_id: int) -> None:
         solicitud = self._obtener(solicitud_id)
+        if solicitud.de != usuario_actual_id:
+            raise ForbiddenError("Solo quien envió la solicitud puede cancelarla.")
         if solicitud.estado != "pendiente":
             raise ValueError("Solo se puede cancelar una solicitud pendiente.")
         self.db.delete(solicitud)

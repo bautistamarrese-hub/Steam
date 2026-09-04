@@ -23,6 +23,24 @@ const BASE_URL = (import.meta.env["VITE_API_URL"] ?? "http://localhost:8000/api"
   /\/$/,
   "",
 );
+const CLAVE_TOKEN_SESION = "steamnt.token";
+export const EVENTO_SESION_INVALIDA = "steamnt:sesion-invalida";
+
+const headersConSesion = (headers?: HeadersInit, json = false): Headers => {
+  const resultado = new Headers(headers);
+  if (json && !resultado.has("Content-Type")) resultado.set("Content-Type", "application/json");
+  if (typeof window !== "undefined" && !resultado.has("Authorization")) {
+    const token = window.localStorage.getItem(CLAVE_TOKEN_SESION);
+    if (token) resultado.set("Authorization", `Bearer ${token}`);
+  }
+  return resultado;
+};
+
+const notificarSesionInvalida = (status: number) => {
+  if (status === 401 && typeof window !== "undefined") {
+    window.dispatchEvent(new Event(EVENTO_SESION_INVALIDA));
+  }
+};
 
 export class ApiError extends Error {
   constructor(
@@ -39,12 +57,13 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   try {
     response = await fetch(`${BASE_URL}${path}`, {
       ...init,
-      headers: { "Content-Type": "application/json", ...init?.headers },
+      headers: headersConSesion(init?.headers, true),
     });
   } catch {
     throw new ApiError("No se pudo conectar con la API. Verificá que el backend esté iniciado.");
   }
   if (!response.ok) {
+    notificarSesionInvalida(response.status);
     let message = `La API respondió ${response.status}.`;
     try {
       const body = (await response.json()) as {
@@ -82,12 +101,13 @@ async function requestArchivo<T>(
     response = await fetch(`${BASE_URL}${path}`, {
       method,
       body: data,
-      ...(headers ? { headers } : {}),
+      headers: headersConSesion(headers),
     });
   } catch {
     throw new ApiError("No se pudo conectar con la API. Verificá que el backend esté iniciado.");
   }
   if (!response.ok) {
+    notificarSesionInvalida(response.status);
     let message = `La API respondió ${response.status}.`;
     try {
       const body = (await response.json()) as { detail?: string };
@@ -212,6 +232,9 @@ export const listarUsuarios = async (): Promise<Usuario[]> =>
 export const obtenerUsuario = async (id: number): Promise<Usuario> =>
   adaptarUsuario(await request<UsuarioApi>(`/usuarios/${id}`));
 
+export const obtenerSesionActual = async (): Promise<Usuario> =>
+  adaptarUsuario(await request<UsuarioApi>("/usuarios/me"));
+
 export interface CambiosUsuarioAdmin {
   email?: string;
   nickname?: string;
@@ -227,14 +250,19 @@ export const actualizarUsuarioAdmin = async (
   token: string,
   usuarioId: number,
   cambios: CambiosUsuarioAdmin,
-): Promise<Usuario> =>
-  adaptarUsuario(
+): Promise<Usuario> => {
+  if (cambios.saldo !== undefined) {
+    numeroFinito(cambios.saldo, "El saldo");
+    if (cambios.saldo < 0) throw new ApiError("El saldo no puede ser negativo.");
+  }
+  return adaptarUsuario(
     await request<UsuarioApi>(`/administracion/usuarios/${usuarioId}`, {
       method: "PUT",
       headers: autorizacion(token),
       body: JSON.stringify(cambios),
     }),
   );
+};
 
 export const eliminarUsuarioAdmin = (token: string, usuarioId: number): Promise<void> =>
   request(`/administracion/usuarios/${usuarioId}`, {
@@ -249,14 +277,20 @@ export const actualizarJuegoAdmin = async (
   cambios: Partial<
     Pick<Juego, "titulo" | "precio" | "genero" | "descripcion" | "resumen" | "imagen" | "galeria">
   >,
-): Promise<Juego> =>
-  adaptarJuego(
+): Promise<Juego> => {
+  if (cambios.titulo !== undefined) textoRequerido(cambios.titulo, "El título");
+  if (cambios.precio !== undefined) {
+    numeroFinito(cambios.precio, "El precio");
+    if (cambios.precio < 0) throw new ApiError("El precio no puede ser negativo.");
+  }
+  return adaptarJuego(
     await request<JuegoApi>(`/administracion/juegos/${juegoId}`, {
       method: "PUT",
       headers: autorizacion(token),
       body: JSON.stringify({ desarrollador_id: desarrolladorId, ...cambios }),
     }),
   );
+};
 
 export const eliminarJuegoAdmin = (token: string, juegoId: number): Promise<void> =>
   request(`/administracion/juegos/${juegoId}`, {
@@ -624,7 +658,7 @@ export async function topVentas(genero?: Genero | "todos"): Promise<JuegoTop[]> 
   }));
 }
 
-export const MINIMO_RESENAS_VALORADOS = 20;
+export const MINIMO_RESENAS_VALORADOS = 5;
 
 export async function mejorValorados(genero?: Genero | "todos"): Promise<JuegoTop[]> {
   const filtro = genero === "todos" ? undefined : genero;

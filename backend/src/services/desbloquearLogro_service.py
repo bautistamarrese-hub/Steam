@@ -6,6 +6,7 @@ from src.db.models.desbloquearLogro_model import LogroDesbloqueado
 from src.db.models.desarrolladorJuego_model import Juego
 from src.db.models.logros_model import Logro
 from src.db.models.registroUsuario_model import Usuario
+from src.utils.logros import variantes_evento_logro
 
 
 class DesbloqueoLogroService:
@@ -72,10 +73,10 @@ class DesbloqueoLogroService:
         if not comprado and not juego_propio:
             raise ValueError("El usuario no posee el juego informado.")
 
-        evento_normalizado = evento.strip().lower()
+        variantes_evento = variantes_evento_logro(evento)
         candidatos = self.db.query(Logro).filter(
             Logro.juego_id == juego_id,
-            func.lower(Logro.requisito_evento) == evento_normalizado,
+            func.lower(Logro.requisito_evento).in_(variantes_evento),
             Logro.requisito_valor <= valor,
         ).all()
         if not candidatos:

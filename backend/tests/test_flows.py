@@ -4,6 +4,15 @@ from src.services.desarrolladorJuego_service import JuegoService
 from src.services.registroUsuario_service import UsuarioService
 
 
+class RecursoAutenticado(dict):
+    def __init__(self, datos: dict, headers: dict[str, str]):
+        super().__init__(datos)
+        self.headers = headers
+
+
+_HEADERS_POR_DESARROLLADOR: dict[int, dict[str, str]] = {}
+
+
 def assert_status(response, expected: int):
     assert response.status_code == expected, response.text
     return response.json() if response.content else None
@@ -24,14 +33,30 @@ def registrar(
     }
     if estudio is not None:
         body["estudio"] = estudio
-    return assert_status(client.post("/api/usuarios/", json=body), 201)
+    usuario = assert_status(client.post("/api/usuarios/", json=body), 201)
+    acceso = assert_status(
+        client.post(
+            "/api/usuarios/login",
+            json={"email": body["email"], "password": body["password"]},
+        ),
+        200,
+    )
+    resultado = RecursoAutenticado(
+        usuario,
+        {"Authorization": f"Bearer {acceso['access_token']}"},
+    )
+    if resultado.get("desarrollador_id") is not None:
+        _HEADERS_POR_DESARROLLADOR[resultado["desarrollador_id"]] = resultado.headers
+    return resultado
 
 
 def crear_desarrollador(client: TestClient, nombre: str = "Estudio"):
-    return assert_status(
-        client.post("/api/desarrolladores/", json={"nombre": nombre, "pais": "Argentina"}),
-        201,
+    suffix = f"estudio_{len(_HEADERS_POR_DESARROLLADOR)}_{id(client)}"
+    usuario = registrar(client, suffix, rol="admin", estudio=nombre)
+    desarrollador = assert_status(
+        client.get(f"/api/desarrolladores/{usuario['desarrollador_id']}"), 200
     )
+    return RecursoAutenticado(desarrollador, usuario.headers)
 
 
 def publicar_juego(
@@ -43,9 +68,10 @@ def publicar_juego(
     genero: str = "Indie",
     imagen: str | None = None,
 ):
-    return assert_status(
+    juego = assert_status(
         client.post(
             "/api/juegos/",
+            headers=_HEADERS_POR_DESARROLLADOR[desarrollador_id],
             json={
                 "titulo": titulo,
                 "desarrollador_id": desarrollador_id,
@@ -57,6 +83,7 @@ def publicar_juego(
         ),
         201,
     )
+    return RecursoAutenticado(juego, _HEADERS_POR_DESARROLLADOR[desarrollador_id])
 
 
 def test_registro_login_y_rol_desarrollador_persistente(client: TestClient):
@@ -156,6 +183,7 @@ def test_publicacion_busqueda_y_validaciones_de_juego(client: TestClient):
 
     duplicado = client.post(
         "/api/juegos/",
+        headers=dev.headers,
         json={
             "titulo": "FARO AUSTRAL",
             "desarrollador_id": dev["desarrollador_id"],
@@ -167,6 +195,7 @@ def test_publicacion_busqueda_y_validaciones_de_juego(client: TestClient):
     assert_status(
         client.post(
             "/api/juegos/",
+            headers=dev.headers,
             json={
                 "titulo": "Inválido",
                 "desarrollador_id": dev["desarrollador_id"],
@@ -194,6 +223,7 @@ def test_publicacion_completa_con_archivo_y_logro(
     publicado = assert_status(
         client.post(
             f"/api/juegos/{juego['id']}/archivo",
+            headers=juego.headers,
             files={"archivo": ("index.html", b"<h1>Juego listo</h1>", "text/html")},
         ),
         200,
@@ -206,6 +236,7 @@ def test_publicacion_completa_con_archivo_y_logro(
     assert_status(
         client.post(
             f"/api/juegos/{juego['id']}/archivo",
+            headers=juego.headers,
             files={"archivo": ("roto.zip", b"esto no es un zip", "application/zip")},
         ),
         400,
@@ -219,6 +250,7 @@ def test_publicacion_completa_con_archivo_y_logro(
     reemplazado = assert_status(
         client.post(
             f"/api/juegos/{juego['id']}/archivo",
+            headers=juego.headers,
             files={"archivo": ("nuevo.html", b"<h1>Nueva version</h1>", "text/html")},
         ),
         200,
@@ -231,6 +263,7 @@ def test_publicacion_completa_con_archivo_y_logro(
     logro = assert_status(
         client.post(
             f"/api/juegos/{juego['id']}/logros",
+            headers=juego.headers,
             json={
                 "nombre": "Primer logro",
                 "descripcion": "Completar la prueba",
@@ -248,17 +281,32 @@ def test_avatar_y_contenido_editorial_de_juegos(client: TestClient, tmp_path, mo
     actualizado = assert_status(
         client.put(
             f"/api/usuarios/{usuario['id']}/avatar",
+            headers=usuario.headers,
             files={"archivo": ("avatar.png", b"imagen-de-prueba", "image/png")},
         ),
         200,
     )
-    assert actualizado["avatar"].endswith(f"/{usuario['id']}/avatar.png")
-    assert (tmp_path / "avatars" / str(usuario["id"]) / "avatar.png").is_file()
+    ruta_avatar = tmp_path / "avatars" / str(usuario["id"]) / "avatar.png"
+    assert actualizado["avatar"].split("?", 1)[0].endswith(f"/{usuario['id']}/avatar.png")
+    assert "?v=" in actualizado["avatar"]
+    assert ruta_avatar.is_file()
+
+    reemplazado = assert_status(
+        client.put(
+            f"/api/usuarios/{usuario['id']}/avatar",
+            headers=usuario.headers,
+            files={"archivo": ("avatar.png", b"segundo-recorte", "image/png")},
+        ),
+        200,
+    )
+    assert reemplazado["avatar"] != actualizado["avatar"]
+    assert ruta_avatar.read_bytes() == b"segundo-recorte"
 
     dev = registrar(client, "editor", rol="admin", estudio="Editor Studio")
     juego = assert_status(
         client.post(
             "/api/juegos/",
+            headers=dev.headers,
             json={
                 "titulo": "Juego ilustrado",
                 "desarrollador_id": dev["desarrollador_id"],
@@ -278,6 +326,7 @@ def test_avatar_y_contenido_editorial_de_juegos(client: TestClient, tmp_path, mo
     editado = assert_status(
         client.put(
             f"/api/juegos/{juego['id']}",
+            headers=dev.headers,
             json={
                 "desarrollador_id": dev["desarrollador_id"],
                 "titulo": "Juego ilustrado definitivo",
@@ -296,6 +345,7 @@ def test_avatar_y_contenido_editorial_de_juegos(client: TestClient, tmp_path, mo
     assert_status(
         client.put(
             f"/api/juegos/{juego['id']}",
+            headers=otro.headers,
             json={"desarrollador_id": otro["desarrollador_id"], "precio": 1},
         ),
         400,
@@ -320,6 +370,7 @@ def test_eliminar_juego_valida_propietario_y_limpia_dependencias(
     assert_status(
         client.post(
             f"/api/juegos/{juego['id']}/archivo",
+            headers=juego.headers,
             files={"archivo": ("index.html", b"<h1>Temporal</h1>", "text/html")},
         ),
         200,
@@ -327,26 +378,45 @@ def test_eliminar_juego_valida_propietario_y_limpia_dependencias(
     logro = assert_status(
         client.post(
             f"/api/juegos/{juego['id']}/logros",
+            headers=juego.headers,
             json={"nombre": "Temporal", "descripcion": "Temporal", "puntos": 10},
         ),
         201,
     )
     assert_status(
-        client.post(f"/api/usuarios/{comprador['id']}/recargar", json={"monto": 500}),
+        client.post(
+            f"/api/usuarios/{comprador['id']}/recargar",
+            headers=comprador.headers,
+            json={"monto": 500},
+        ),
         200,
     )
-    assert_status(client.post(f"/api/usuarios/{comprador['id']}/comprar/{juego['id']}"), 201)
+    assert_status(
+        client.post(
+            f"/api/usuarios/{comprador['id']}/comprar/{juego['id']}",
+            headers=comprador.headers,
+        ),
+        201,
+    )
     assert_status(
         client.post(
             f"/api/juegos/{juego['id']}/resenas",
+            headers=comprador.headers,
             json={"usuario_id": comprador["id"], "recomienda": True, "texto": "Bien"},
         ),
         201,
     )
-    assert_status(client.post(f"/api/usuarios/{comprador['id']}/logros/{logro['id']}"), 201)
+    assert_status(
+        client.post(
+            f"/api/usuarios/{comprador['id']}/logros/{logro['id']}",
+            headers=comprador.headers,
+        ),
+        201,
+    )
     assert_status(
         client.post(
             f"/api/usuarios/{interesado['id']}/wishlist",
+            headers=interesado.headers,
             json={"juego_id": juego["id"]},
         ),
         201,
@@ -355,6 +425,7 @@ def test_eliminar_juego_valida_propietario_y_limpia_dependencias(
     assert_status(
         client.delete(
             f"/api/juegos/{juego['id']}",
+            headers=otro_dev.headers,
             params={"desarrollador_id": otro_dev["desarrollador_id"]},
         ),
         400,
@@ -362,6 +433,7 @@ def test_eliminar_juego_valida_propietario_y_limpia_dependencias(
     assert_status(
         client.delete(
             f"/api/juegos/{juego['id']}",
+            headers=propietario.headers,
             params={"desarrollador_id": propietario["desarrollador_id"]},
         ),
         204,
@@ -370,7 +442,12 @@ def test_eliminar_juego_valida_propietario_y_limpia_dependencias(
     assert_status(client.get(f"/api/juegos/{juego['id']}"), 400)
     assert assert_status(client.get(f"/api/usuarios/{comprador['id']}/biblioteca"), 200) == []
     assert assert_status(client.get(f"/api/usuarios/{comprador['id']}/logros"), 200) == []
-    assert assert_status(client.get(f"/api/usuarios/{interesado['id']}/wishlist"), 200) == []
+    assert assert_status(
+        client.get(
+            f"/api/usuarios/{interesado['id']}/wishlist", headers=interesado.headers
+        ),
+        200,
+    ) == []
     assert not (tmp_path / "games" / str(juego["id"])).exists()
 
 
@@ -379,28 +456,73 @@ def test_recarga_wishlist_compra_biblioteca_y_estadisticas(client: TestClient):
     desarrollador = crear_desarrollador(client)
     juego = publicar_juego(client, desarrollador["id"], "Compra feliz", precio=250)
 
-    assert_status(client.post(f"/api/usuarios/{usuario['id']}/comprar/{juego['id']}"), 400)
-    assert_status(client.post(f"/api/usuarios/{usuario['id']}/recargar", json={"monto": 99}), 422)
+    assert_status(
+        client.post(
+            f"/api/usuarios/{usuario['id']}/comprar/{juego['id']}",
+            headers=usuario.headers,
+        ),
+        400,
+    )
+    assert_status(
+        client.post(
+            f"/api/usuarios/{usuario['id']}/recargar",
+            headers=usuario.headers,
+            json={"monto": 99},
+        ),
+        422,
+    )
     recarga = assert_status(
-        client.post(f"/api/usuarios/{usuario['id']}/recargar", json={"monto": 500}), 200
+        client.post(
+            f"/api/usuarios/{usuario['id']}/recargar",
+            headers=usuario.headers,
+            json={"monto": 500},
+        ),
+        200,
     )
     assert recarga["monto"] == 500
-    assert len(assert_status(client.get(f"/api/usuarios/{usuario['id']}/recargas"), 200)) == 1
+    assert len(
+        assert_status(
+            client.get(f"/api/usuarios/{usuario['id']}/recargas", headers=usuario.headers),
+            200,
+        )
+    ) == 1
 
     wishlist_url = f"/api/usuarios/{usuario['id']}/wishlist"
-    assert_status(client.post(wishlist_url, json={"juego_id": juego["id"]}), 201)
-    assert_status(client.post(wishlist_url, json={"juego_id": juego["id"]}), 400)
-    assert_status(client.delete(f"{wishlist_url}/{juego['id']}"), 204)
-    assert assert_status(client.get(wishlist_url), 200) == []
-    assert_status(client.post(wishlist_url, json={"juego_id": juego["id"]}), 201)
+    assert_status(
+        client.post(wishlist_url, headers=usuario.headers, json={"juego_id": juego["id"]}),
+        201,
+    )
+    assert_status(
+        client.post(wishlist_url, headers=usuario.headers, json={"juego_id": juego["id"]}),
+        400,
+    )
+    assert_status(client.delete(f"{wishlist_url}/{juego['id']}", headers=usuario.headers), 204)
+    assert assert_status(client.get(wishlist_url, headers=usuario.headers), 200) == []
+    assert_status(
+        client.post(wishlist_url, headers=usuario.headers, json={"juego_id": juego["id"]}),
+        201,
+    )
 
     compra = assert_status(
-        client.post(f"/api/usuarios/{usuario['id']}/comprar/{juego['id']}"), 201
+        client.post(
+            f"/api/usuarios/{usuario['id']}/comprar/{juego['id']}",
+            headers=usuario.headers,
+        ),
+        201,
     )
     assert compra["precio_pagado"] == 250
-    assert assert_status(client.get(wishlist_url), 200) == []
-    assert_status(client.post(f"/api/usuarios/{usuario['id']}/comprar/{juego['id']}"), 400)
-    assert_status(client.post(wishlist_url, json={"juego_id": juego["id"]}), 400)
+    assert assert_status(client.get(wishlist_url, headers=usuario.headers), 200) == []
+    assert_status(
+        client.post(
+            f"/api/usuarios/{usuario['id']}/comprar/{juego['id']}",
+            headers=usuario.headers,
+        ),
+        400,
+    )
+    assert_status(
+        client.post(wishlist_url, headers=usuario.headers, json={"juego_id": juego["id"]}),
+        400,
+    )
 
     biblioteca = assert_status(client.get(f"/api/usuarios/{usuario['id']}/biblioteca"), 200)
     assert biblioteca[0]["juego"]["id"] == juego["id"]
@@ -428,14 +550,22 @@ def test_resena_y_logros_solo_para_juego_comprado(client: TestClient):
     assert_status(
         client.post(
             resenas_url,
+            headers=propietario.headers,
             json={"usuario_id": propietario["id"], "recomienda": True, "texto": "Antes"},
         ),
         400,
     )
-    assert_status(client.post(f"/api/usuarios/{propietario['id']}/comprar/{juego['id']}"), 201)
+    assert_status(
+        client.post(
+            f"/api/usuarios/{propietario['id']}/comprar/{juego['id']}",
+            headers=propietario.headers,
+        ),
+        201,
+    )
     resena = assert_status(
         client.post(
             resenas_url,
+            headers=propietario.headers,
             json={"usuario_id": propietario["id"], "recomienda": True, "texto": "Bien"},
         ),
         201,
@@ -443,6 +573,7 @@ def test_resena_y_logros_solo_para_juego_comprado(client: TestClient):
     editada = assert_status(
         client.post(
             resenas_url,
+            headers=propietario.headers,
             json={"usuario_id": propietario["id"], "recomienda": False, "texto": "Editada"},
         ),
         201,
@@ -452,12 +583,17 @@ def test_resena_y_logros_solo_para_juego_comprado(client: TestClient):
 
     logros_url = f"/api/juegos/{juego['id']}/logros"
     assert_status(
-        client.post(logros_url, json={"nombre": "Roto", "descripcion": "", "puntos": 101}),
+        client.post(
+            logros_url,
+            headers=juego.headers,
+            json={"nombre": "Roto", "descripcion": "", "puntos": 101},
+        ),
         422,
     )
     logro = assert_status(
         client.post(
             logros_url,
+            headers=juego.headers,
             json={"nombre": "  Primer paso  ", "descripcion": "Empezar", "puntos": 10},
         ),
         201,
@@ -466,15 +602,31 @@ def test_resena_y_logros_solo_para_juego_comprado(client: TestClient):
     assert_status(
         client.post(
             logros_url,
+            headers=juego.headers,
             json={"nombre": "PRIMER PASO", "descripcion": "Duplicado", "puntos": 10},
         ),
         400,
     )
-    assert_status(client.post(f"/api/usuarios/{ajeno['id']}/logros/{logro['id']}"), 400)
     assert_status(
-        client.post(f"/api/usuarios/{propietario['id']}/logros/{logro['id']}"), 201
+        client.post(
+            f"/api/usuarios/{ajeno['id']}/logros/{logro['id']}", headers=ajeno.headers
+        ),
+        400,
     )
-    assert_status(client.post(f"/api/usuarios/{propietario['id']}/logros/{logro['id']}"), 400)
+    assert_status(
+        client.post(
+            f"/api/usuarios/{propietario['id']}/logros/{logro['id']}",
+            headers=propietario.headers,
+        ),
+        201,
+    )
+    assert_status(
+        client.post(
+            f"/api/usuarios/{propietario['id']}/logros/{logro['id']}",
+            headers=propietario.headers,
+        ),
+        400,
+    )
     stats = assert_status(client.get(f"/api/usuarios/{propietario['id']}/estadisticas"), 200)
     assert stats["logros_desbloqueados"] == 1
     assert stats["puntos_totales"] == 10
@@ -491,6 +643,7 @@ def test_logros_se_desbloquean_automaticamente_por_progreso(client: TestClient):
     logro_cinco = assert_status(
         client.post(
             logros_url,
+            headers=juego.headers,
             json={
                 "nombre": "Cinco puntos",
                 "descripcion": "Alcanzá 5 puntos.",
@@ -504,6 +657,7 @@ def test_logros_se_desbloquean_automaticamente_por_progreso(client: TestClient):
     logro_diez = assert_status(
         client.post(
             logros_url,
+            headers=juego.headers,
             json={
                 "nombre": "Diez puntos",
                 "descripcion": "Alcanzá 10 puntos.",
@@ -517,6 +671,7 @@ def test_logros_se_desbloquean_automaticamente_por_progreso(client: TestClient):
     assert_status(
         client.post(
             logros_url,
+            headers=juego.headers,
             json={
                 "nombre": "Requisito incompleto",
                 "descripcion": "",
@@ -528,26 +683,66 @@ def test_logros_se_desbloquean_automaticamente_por_progreso(client: TestClient):
     )
 
     progreso_url = f"/api/usuarios/{jugador['id']}/juegos/{juego['id']}/progreso"
-    assert_status(client.post(progreso_url, json={"evento": "puntaje", "valor": 4}), 400)
-    assert_status(client.post(f"/api/usuarios/{jugador['id']}/comprar/{juego['id']}"), 201)
+    assert_status(
+        client.post(
+            progreso_url,
+            headers=jugador.headers,
+            json={"evento": "puntaje", "valor": 4},
+        ),
+        400,
+    )
+    assert_status(
+        client.post(
+            f"/api/usuarios/{jugador['id']}/comprar/{juego['id']}",
+            headers=jugador.headers,
+        ),
+        201,
+    )
 
     assert assert_status(
-        client.post(progreso_url, json={"evento": "puntaje", "valor": 4}), 200
+        client.post(
+            progreso_url,
+            headers=jugador.headers,
+            json={"evento": "puntaje", "valor": 4},
+        ),
+        200,
     ) == []
     primero = assert_status(
-        client.post(progreso_url, json={"evento": "puntaje", "valor": 5}), 200
+        client.post(
+            progreso_url,
+            headers=jugador.headers,
+            json={"evento": "puntaje", "valor": 5},
+        ),
+        200,
     )
     assert [item["logro_id"] for item in primero] == [logro_cinco["id"]]
     segundo = assert_status(
-        client.post(progreso_url, json={"evento": "puntaje", "valor": 10}), 200
+        client.post(
+            progreso_url,
+            headers=jugador.headers,
+            json={"evento": "puntaje", "valor": 10},
+        ),
+        200,
     )
     assert [item["logro_id"] for item in segundo] == [logro_diez["id"]]
     assert assert_status(
-        client.post(progreso_url, json={"evento": "puntaje", "valor": 20}), 200
+        client.post(
+            progreso_url,
+            headers=jugador.headers,
+            json={"evento": "puntaje", "valor": 20},
+        ),
+        200,
     ) == []
 
     ajeno_url = f"/api/usuarios/{ajeno['id']}/juegos/{juego['id']}/progreso"
-    assert_status(client.post(ajeno_url, json={"evento": "puntaje", "valor": 20}), 400)
+    assert_status(
+        client.post(
+            ajeno_url,
+            headers=ajeno.headers,
+            json={"evento": "puntaje", "valor": 20},
+        ),
+        400,
+    )
 
 
 def test_desarrollador_desbloquea_logros_de_su_propio_juego_sin_comprarlo(
@@ -569,21 +764,24 @@ def test_desarrollador_desbloquea_logros_de_su_propio_juego_sin_comprarlo(
     logro = assert_status(
         client.post(
             f"/api/juegos/{juego['id']}/logros",
+            headers=juego.headers,
             json={
                 "nombre": "Primera victoria",
                 "descripcion": "Ganá una partida.",
                 "puntos": 10,
-                "requisito_evento": "victorias",
+                "requisito_evento": "partidas-ganadas",
                 "requisito_valor": 1,
             },
         ),
         201,
     )
+    assert logro["requisito_evento"] == "victorias"
 
     desbloqueados = assert_status(
         client.post(
             f"/api/usuarios/{desarrollador['id']}/juegos/{juego['id']}/progreso",
-            json={"evento": "victorias", "valor": 1},
+            headers=desarrollador.headers,
+            json={"evento": "partidas-ganadas", "valor": 1},
         ),
         200,
     )
@@ -591,6 +789,7 @@ def test_desarrollador_desbloquea_logros_de_su_propio_juego_sin_comprarlo(
     assert_status(
         client.post(
             f"/api/usuarios/{ajeno['id']}/juegos/{juego['id']}/progreso",
+            headers=ajeno.headers,
             json={"evento": "victorias", "valor": 1},
         ),
         400,
@@ -601,11 +800,19 @@ def test_amistad_bidireccional_sin_duplicados(client: TestClient):
     uno = registrar(client, "amigo_uno")
     dos = registrar(client, "amigo_dos")
     assert_status(
-        client.post(f"/api/usuarios/{uno['id']}/amigos", json={"amigo_id": uno["id"]}),
+        client.post(
+            f"/api/usuarios/{uno['id']}/amigos",
+            headers=uno.headers,
+            json={"amigo_id": uno["id"]},
+        ),
         400,
     )
     assert_status(
-        client.post(f"/api/usuarios/{uno['id']}/amigos", json={"amigo_id": dos["id"]}),
+        client.post(
+            f"/api/usuarios/{uno['id']}/amigos",
+            headers=uno.headers,
+            json={"amigo_id": dos["id"]},
+        ),
         201,
     )
     assert [u["id"] for u in assert_status(client.get(f"/api/usuarios/{uno['id']}/amigos"), 200)] == [
@@ -615,10 +822,19 @@ def test_amistad_bidireccional_sin_duplicados(client: TestClient):
         uno["id"]
     ]
     assert_status(
-        client.post(f"/api/usuarios/{dos['id']}/amigos", json={"amigo_id": uno["id"]}),
+        client.post(
+            f"/api/usuarios/{dos['id']}/amigos",
+            headers=dos.headers,
+            json={"amigo_id": uno["id"]},
+        ),
         400,
     )
-    assert_status(client.delete(f"/api/usuarios/{dos['id']}/amigos/{uno['id']}"), 204)
+    assert_status(
+        client.delete(
+            f"/api/usuarios/{dos['id']}/amigos/{uno['id']}", headers=dos.headers
+        ),
+        204,
+    )
     assert assert_status(client.get(f"/api/usuarios/{uno['id']}/amigos"), 200) == []
 
 
@@ -630,6 +846,7 @@ def test_solicitudes_de_amistad_se_pueden_aceptar_y_rechazar(client: TestClient)
     solicitud = assert_status(
         client.post(
             "/api/solicitudes",
+            headers=uno.headers,
             json={"de": uno["id"], "para": dos["id"]},
         ),
         201,
@@ -637,17 +854,22 @@ def test_solicitudes_de_amistad_se_pueden_aceptar_y_rechazar(client: TestClient)
     assert_status(
         client.post(
             "/api/solicitudes",
+            headers=dos.headers,
             json={"de": dos["id"], "para": uno["id"]},
         ),
         400,
     )
     recibidas = assert_status(
-        client.get(f"/api/usuarios/{dos['id']}/solicitudes/recibidas"), 200
+        client.get(
+            f"/api/usuarios/{dos['id']}/solicitudes/recibidas", headers=dos.headers
+        ),
+        200,
     )
     assert [item["id"] for item in recibidas] == [solicitud["id"]]
     assert_status(
         client.put(
             f"/api/solicitudes/{solicitud['id']}",
+            headers=dos.headers,
             json={"estado": "aceptada"},
         ),
         200,
@@ -662,6 +884,7 @@ def test_solicitudes_de_amistad_se_pueden_aceptar_y_rechazar(client: TestClient)
     rechazada = assert_status(
         client.post(
             "/api/solicitudes",
+            headers=tres.headers,
             json={"de": tres["id"], "para": uno["id"]},
         ),
         201,
@@ -669,16 +892,72 @@ def test_solicitudes_de_amistad_se_pueden_aceptar_y_rechazar(client: TestClient)
     assert_status(
         client.put(
             f"/api/solicitudes/{rechazada['id']}",
+            headers=uno.headers,
             json={"estado": "rechazada"},
         ),
         200,
     )
     assert assert_status(
-        client.get(f"/api/usuarios/{uno['id']}/solicitudes/recibidas"), 200
+        client.get(
+            f"/api/usuarios/{uno['id']}/solicitudes/recibidas", headers=uno.headers
+        ),
+        200,
     ) == []
 
 
-def test_rankings_incluyen_ventas_y_exigen_veinte_resenas(client: TestClient):
+def test_acciones_privadas_validan_la_identidad_y_propiedad(client: TestClient):
+    uno = registrar(client, "seguridad_uno")
+    dos = registrar(client, "seguridad_dos")
+    dev_uno = registrar(client, "seguridad_dev_uno", rol="admin", estudio="Seguro Uno")
+    dev_dos = registrar(client, "seguridad_dev_dos", rol="admin", estudio="Seguro Dos")
+    juego_dos = publicar_juego(
+        client,
+        dev_dos["desarrollador_id"],
+        "Juego protegido",
+        precio=0,
+    )
+
+    assert_status(client.get("/api/usuarios/me"), 401)
+    sesion = assert_status(client.get("/api/usuarios/me", headers=uno.headers), 200)
+    assert sesion["id"] == uno["id"]
+
+    assert_status(client.post(f"/api/usuarios/{uno['id']}/recargar", json={"monto": 100}), 401)
+    assert_status(
+        client.post(
+            f"/api/usuarios/{dos['id']}/recargar",
+            headers=uno.headers,
+            json={"monto": 100},
+        ),
+        403,
+    )
+    assert_status(
+        client.put(
+            f"/api/juegos/{juego_dos['id']}",
+            headers=dev_uno.headers,
+            json={"desarrollador_id": dev_dos["desarrollador_id"], "precio": 1},
+        ),
+        403,
+    )
+
+    solicitud = assert_status(
+        client.post(
+            "/api/solicitudes",
+            headers=uno.headers,
+            json={"de": uno["id"], "para": dos["id"]},
+        ),
+        201,
+    )
+    assert_status(
+        client.put(
+            f"/api/solicitudes/{solicitud['id']}",
+            headers=uno.headers,
+            json={"estado": "aceptada"},
+        ),
+        403,
+    )
+
+
+def test_rankings_incluyen_ventas_y_exigen_cinco_resenas(client: TestClient):
     desarrollador = crear_desarrollador(client, "Ranking")
     portada = "data:image/png;base64,portada-del-ranking"
     juego = publicar_juego(
@@ -690,12 +969,19 @@ def test_rankings_incluyen_ventas_y_exigen_veinte_resenas(client: TestClient):
         imagen=portada,
     )
 
-    for indice in range(20):
+    for indice in range(5):
         usuario = registrar(client, f"ranking_{indice}")
-        assert_status(client.post(f"/api/usuarios/{usuario['id']}/comprar/{juego['id']}"), 201)
+        assert_status(
+            client.post(
+                f"/api/usuarios/{usuario['id']}/comprar/{juego['id']}",
+                headers=usuario.headers,
+            ),
+            201,
+        )
         assert_status(
             client.post(
                 f"/api/juegos/{juego['id']}/resenas",
+                headers=usuario.headers,
                 json={
                     "usuario_id": usuario["id"],
                     "recomienda": indice != 0,
@@ -704,15 +990,19 @@ def test_rankings_incluyen_ventas_y_exigen_veinte_resenas(client: TestClient):
             ),
             201,
         )
+        if indice == 3:
+            assert assert_status(
+                client.get("/api/juegos/mejor-valorados?genero=RPG"), 200
+            ) == []
 
     ventas = assert_status(client.get("/api/juegos/top-ventas?genero=RPG"), 200)
     assert ventas[0]["id"] == juego["id"]
-    assert ventas[0]["compras"] == 20
+    assert ventas[0]["compras"] == 5
     assert ventas[0]["imagen"] == portada
     valorados = assert_status(client.get("/api/juegos/mejor-valorados?genero=RPG"), 200)
     assert valorados[0]["id"] == juego["id"]
-    assert valorados[0]["total_resenas"] == 20
-    assert valorados[0]["porcentaje_positivas"] == 95
+    assert valorados[0]["total_resenas"] == 5
+    assert valorados[0]["porcentaje_positivas"] == 80
     assert valorados[0]["imagen"] == portada
 
 

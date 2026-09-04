@@ -3,7 +3,7 @@ from sqlalchemy.orm import Session
 
 from src.db.connection import get_db
 from src.db.models.registroUsuario_model import Usuario
-from src.utils.errors import UnauthorizedError
+from src.utils.errors import ForbiddenError, UnauthorizedError
 from src.utils.jwt import decode_token
 
 
@@ -31,3 +31,20 @@ def get_current_user(
         raise UnauthorizedError("User no longer exists")
 
     return user
+
+
+def require_same_user(expected_user_id: int, current_user: Usuario) -> None:
+    """Impide que un token opere sobre recursos privados de otra cuenta."""
+    if current_user.id != expected_user_id:
+        raise ForbiddenError("No tenés permiso para operar sobre esta cuenta.")
+
+
+def require_developer(current_user: Usuario, developer_id: int) -> None:
+    """Valida que la cuenta autenticada sea la dueña del estudio indicado."""
+    if current_user.rol != "admin" or current_user.desarrollador_id != developer_id:
+        raise ForbiddenError("Esta operación requiere la cuenta desarrolladora propietaria.")
+
+
+def require_superadmin(current_user: Usuario) -> None:
+    if current_user.rol != "superadmin":
+        raise ForbiddenError("Esta operación requiere la cuenta administradora principal.")

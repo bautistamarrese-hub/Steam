@@ -25,14 +25,14 @@ Estructura base de un proyecto en capas (routers, services, repositories, models
 ## Setup
 
 1) Correr en una terminal: `cd .\backend\`
-2) Inicializar el entonrno virtual: `python -m venv venv`
-3) Activar el entorno virtual: `venv\Scripts\Activate.ps1`
-Recordatorio: Verificar de tener los permisos para poder hacerlo. Estos se habilitan ejecutando: `Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser`
-4) Una vez que estas dentro del (venv), instalar las dependencias: `pip install -r requirements.txt`
+2) Si todavía no existe `.venv`, crearlo una sola vez con una instalación funcional de Python: `python -m venv .venv`. Si `.venv\Scripts\python.exe` ya existe, no volver a crearlo.
+3) Activar el entorno virtual: `.\.venv\Scripts\Activate.ps1`
+Recordatorio: si PowerShell bloquea la activación, habilitarla con: `Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser`
+4) Instalar las dependencias usando el Python del entorno: `python -m pip install -r requirements.txt`
 5) Chequear que `.env` tenga las credenciales reales de PostgreSQL. El usuario
    habitual de una instalación local es `postgres`; reemplazá
    `TU_PASSWORD_DE_POSTGRES` por la contraseña elegida durante la instalación.
-6) Levantar la api con: `uvicorn src.app:app --reload`
+6) Levantar la API con: `python -m uvicorn src.app:app --reload`
 
 
 ### Comentarios utiles
@@ -42,14 +42,13 @@ powershell:
 & "C:\Program Files\PostgreSQL\18\bin\psql.exe" -U postgres -d steamdb -f "C:\Steam\backend\src\db\migrations\20260902_perfiles_imagenes.sql"
 
 front end
-cd f (tab)
-python -m venv venv
-npm.cmd run dev
+`cd ..\frontend`
+`npm.cmd run dev`
 
 ```bash
-python -m venv venv
-source venv/bin/activate          # Linux/Mac
-# venv\Scripts\Activate.ps1       # Windows
+python -m venv .venv
+source .venv/bin/activate          # Linux/Mac
+# .\.venv\Scripts\Activate.ps1    # Windows
 
 pip install -r requirements.txt
 cp .env.example .env               # editá con tus credenciales

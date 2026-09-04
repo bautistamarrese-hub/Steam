@@ -1,5 +1,6 @@
 from pathlib import Path
 from urllib.parse import quote
+from uuid import uuid4
 
 from fastapi import UploadFile
 from sqlalchemy import func, or_
@@ -172,7 +173,11 @@ class UsuarioService:
                 avatar_anterior.unlink(missing_ok=True)
         temporal.replace(destino)
 
-        usuario.avatar = f"/uploads/avatars/{usuario_id}/{quote(destino.name)}"
+        # La ruta física se reutiliza, pero la versión cambia en cada subida.
+        # Así el navegador no muestra una foto anterior desde su caché después
+        # de recortar o ajustar un avatar nuevo.
+        version = uuid4().hex
+        usuario.avatar = f"/uploads/avatars/{usuario_id}/{quote(destino.name)}?v={version}"
         self.db.commit()
         self.db.refresh(usuario)
         return usuario

@@ -1,5 +1,10 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
-import { iniciarSesion, obtenerUsuario, registrarUsuario } from "@/lib/api";
+import {
+  EVENTO_SESION_INVALIDA,
+  iniciarSesion,
+  obtenerSesionActual,
+  registrarUsuario,
+} from "@/lib/api";
 import type { RolRegistro, Usuario } from "@/lib/types";
 
 const CLAVE = "steamnt.sesion";
@@ -74,13 +79,19 @@ export function SesionProvider({ children }: { children: React.ReactNode }) {
     // misma sesión cuando llega la respuesta.
     setUsuario(guardado);
     setCargando(false);
-    obtenerUsuario(guardado.id)
+    obtenerSesionActual()
       .then((actual) => {
         if (leerSesion()?.id === guardado.id) guardar(actual);
       })
       .catch(() => {
         if (leerSesion()?.id === guardado.id) guardar(null, null);
       });
+  }, [guardar]);
+
+  useEffect(() => {
+    const invalidarSesion = () => guardar(null, null);
+    window.addEventListener(EVENTO_SESION_INVALIDA, invalidarSesion);
+    return () => window.removeEventListener(EVENTO_SESION_INVALIDA, invalidarSesion);
   }, [guardar]);
 
   useEffect(() => {
@@ -100,7 +111,7 @@ export function SesionProvider({ children }: { children: React.ReactNode }) {
 
   const refrescar = useCallback(async () => {
     if (!usuario) return;
-    const actual = await obtenerUsuario(usuario.id);
+    const actual = await obtenerSesionActual();
     guardar(actual);
   }, [guardar, usuario]);
 

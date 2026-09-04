@@ -44,7 +44,7 @@ class TopJuegosService:
             )
             .join(Resena, Juego.id == Resena.juego_id)
             .group_by(Juego.id)
-            .having(func.count(Resena.id) >= 20)
+            .having(func.count(Resena.id) >= 5)
         )
 
         if genero:

@@ -68,7 +68,7 @@ function Top() {
     queryKey: ["top-ventas", genero],
     queryFn: () => topVentas(genero),
   });
-  // GET /juegos/mejor-valorados?genero=  (mínimo 20 reseñas)
+  // GET /juegos/mejor-valorados?genero=  (mínimo 5 reseñas)
   const { data: valorados = [] } = useQuery({
     queryKey: ["mejor-valorados", genero],
     queryFn: () => mejorValorados(genero),

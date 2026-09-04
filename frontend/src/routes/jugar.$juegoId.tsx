@@ -15,6 +15,7 @@ import {
   obtenerLogrosDesbloqueados,
   reportarProgresoLogros,
 } from "@/lib/api";
+import { normalizarMetricaLogro } from "@/lib/logros";
 import { useSesion, useUsuario } from "@/lib/sesion";
 import type { Logro } from "@/lib/types";
 
@@ -139,12 +140,13 @@ function JuegoConSesion() {
 
   const reportarProgreso = useCallback(
     async (evento: string, valor: number) => {
-      const clave = evento.trim().toLowerCase();
+      const clave = normalizarMetricaLogro(evento);
       if (!puedeJugar || !clave || !Number.isFinite(valor) || valor < 0) return;
 
       const relevantes = logros.filter(
         (logro) =>
-          logro.requisito_evento?.toLowerCase() === clave &&
+          Boolean(logro.requisito_evento) &&
+          normalizarMetricaLogro(logro.requisito_evento!) === clave &&
           logro.requisito_valor != null &&
           !desbloqueadosIds.has(logro.id),
       );

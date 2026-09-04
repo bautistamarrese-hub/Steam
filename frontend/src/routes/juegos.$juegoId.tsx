@@ -24,7 +24,7 @@ import {
   obtenerWishlist,
   resenasDeJuego,
 } from "@/lib/api";
-import { METRICAS_LOGRO, type MetricaLogro } from "@/lib/logros";
+import { etiquetaMetricaLogro, METRICAS_LOGRO, type MetricaLogro } from "@/lib/logros";
 import { useSesion } from "@/lib/sesion";
 
 export const Route = createFileRoute("/juegos/$juegoId")({
@@ -299,7 +299,8 @@ function DetalleJuego() {
                     <p className="text-sm text-muted-foreground">{logro.descripcion}</p>
                     {logro.requisito_evento && logro.requisito_valor != null && (
                       <p className="mt-1 text-xs text-muted-foreground">
-                        Requisito: {logro.requisito_evento} ≥ {logro.requisito_valor}
+                        Requisito: {etiquetaMetricaLogro(logro.requisito_evento)} ≥{" "}
+                        {logro.requisito_valor}
                       </p>
                     )}
                   </div>

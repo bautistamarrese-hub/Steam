@@ -103,10 +103,10 @@ class JuegoRepository:
             resultados.append(juego)
         return resultados
 
-    def mejor_valorados(self, genero=None, limite=10, minimo_resenas=20):
+    def mejor_valorados(self, genero=None, limite=10, minimo_resenas=5):
         """
         HU11: los 10 juegos con mayor % de reseñas positivas,
-        exigiendo un mínimo de 20 reseñas para que el ranking sea
+        exigiendo un mínimo de 5 reseñas para que el ranking sea
         estadísticamente significativo (evita que un juego con 1 reseña
         positiva de 1 total "gane" con 100%).
         """
