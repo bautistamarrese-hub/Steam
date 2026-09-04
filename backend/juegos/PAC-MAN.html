@@ -170,6 +170,14 @@
       let gameLoopId = null;
       let scaredTimer = null;
 
+      function reportAchievementProgress(evento, valor) {
+        window.parent.postMessage({
+          type: 'steamnt:achievement-progress',
+          evento,
+          valor
+        }, '*');
+      }
+
       function canMove(gx, gy) {
         const wrappedY = (gy % MAP_ROWS + MAP_ROWS) % MAP_ROWS;
         const wrappedX = (gx % MAP_COLS + MAP_COLS) % MAP_COLS;
@@ -432,8 +440,8 @@
             if (ghost.isScared) {
               score += 200;
               window.parent.postMessage({ type: 'steamnt:achievement-progress', evento: 'puntaje', valor: score }, '*');
-              ghostsDefeated++;
-              window.parent.postMessage({ type: 'steamnt:achievement-progress', evento: 'enemigos_derrotados', valor: ghostsDefeated }, '*');
+              ghostsDefeated += 1;
+              reportAchievementProgress('enemigos_derrotados', ghostsDefeated);
               ghost.reset();
             } else {
               endGame(false);
@@ -469,6 +477,7 @@
 
       function startGame() {
         score = 0;
+        ghostsDefeated = 0;
         totalPellets = 0;
         map = JSON.parse(JSON.stringify(initialMap));
 

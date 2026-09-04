@@ -3,6 +3,7 @@ from src.db.models.registroUsuario_model import Usuario
 from src.db.models.desarrolladorJuego_model import Juego
 from src.db.models.comprarJuego_model import Compra
 from src.db.models.wishlist_model import Wishlist
+from src.services.notificacionVenta_service import NotificacionVentaService
 
 
 class CompraService:
@@ -54,6 +55,7 @@ class CompraService:
         if item_wishlist:
             self.db.delete(item_wishlist)
 
+        NotificacionVentaService(self.db).acreditar_venta(juego)
         self.db.commit()
         self.db.refresh(nueva_compra)
         return nueva_compra

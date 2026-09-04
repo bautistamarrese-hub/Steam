@@ -1,9 +1,10 @@
 import { Link, useNavigate } from "@tanstack/react-router";
+import { useQuery } from "@tanstack/react-query";
 import { Gamepad2, LogIn, LogOut, ShieldCheck, Wallet, Wrench } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { AvatarGamer } from "@/components/AvatarGamer";
-import { formatSaldo } from "@/lib/api";
+import { cantidadSolicitudesRecibidas, formatSaldo } from "@/lib/api";
 import { useSesion } from "@/lib/sesion";
 
 const LINKS_CLIENTE = [
@@ -37,6 +38,13 @@ export function SiteHeader() {
   const { usuario, esAdmin, esSuperAdmin, abrirAcceso, logout } = useSesion();
   const navigate = useNavigate();
   const links = esSuperAdmin ? LINKS_SUPERADMIN : esAdmin ? LINKS_ADMIN : LINKS_CLIENTE;
+  const { data: solicitudesPendientes = 0 } = useQuery({
+    queryKey: ["solicitudes-recibidas-count", usuario?.id],
+    queryFn: () => cantidadSolicitudesRecibidas(usuario!.id),
+    enabled: Boolean(usuario),
+    refetchInterval: 15_000,
+  });
+  const contadorSolicitudes = solicitudesPendientes > 9 ? "+9" : String(solicitudesPendientes);
   const cerrarSesion = () => {
     logout();
     void navigate({ to: "/", replace: true });
@@ -64,10 +72,19 @@ export function SiteHeader() {
               to={l.to}
               activeOptions={{ exact: l.to === "/" }}
               onClick={(event) => interceptarPrivado(event, l.requiereSesion)}
-              className="whitespace-nowrap rounded-md px-2.5 py-1.5 text-sm text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
+              className="inline-flex items-center gap-1.5 whitespace-nowrap rounded-md px-2.5 py-1.5 text-sm text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
               activeProps={{ className: "bg-secondary text-foreground" }}
             >
               {l.label}
+              {l.to === "/amigos" && solicitudesPendientes > 0 && (
+                <span
+                  className="inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-destructive px-1 text-[10px] font-bold leading-none text-destructive-foreground"
+                  aria-label={`${solicitudesPendientes} solicitudes de amistad pendientes`}
+                  title={`${solicitudesPendientes} solicitudes de amistad pendientes`}
+                >
+                  {contadorSolicitudes}
+                </span>
+              )}
             </Link>
           ))}
         </nav>
@@ -132,10 +149,19 @@ export function SiteHeader() {
             to={l.to}
             activeOptions={{ exact: l.to === "/" }}
             onClick={(event) => interceptarPrivado(event, l.requiereSesion)}
-            className="whitespace-nowrap rounded-md px-3 py-1 text-sm text-muted-foreground"
+            className="inline-flex items-center gap-1.5 whitespace-nowrap rounded-md px-3 py-1 text-sm text-muted-foreground"
             activeProps={{ className: "bg-secondary text-foreground" }}
           >
             {l.label}
+            {l.to === "/amigos" && solicitudesPendientes > 0 && (
+              <span
+                className="inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-destructive px-1 text-[10px] font-bold leading-none text-destructive-foreground"
+                aria-label={`${solicitudesPendientes} solicitudes de amistad pendientes`}
+                title={`${solicitudesPendientes} solicitudes de amistad pendientes`}
+              >
+                {contadorSolicitudes}
+              </span>
+            )}
           </Link>
         ))}
       </nav>

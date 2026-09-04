@@ -1,3 +1,4 @@
+import re
 from pathlib import Path
 
 
@@ -40,3 +41,19 @@ def test_todos_los_juegos_html_reportan_sus_metricas_de_logros():
         assert "steamnt:achievement-progress" in contenido
         for metrica in metricas:
             assert metrica in contenido, f"{nombre} no reporta {metrica}"
+
+
+def test_pacman_reporta_un_enemigo_solo_al_comer_un_fantasma_vulnerable():
+    contenido = (JUEGOS_DIR / "PAC-MAN.html").read_text(encoding="utf-8")
+    colision_vulnerable = re.search(
+        r"if \(ghost\.isScared\) \{(?P<bloque>.*?)ghost\.reset\(\);",
+        contenido,
+        re.DOTALL,
+    )
+
+    assert colision_vulnerable is not None
+    bloque = colision_vulnerable.group("bloque")
+    assert "ghostsDefeated += 1" in bloque
+    assert "reportAchievementProgress('enemigos_derrotados', ghostsDefeated)" in bloque
+    assert "function startGame()" in contenido
+    assert "ghostsDefeated = 0" in contenido.split("function startGame()", 1)[1]

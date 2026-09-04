@@ -10,6 +10,7 @@ import type {
   JuegoTop,
   Logro,
   LogroDesbloqueado,
+  NotificacionVenta,
   PerfilPublico,
   Recarga,
   Resena,
@@ -456,6 +457,17 @@ export async function recargarSaldo(
 export const listarRecargas = (usuarioId: number): Promise<Recarga[]> =>
   request(`/usuarios/${usuarioId}/recargas`);
 
+export const listarNotificacionesVentas = (usuarioId: number): Promise<NotificacionVenta[]> =>
+  request(`/usuarios/${usuarioId}/notificaciones-ventas`);
+
+export const confirmarNotificacionVenta = (
+  usuarioId: number,
+  notificacionId: number,
+): Promise<void> =>
+  request(`/usuarios/${usuarioId}/notificaciones-ventas/${notificacionId}`, {
+    method: "DELETE",
+  });
+
 export const comprarJuego = (usuarioId: number, juegoId: number): Promise<Compra> =>
   request(`/usuarios/${usuarioId}/comprar/${juegoId}`, { method: "POST" });
 
@@ -620,6 +632,9 @@ export async function solicitudesRecibidas(
     }),
   );
 }
+
+export const cantidadSolicitudesRecibidas = (usuarioId: number): Promise<number> =>
+  request(`/usuarios/${usuarioId}/solicitudes/recibidas/cantidad`);
 
 export const solicitudesEnviadas = (usuarioId: number): Promise<SolicitudAmistad[]> =>
   request(`/usuarios/${usuarioId}/solicitudes/enviadas`);

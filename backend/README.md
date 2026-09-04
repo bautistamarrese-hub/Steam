@@ -81,6 +81,7 @@ psql -U postgres -d steamdb -f .\src\db\migrations\20260831_juegos_archivos.sql
 psql -U postgres -d steamdb -f .\src\db\migrations\20260902_perfiles_imagenes.sql
 psql -U postgres -d steamdb -f .\src\db\migrations\20260903_superadmin.sql
 psql -U postgres -d steamdb -f .\src\db\migrations\20260903_logros_automaticos.sql
+psql -U postgres -d steamdb -f .\src\db\migrations\20260904_notificaciones_ventas.sql
 ```
 
 Los juegos reproducibles deben ser un archivo `.html` o un `.zip` que incluya

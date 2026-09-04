@@ -8,6 +8,7 @@ from src.schemas.amigo_schema import CreateAmigoSchema, GetAmigoSchema
 from src.schemas.compra_schema import GetCompraSchema, GetRecargaSchema
 from src.schemas.juego_schema import GetItemBibliotecaSchema
 from src.schemas.logro_schema import GetLogroDesbloqueadoSchema, ProgresoLogroSchema
+from src.schemas.notificacionVenta_schema import GetNotificacionVentaSchema
 from src.schemas.solicitudAmistad_schema import GetSolicitudAmistadSchema
 from src.schemas.usuario_schema import (
     CreateUsuarioSchema,
@@ -19,6 +20,7 @@ from src.schemas.usuario_schema import (
 )
 from src.schemas.wishlist_schema import CreateWishlistSchema, GetWishlistSchema
 from src.services.desbloquearLogro_service import DesbloqueoLogroService
+from src.services.notificacionVenta_service import NotificacionVentaService
 from src.services.registroUsuario_service import UsuarioService
 from src.services.solicitudAmistad_service import SolicitudAmistadService
 from src.utils.jwt import create_access_token
@@ -86,6 +88,34 @@ def listar_recargas(
 ):
     require_same_user(id, usuario)
     return UsuarioService(db).listar_recargas(id)
+
+
+@router.get(
+    "/{id}/notificaciones-ventas",
+    response_model=list[GetNotificacionVentaSchema],
+)
+def listar_notificaciones_ventas(
+    id: int,
+    db: Session = Depends(get_db),
+    usuario: Usuario = Depends(get_current_user),
+):
+    require_same_user(id, usuario)
+    return NotificacionVentaService(db).listar(id)
+
+
+@router.delete(
+    "/{id}/notificaciones-ventas/{notificacion_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+)
+def confirmar_notificacion_venta(
+    id: int,
+    notificacion_id: int,
+    db: Session = Depends(get_db),
+    usuario: Usuario = Depends(get_current_user),
+):
+    require_same_user(id, usuario)
+    NotificacionVentaService(db).confirmar(id, notificacion_id)
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
 @router.post(
@@ -215,6 +245,16 @@ def solicitudes_recibidas(
 ):
     require_same_user(id, usuario)
     return SolicitudAmistadService(db).recibidas(id)
+
+
+@router.get("/{id}/solicitudes/recibidas/cantidad", response_model=int)
+def cantidad_solicitudes_recibidas(
+    id: int,
+    db: Session = Depends(get_db),
+    usuario: Usuario = Depends(get_current_user),
+):
+    require_same_user(id, usuario)
+    return SolicitudAmistadService(db).cantidad_recibidas(id)
 
 
 @router.get(

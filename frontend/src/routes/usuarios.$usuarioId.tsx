@@ -107,6 +107,7 @@ function PerfilUsuario() {
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ["amigos", yo.id] }),
         queryClient.invalidateQueries({ queryKey: ["solicitudes-recibidas", yo.id] }),
+        queryClient.invalidateQueries({ queryKey: ["solicitudes-recibidas-count", yo.id] }),
         queryClient.invalidateQueries({ queryKey: ["solicitudes-enviadas", yo.id] }),
         queryClient.invalidateQueries({ queryKey: ["perfil-publico", id] }),
         refrescar(),

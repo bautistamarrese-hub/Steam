@@ -15,6 +15,7 @@ from src.db.models.logros_model import Logro
 from src.db.models.recargarSaldo_model import Recarga
 from src.db.models.registroUsuario_model import Usuario
 from src.db.models.wishlist_model import Wishlist
+from src.services.notificacionVenta_service import NotificacionVentaService
 from src.utils.hash import hash_password, verify_password
 
 
@@ -225,6 +226,7 @@ class UsuarioService:
         if deseado:
             self.db.delete(deseado)
         self.db.add(compra)
+        NotificacionVentaService(self.db).acreditar_venta(juego)
         self.db.commit()
         self.db.refresh(compra)
         return compra

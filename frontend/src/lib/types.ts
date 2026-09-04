@@ -60,6 +60,15 @@ export interface Recarga {
   fecha: string;
 }
 
+export interface NotificacionVenta {
+  id: number;
+  juego_id: number;
+  juego_titulo: string;
+  monto_acumulado: number;
+  cantidad_compras: number;
+  fecha_actualizacion: string;
+}
+
 export interface Logro {
   id: number;
   juego_id: number;

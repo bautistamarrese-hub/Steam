@@ -5,6 +5,8 @@ import { toast } from "sonner";
 import {
   AlertTriangle,
   Award,
+  BellRing,
+  Check,
   Coins,
   CreditCard,
   Gamepad2,
@@ -25,10 +27,12 @@ import { Progress } from "@/components/ui/progress";
 import {
   actualizarAvatar,
   ApiError,
+  confirmarNotificacionVenta,
   estadisticas,
   formatPrecio,
   formatSaldo,
   juegosDeDesarrollador,
+  listarNotificacionesVentas,
   listarRecargas,
   MONTO_MAXIMO_RECARGA,
   MONTO_MINIMO_RECARGA,
@@ -104,6 +108,17 @@ function PerfilConSesion() {
     enabled: Boolean(usuario.desarrollador_id),
     throwOnError: false,
   });
+  const notificacionesQuery = useQuery({
+    queryKey: ["notificaciones-ventas", usuario.id],
+    queryFn: async () => {
+      const notificaciones = await listarNotificacionesVentas(usuario.id);
+      await refrescar();
+      return notificaciones;
+    },
+    enabled: esAdmin,
+    refetchInterval: 15_000,
+    throwOnError: false,
+  });
 
   useEffect(() => {
     if (statsQuery.isPending || window.location.hash !== "#billetera") return;
@@ -119,8 +134,13 @@ function PerfilConSesion() {
   const recargas = recargasQuery.data ?? [];
   const dev = devQuery.data;
   const misJuegos = juegosQuery.data ?? [];
+  const notificaciones = notificacionesQuery.data ?? [];
   const hayError =
-    statsQuery.isError || recargasQuery.isError || devQuery.isError || juegosQuery.isError;
+    statsQuery.isError ||
+    recargasQuery.isError ||
+    devQuery.isError ||
+    juegosQuery.isError ||
+    notificacionesQuery.isError;
 
   const reintentarPerfil = async () => {
     await Promise.all([
@@ -130,7 +150,21 @@ function PerfilConSesion() {
       queryClient.invalidateQueries({
         queryKey: ["juegos-desarrollador", usuario.desarrollador_id],
       }),
+      queryClient.invalidateQueries({ queryKey: ["notificaciones-ventas", usuario.id] }),
+      refrescar(),
     ]);
+  };
+
+  const confirmarIngreso = async (notificacionId: number) => {
+    try {
+      await confirmarNotificacionVenta(usuario.id, notificacionId);
+      await queryClient.invalidateQueries({
+        queryKey: ["notificaciones-ventas", usuario.id],
+      });
+      toast.success("NotificaciÃ³n confirmada");
+    } catch (error) {
+      toast.error(error instanceof ApiError ? error.message : "No se pudo confirmar el ingreso");
+    }
   };
 
   const accion = async (fn: () => Promise<unknown>, ok: string) => {
@@ -213,6 +247,45 @@ function PerfilConSesion() {
           <Button variant="secondary" size="sm" onClick={reintentarPerfil}>
             <RefreshCw className="h-4 w-4" /> Reintentar
           </Button>
+        </Card>
+      )}
+
+      {esAdmin && notificaciones.length > 0 && (
+        <Card className="mt-6 border-accent/50 p-5">
+          <div className="flex items-center gap-2">
+            <BellRing className="h-5 w-5 text-accent" />
+            <h2 className="text-lg font-semibold">Ingresos por ventas</h2>
+          </div>
+          <div className="mt-4 space-y-3">
+            {notificaciones.map((notificacion) => (
+              <div
+                key={notificacion.id}
+                className="flex items-center gap-3 rounded-md border border-border bg-secondary/40 p-3"
+              >
+                <Coins className="h-5 w-5 shrink-0 text-accent" />
+                <p className="min-w-0 flex-1 text-sm">
+                  Has recibido{" "}
+                  <strong className="text-accent">
+                    {formatSaldo(notificacion.monto_acumulado)}
+                  </strong>{" "}
+                  por{" "}
+                  {notificacion.cantidad_compras === 1
+                    ? "la compra"
+                    : `${notificacion.cantidad_compras} compras`}{" "}
+                  de <strong>{notificacion.juego_titulo}</strong>.
+                </p>
+                <Button
+                  size="icon"
+                  className="shrink-0"
+                  aria-label={`Confirmar ingreso por ${notificacion.juego_titulo}`}
+                  title="Confirmar notificaciÃ³n"
+                  onClick={() => confirmarIngreso(notificacion.id)}
+                >
+                  <Check className="h-4 w-4" />
+                </Button>
+              </div>
+            ))}
+          </div>
         </Card>
       )}
 

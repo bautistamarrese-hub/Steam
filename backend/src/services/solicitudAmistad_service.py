@@ -61,6 +61,14 @@ class SolicitudAmistadService:
             .all()
         )
 
+    def cantidad_recibidas(self, usuario_id: int) -> int:
+        UsuarioService(self.db).obtener(usuario_id)
+        return (
+            self.db.query(SolicitudAmistad)
+            .filter_by(para=usuario_id, estado="pendiente")
+            .count()
+        )
+
     def enviadas(self, usuario_id: int) -> list[SolicitudAmistad]:
         UsuarioService(self.db).obtener(usuario_id)
         return (

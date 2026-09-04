@@ -544,6 +544,156 @@ def test_recarga_wishlist_compra_biblioteca_y_estadisticas(client: TestClient):
     assert stats["cantidad_juegos"] == 1
 
 
+def test_compra_acredita_y_acumula_el_sesenta_por_ciento_para_el_desarrollador(
+    client: TestClient,
+):
+    desarrollador = registrar(
+        client,
+        "ingresos_dev",
+        rol="admin",
+        estudio="Ingresos Studio",
+    )
+    juego = publicar_juego(
+        client,
+        desarrollador["desarrollador_id"],
+        "Juego con ingresos",
+        precio=250,
+    )
+    compradores = [registrar(client, f"ingresos_comprador_{indice}") for indice in range(2)]
+
+    for comprador in compradores:
+        assert_status(
+            client.post(
+                f"/api/usuarios/{comprador['id']}/recargar",
+                headers=comprador.headers,
+                json={"monto": 500},
+            ),
+            200,
+        )
+        assert_status(
+            client.post(
+                f"/api/usuarios/{comprador['id']}/comprar/{juego['id']}",
+                headers=comprador.headers,
+            ),
+            201,
+        )
+
+    propietario = assert_status(
+        client.get(f"/api/usuarios/{desarrollador['id']}"),
+        200,
+    )
+    assert propietario["saldo"] == 300
+
+    notificaciones = assert_status(
+        client.get(
+            f"/api/usuarios/{desarrollador['id']}/notificaciones-ventas",
+            headers=desarrollador.headers,
+        ),
+        200,
+    )
+    assert len(notificaciones) == 1
+    assert notificaciones[0]["juego_id"] == juego["id"]
+    assert notificaciones[0]["juego_titulo"] == juego["titulo"]
+    assert notificaciones[0]["monto_acumulado"] == 300
+    assert notificaciones[0]["cantidad_compras"] == 2
+
+    otro_juego = publicar_juego(
+        client,
+        desarrollador["desarrollador_id"],
+        "Otro juego con ingresos",
+        precio=100,
+    )
+    otro_comprador = registrar(client, "ingresos_otro_juego")
+    assert_status(
+        client.post(
+            f"/api/usuarios/{otro_comprador['id']}/recargar",
+            headers=otro_comprador.headers,
+            json={"monto": 100},
+        ),
+        200,
+    )
+    assert_status(
+        client.post(
+            f"/api/usuarios/{otro_comprador['id']}/comprar/{otro_juego['id']}",
+            headers=otro_comprador.headers,
+        ),
+        201,
+    )
+    notificaciones = assert_status(
+        client.get(
+            f"/api/usuarios/{desarrollador['id']}/notificaciones-ventas",
+            headers=desarrollador.headers,
+        ),
+        200,
+    )
+    assert len(notificaciones) == 2
+    por_juego = {item["juego_id"]: item for item in notificaciones}
+    assert por_juego[juego["id"]]["monto_acumulado"] == 300
+    assert por_juego[juego["id"]]["cantidad_compras"] == 2
+    assert por_juego[otro_juego["id"]]["monto_acumulado"] == 60
+    assert por_juego[otro_juego["id"]]["cantidad_compras"] == 1
+
+    assert_status(
+        client.get(
+            f"/api/usuarios/{desarrollador['id']}/notificaciones-ventas",
+            headers=compradores[0].headers,
+        ),
+        403,
+    )
+
+    assert_status(
+        client.delete(
+            f"/api/usuarios/{desarrollador['id']}/notificaciones-ventas/{por_juego[juego['id']]['id']}",
+            headers=desarrollador.headers,
+        ),
+        204,
+    )
+    assert (
+        assert_status(
+            client.get(
+                f"/api/usuarios/{desarrollador['id']}/notificaciones-ventas",
+                headers=desarrollador.headers,
+            ),
+            200,
+        )
+        == [por_juego[otro_juego["id"]]]
+    )
+    assert assert_status(client.get(f"/api/usuarios/{desarrollador['id']}"), 200)["saldo"] == 360
+
+    assert_status(
+        client.delete(
+            f"/api/usuarios/{desarrollador['id']}/notificaciones-ventas/{por_juego[otro_juego['id']]['id']}",
+            headers=desarrollador.headers,
+        ),
+        204,
+    )
+
+    juego_gratis = publicar_juego(
+        client,
+        desarrollador["desarrollador_id"],
+        "Juego gratuito sin ingreso",
+        precio=0,
+    )
+    comprador_gratis = registrar(client, "ingresos_gratis")
+    assert_status(
+        client.post(
+            f"/api/usuarios/{comprador_gratis['id']}/comprar/{juego_gratis['id']}",
+            headers=comprador_gratis.headers,
+        ),
+        201,
+    )
+    assert (
+        assert_status(
+            client.get(
+                f"/api/usuarios/{desarrollador['id']}/notificaciones-ventas",
+                headers=desarrollador.headers,
+            ),
+            200,
+        )
+        == []
+    )
+
+
 def test_resena_y_logros_solo_para_juego_comprado(client: TestClient):
     propietario = registrar(client, "propietario")
     ajeno = registrar(client, "ajeno")
@@ -892,6 +1042,16 @@ def test_solicitudes_de_amistad_se_pueden_aceptar_y_rechazar(client: TestClient)
         200,
     )
     assert [item["id"] for item in recibidas] == [solicitud["id"]]
+    assert (
+        assert_status(
+            client.get(
+                f"/api/usuarios/{dos['id']}/solicitudes/recibidas/cantidad",
+                headers=dos.headers,
+            ),
+            200,
+        )
+        == 1
+    )
     assert_status(
         client.put(
             f"/api/solicitudes/{solicitud['id']}",
@@ -906,6 +1066,16 @@ def test_solicitudes_de_amistad_se_pueden_aceptar_y_rechazar(client: TestClient)
             client.get(f"/api/usuarios/{uno['id']}/amigos"), 200
         )
     ] == [dos["id"]]
+    assert (
+        assert_status(
+            client.get(
+                f"/api/usuarios/{dos['id']}/solicitudes/recibidas/cantidad",
+                headers=dos.headers,
+            ),
+            200,
+        )
+        == 0
+    )
 
     rechazada = assert_status(
         client.post(
