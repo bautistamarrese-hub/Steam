@@ -3,7 +3,7 @@ import { Gamepad2, LogIn, LogOut, ShieldCheck, Wallet, Wrench } from "lucide-rea
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { AvatarGamer } from "@/components/AvatarGamer";
-import { formatPrecio } from "@/lib/api";
+import { formatSaldo } from "@/lib/api";
 import { useSesion } from "@/lib/sesion";
 
 const LINKS_CLIENTE = [
@@ -86,10 +86,11 @@ export function SiteHeader() {
             <>
               <Link
                 to="/perfil"
+                hash="billetera"
                 className="flex items-center gap-2 rounded-md border border-border bg-card px-3 py-1.5 text-sm"
               >
                 <Wallet className="h-4 w-4 text-accent" />
-                <span className="font-semibold">{formatPrecio(usuario.saldo)}</span>
+                <span className="font-semibold">Saldo: {formatSaldo(usuario.saldo)}</span>
               </Link>
               <Link to="/perfil" className="flex items-center gap-2">
                 <AvatarGamer

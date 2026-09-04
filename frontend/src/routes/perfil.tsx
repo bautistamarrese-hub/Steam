@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import {
@@ -8,11 +8,13 @@ import {
   Coins,
   CreditCard,
   Gamepad2,
+  ImagePlus,
   RefreshCw,
   Trophy,
   Users,
 } from "lucide-react";
 import { AvatarGamer } from "@/components/AvatarGamer";
+import { AvatarCropDialog } from "@/components/AvatarCropDialog";
 import { AccesoRequerido } from "@/components/AccesoRequerido";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -25,6 +27,7 @@ import {
   ApiError,
   estadisticas,
   formatPrecio,
+  formatSaldo,
   juegosDeDesarrollador,
   listarRecargas,
   MONTO_MAXIMO_RECARGA,
@@ -77,6 +80,7 @@ function PerfilConSesion() {
   const [tarjeta, setTarjeta] = useState("");
   const [cvv, setCvv] = useState("");
   const [subiendoAvatar, setSubiendoAvatar] = useState(false);
+  const [avatarPendiente, setAvatarPendiente] = useState("");
 
   const statsQuery = useQuery({
     queryKey: ["estadisticas", usuario.id],
@@ -100,6 +104,13 @@ function PerfilConSesion() {
     enabled: Boolean(usuario.desarrollador_id),
     throwOnError: false,
   });
+
+  useEffect(() => {
+    if (statsQuery.isPending || window.location.hash !== "#billetera") return;
+    window.requestAnimationFrame(() => {
+      document.getElementById("billetera")?.scrollIntoView({ behavior: "smooth", block: "start" });
+    });
+  }, [statsQuery.isPending]);
 
   if (statsQuery.isPending)
     return <p className="px-4 py-24 text-center text-muted-foreground">Cargando perfil...</p>;
@@ -161,30 +172,29 @@ function PerfilConSesion() {
             {dev ? ` · ${dev.nombre}` : ""}
           </p>
           <div className="mt-2 flex flex-wrap items-center gap-2">
-            <Label htmlFor="foto" className="text-xs text-muted-foreground">
-              Cambiar foto de perfil
+            <Label
+              htmlFor="foto"
+              className={`inline-flex h-8 items-center gap-2 rounded-md border border-input bg-secondary px-3 text-xs font-medium transition-colors hover:bg-secondary/80 ${
+                subiendoAvatar ? "pointer-events-none opacity-50" : "cursor-pointer"
+              }`}
+            >
+              <ImagePlus className="h-4 w-4" />
+              {subiendoAvatar ? "Subiendo foto..." : "Elegir foto"}
             </Label>
-            <Input
+            <input
               id="foto"
               type="file"
               accept="image/*"
               disabled={subiendoAvatar}
-              className="h-8 w-56 cursor-pointer text-xs"
+              className="sr-only"
               onChange={async (event) => {
                 const file = event.target.files?.[0];
                 if (!file) return;
-                setSubiendoAvatar(true);
                 try {
-                  await leerImagen(file);
-                  await actualizarAvatar(usuario.id, file);
-                  await refrescar();
-                  toast.success("Foto de perfil actualizada");
+                  setAvatarPendiente(await leerImagen(file));
                 } catch (error) {
-                  toast.error(
-                    error instanceof Error ? error.message : "No se pudo actualizar la foto",
-                  );
+                  toast.error(error instanceof Error ? error.message : "No se pudo abrir la foto");
                 } finally {
-                  setSubiendoAvatar(false);
                   event.target.value = "";
                 }
               }}
@@ -256,10 +266,10 @@ function PerfilConSesion() {
           </div>
         </Card>
 
-        <Card className="p-6">
+        <Card id="billetera" className="scroll-mt-24 p-6">
           <h2 className="text-lg font-semibold">Recargar saldo</h2>
           <p className="mt-1 text-sm text-muted-foreground">
-            Saldo actual: <strong>{formatPrecio(usuario.saldo)}</strong>. Monto mínimo:{" "}
+            Saldo actual: <strong>{formatSaldo(usuario.saldo)}</strong>. Monto mínimo:{" "}
             {MONTO_MINIMO_RECARGA} · máximo: {MONTO_MAXIMO_RECARGA}.
           </p>
           <div className="mt-4 space-y-3">
@@ -333,6 +343,26 @@ function PerfilConSesion() {
           </ul>
         </Card>
       </div>
+
+      <AvatarCropDialog
+        imagen={avatarPendiente}
+        abierto={Boolean(avatarPendiente)}
+        guardando={subiendoAvatar}
+        onOpenChange={(abierto) => !abierto && setAvatarPendiente("")}
+        onGuardar={async (archivo) => {
+          setSubiendoAvatar(true);
+          try {
+            await actualizarAvatar(usuario.id, archivo);
+            await refrescar();
+            setAvatarPendiente("");
+            toast.success("Foto de perfil actualizada");
+          } catch (error) {
+            toast.error(error instanceof Error ? error.message : "No se pudo actualizar la foto");
+          } finally {
+            setSubiendoAvatar(false);
+          }
+        }}
+      />
     </div>
   );
 }

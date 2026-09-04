@@ -674,6 +674,9 @@ export async function perfilPublico(usuarioId: number): Promise<PerfilPublico> {
 export const formatPrecio = (value: number) =>
   value === 0 ? "Gratis" : `$${value.toLocaleString("es-AR")}`;
 
+/** El saldo siempre se muestra como dinero, incluso cuando vale cero. */
+export const formatSaldo = (value: number) => `$${value.toLocaleString("es-AR")}`;
+
 export const avatarDe = ({ nickname, avatar }: { nickname: string; avatar?: string | undefined }) =>
   avatar ||
   `https://api.dicebear.com/9.x/adventurer/svg?seed=${encodeURIComponent(

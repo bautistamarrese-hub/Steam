@@ -4,6 +4,7 @@ import {
   Link,
   createRootRouteWithContext,
   useRouter,
+  useRouterState,
   HeadContent,
   Scripts,
 } from "@tanstack/react-router";
@@ -130,13 +131,16 @@ function RootShell({ children }: { children: ReactNode }) {
 
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
+  const esReproductor = useRouterState({
+    select: (state) => state.location.pathname.startsWith("/jugar/"),
+  });
 
   return (
     <QueryClientProvider client={queryClient}>
       <SesionProvider>
         <AuthGate>
           <div className="min-h-screen bg-background">
-            <SiteHeader />
+            {!esReproductor && <SiteHeader />}
             {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
             <main>
               <Outlet />

@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import { toast } from "sonner";
 import { Gamepad2, Code2, User } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -28,6 +28,18 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
   const [rol, setRol] = useState<RolRegistro>("cliente");
   const [enviando, setEnviando] = useState(false);
 
+  useEffect(() => {
+    if (usuario || !accesoAbierto) {
+      setModo("login");
+      setEmail("");
+      setNickname("");
+      setPassword("");
+      setConfirmacion("");
+      setEstudio("");
+      setRol("cliente");
+    }
+  }, [accesoAbierto, usuario]);
+
   const enviar = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (enviando) return;
@@ -47,11 +59,22 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
     }
   };
 
+  if (cargando) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-background px-4">
+        <div className="text-center">
+          <Gamepad2 className="mx-auto h-9 w-9 animate-pulse text-primary" />
+          <p className="mt-3 text-sm text-muted-foreground">Verificando sesión...</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <>
       {children}
       <Dialog
-        open={!cargando && !usuario && accesoAbierto}
+        open={!usuario && accesoAbierto}
         onOpenChange={(abierto) => {
           if (!abierto) cerrarAcceso();
         }}
@@ -74,13 +97,13 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
                 : "Ingresá con el email y la contraseña de tu cuenta."}
             </p>
 
-            <form className="mt-4 space-y-4" onSubmit={enviar}>
+            <form className="mt-4 space-y-4" autoComplete="off" onSubmit={enviar}>
               <div className="space-y-1">
                 <Label htmlFor="email">Email</Label>
                 <Input
                   id="email"
                   type="email"
-                  autoComplete="email"
+                  autoComplete="off"
                   required
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
@@ -93,7 +116,7 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
                 <Input
                   id="password"
                   type="password"
-                  autoComplete={modo === "login" ? "current-password" : "new-password"}
+                  autoComplete="new-password"
                   minLength={LARGO_MINIMO_PASSWORD}
                   required
                   value={password}

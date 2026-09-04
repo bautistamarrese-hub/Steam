@@ -196,7 +196,12 @@ function DetalleJuego() {
               </Button>
               {(comprado || esMiJuego) && (
                 <Button asChild variant="secondary">
-                  <Link to="/jugar/$juegoId" params={{ juegoId: String(id) }}>
+                  <Link
+                    to="/jugar/$juegoId"
+                    params={{ juegoId: String(id) }}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
                     <Gamepad2 className="h-4 w-4" /> Jugar
                   </Link>
                 </Button>

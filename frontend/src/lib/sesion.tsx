@@ -61,16 +61,42 @@ export function SesionProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     const guardado = leerSesion();
-    setTokenAcceso(localStorage.getItem(CLAVE_TOKEN));
-    if (!guardado) {
+    const tokenGuardado = localStorage.getItem(CLAVE_TOKEN);
+    setTokenAcceso(tokenGuardado);
+    if (!guardado || !tokenGuardado) {
+      setUsuario(null);
       setCargando(false);
       return;
     }
+
+    // La pestaña nueva recupera la sesión inmediatamente. La comprobación
+    // remota ocurre en segundo plano y sólo la invalida si sigue siendo la
+    // misma sesión cuando llega la respuesta.
+    setUsuario(guardado);
+    setCargando(false);
     obtenerUsuario(guardado.id)
-      .then(guardar)
-      .catch(() => guardar(null, null))
-      .finally(() => setCargando(false));
+      .then((actual) => {
+        if (leerSesion()?.id === guardado.id) guardar(actual);
+      })
+      .catch(() => {
+        if (leerSesion()?.id === guardado.id) guardar(null, null);
+      });
   }, [guardar]);
+
+  useEffect(() => {
+    const sincronizarSesion = (event: StorageEvent) => {
+      if (event.key !== CLAVE && event.key !== CLAVE_TOKEN) return;
+      const guardado = leerSesion();
+      const tokenGuardado = localStorage.getItem(CLAVE_TOKEN);
+      setUsuario(guardado && tokenGuardado ? guardado : null);
+      setTokenAcceso(tokenGuardado);
+      setCargando(false);
+      if (!guardado || !tokenGuardado) setAccesoAbierto(false);
+    };
+
+    window.addEventListener("storage", sincronizarSesion);
+    return () => window.removeEventListener("storage", sincronizarSesion);
+  }, []);
 
   const refrescar = useCallback(async () => {
     if (!usuario) return;

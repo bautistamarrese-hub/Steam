@@ -41,6 +41,7 @@ def publicar_juego(
     *,
     precio: float = 250,
     genero: str = "Indie",
+    imagen: str | None = None,
 ):
     return assert_status(
         client.post(
@@ -51,6 +52,7 @@ def publicar_juego(
                 "precio": precio,
                 "fecha_lanzamiento": "2026-08-31",
                 "genero": genero,
+                "imagen": imagen,
             },
         ),
         201,
@@ -548,6 +550,53 @@ def test_logros_se_desbloquean_automaticamente_por_progreso(client: TestClient):
     assert_status(client.post(ajeno_url, json={"evento": "puntaje", "valor": 20}), 400)
 
 
+def test_desarrollador_desbloquea_logros_de_su_propio_juego_sin_comprarlo(
+    client: TestClient,
+):
+    desarrollador = registrar(
+        client,
+        "logro_juego_propio",
+        rol="admin",
+        estudio="Logros Propios",
+    )
+    ajeno = registrar(client, "logro_juego_ajeno")
+    juego = publicar_juego(
+        client,
+        desarrollador["desarrollador_id"],
+        "Buscaminas de prueba",
+        precio=0,
+    )
+    logro = assert_status(
+        client.post(
+            f"/api/juegos/{juego['id']}/logros",
+            json={
+                "nombre": "Primera victoria",
+                "descripcion": "Ganá una partida.",
+                "puntos": 10,
+                "requisito_evento": "victorias",
+                "requisito_valor": 1,
+            },
+        ),
+        201,
+    )
+
+    desbloqueados = assert_status(
+        client.post(
+            f"/api/usuarios/{desarrollador['id']}/juegos/{juego['id']}/progreso",
+            json={"evento": "victorias", "valor": 1},
+        ),
+        200,
+    )
+    assert [item["logro_id"] for item in desbloqueados] == [logro["id"]]
+    assert_status(
+        client.post(
+            f"/api/usuarios/{ajeno['id']}/juegos/{juego['id']}/progreso",
+            json={"evento": "victorias", "valor": 1},
+        ),
+        400,
+    )
+
+
 def test_amistad_bidireccional_sin_duplicados(client: TestClient):
     uno = registrar(client, "amigo_uno")
     dos = registrar(client, "amigo_dos")
@@ -631,7 +680,15 @@ def test_solicitudes_de_amistad_se_pueden_aceptar_y_rechazar(client: TestClient)
 
 def test_rankings_incluyen_ventas_y_exigen_veinte_resenas(client: TestClient):
     desarrollador = crear_desarrollador(client, "Ranking")
-    juego = publicar_juego(client, desarrollador["id"], "Favorito", precio=0, genero="RPG")
+    portada = "data:image/png;base64,portada-del-ranking"
+    juego = publicar_juego(
+        client,
+        desarrollador["id"],
+        "Favorito",
+        precio=0,
+        genero="RPG",
+        imagen=portada,
+    )
 
     for indice in range(20):
         usuario = registrar(client, f"ranking_{indice}")
@@ -651,10 +708,12 @@ def test_rankings_incluyen_ventas_y_exigen_veinte_resenas(client: TestClient):
     ventas = assert_status(client.get("/api/juegos/top-ventas?genero=RPG"), 200)
     assert ventas[0]["id"] == juego["id"]
     assert ventas[0]["compras"] == 20
+    assert ventas[0]["imagen"] == portada
     valorados = assert_status(client.get("/api/juegos/mejor-valorados?genero=RPG"), 200)
     assert valorados[0]["id"] == juego["id"]
     assert valorados[0]["total_resenas"] == 20
     assert valorados[0]["porcentaje_positivas"] == 95
+    assert valorados[0]["imagen"] == portada
 
 
 def test_superadmin_precargado_administra_usuarios_y_todos_los_juegos(

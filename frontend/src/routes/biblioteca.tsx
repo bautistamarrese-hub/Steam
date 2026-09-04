@@ -87,7 +87,12 @@ function BibliotecaConSesion() {
                   </span>
                 </div>
                 <Button asChild size="sm" className="w-full">
-                  <Link to="/jugar/$juegoId" params={{ juegoId: String(item.juego.id) }}>
+                  <Link
+                    to="/jugar/$juegoId"
+                    params={{ juegoId: String(item.juego.id) }}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
                     Jugar
                   </Link>
                 </Button>

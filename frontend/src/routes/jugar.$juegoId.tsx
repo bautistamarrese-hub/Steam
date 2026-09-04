@@ -1,6 +1,6 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { Maximize, Minimize, Trophy } from "lucide-react";
+import { Trophy } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
@@ -62,11 +62,9 @@ function JuegoConSesion() {
   const usuario = useUsuario();
   const { esAdmin } = useSesion();
   const queryClient = useQueryClient();
-  const zonaRef = useRef<HTMLDivElement>(null);
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const desbloqueandoRef = useRef(new Set<number>());
   const progresoMaximoRef = useRef(new Map<string, number>());
-  const [pantallaCompleta, setPantallaCompleta] = useState(false);
   const [puntaje, setPuntaje] = useState(0);
   const [objetivo, setObjetivo] = useState({ x: 50, y: 50 });
 
@@ -106,14 +104,19 @@ function JuegoConSesion() {
   const puedeJugar = comprado || esMiJuego;
 
   useEffect(() => {
-    const actualizarPantalla = () => setPantallaCompleta(Boolean(document.fullscreenElement));
-    document.addEventListener("fullscreenchange", actualizarPantalla);
-    return () => document.removeEventListener("fullscreenchange", actualizarPantalla);
+    const overflowHtml = document.documentElement.style.overflow;
+    const overflowBody = document.body.style.overflow;
+    document.documentElement.style.overflow = "hidden";
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.documentElement.style.overflow = overflowHtml;
+      document.body.style.overflow = overflowBody;
+    };
   }, []);
 
   const otorgarLogro = useCallback(
     async (logro: Logro) => {
-      if (!comprado || desbloqueadosIds.has(logro.id) || desbloqueandoRef.current.has(logro.id)) {
+      if (!puedeJugar || desbloqueadosIds.has(logro.id) || desbloqueandoRef.current.has(logro.id)) {
         return;
       }
       desbloqueandoRef.current.add(logro.id);
@@ -131,13 +134,13 @@ function JuegoConSesion() {
         desbloqueandoRef.current.delete(logro.id);
       }
     },
-    [comprado, desbloqueadosIds, queryClient, usuario.id],
+    [desbloqueadosIds, puedeJugar, queryClient, usuario.id],
   );
 
   const reportarProgreso = useCallback(
     async (evento: string, valor: number) => {
       const clave = evento.trim().toLowerCase();
-      if (!comprado || !clave || !Number.isFinite(valor) || valor < 0) return;
+      if (!puedeJugar || !clave || !Number.isFinite(valor) || valor < 0) return;
 
       const relevantes = logros.filter(
         (logro) =>
@@ -173,7 +176,7 @@ function JuegoConSesion() {
         toast.error(error instanceof ApiError ? error.message : "No se pudo registrar el progreso");
       }
     },
-    [comprado, desbloqueadosIds, id, logros, queryClient, usuario.id],
+    [desbloqueadosIds, id, logros, puedeJugar, queryClient, usuario.id],
   );
 
   // Los juegos HTML informan una métrica acumulada con:
@@ -209,13 +212,13 @@ function JuegoConSesion() {
   }, [logros, otorgarLogro, puedeJugar, reportarProgreso]);
 
   useEffect(() => {
-    if (!comprado) return;
+    if (!puedeJugar) return;
     void reportarProgreso("iniciar_juego", 1);
-  }, [comprado, reportarProgreso]);
+  }, [puedeJugar, reportarProgreso]);
 
   useEffect(() => {
     if (
-      !comprado ||
+      !puedeJugar ||
       !logros.some(
         (logro) =>
           logro.requisito_evento === "tiempo_jugado_segundos" && !desbloqueadosIds.has(logro.id),
@@ -229,12 +232,12 @@ function JuegoConSesion() {
       void reportarProgreso("tiempo_jugado_segundos", segundos);
     }, 1000);
     return () => window.clearInterval(intervalo);
-  }, [comprado, desbloqueadosIds, logros, reportarProgreso]);
+  }, [desbloqueadosIds, logros, puedeJugar, reportarProgreso]);
 
   // El minijuego de respaldo conserva el flujo del frontend recibido cuando el
   // desarrollador todavía no subió un HTML jugable.
   useEffect(() => {
-    if (juego?.archivo_url || puntaje === 0 || !comprado) return;
+    if (juego?.archivo_url || puntaje === 0 || !puedeJugar) return;
     void reportarProgreso("puntaje", puntaje);
     [...logros]
       .filter((logro) => !logro.requisito_evento)
@@ -242,17 +245,13 @@ function JuegoConSesion() {
       .forEach((logro, indice) => {
         if (puntaje >= (indice + 1) * 3) void otorgarLogro(logro);
       });
-  }, [comprado, juego?.archivo_url, logros, otorgarLogro, puntaje, reportarProgreso]);
+  }, [juego?.archivo_url, logros, otorgarLogro, puedeJugar, puntaje, reportarProgreso]);
 
-  const alternarPantalla = async () => {
-    const zona = zonaRef.current;
-    if (!zona) return;
-    try {
-      if (document.fullscreenElement) await document.exitFullscreen();
-      else await zona.requestFullscreen();
-    } catch {
-      toast.error("El navegador no permitió cambiar a pantalla completa.");
-    }
+  const salirDelJuego = () => {
+    window.close();
+    window.setTimeout(() => {
+      if (!window.closed) window.location.assign("/biblioteca");
+    }, 100);
   };
 
   const acertar = () => {
@@ -279,10 +278,7 @@ function JuegoConSesion() {
   const cantidadDesbloqueados = logros.filter((logro) => desbloqueadosIds.has(logro.id)).length;
 
   return (
-    <div
-      ref={zonaRef}
-      className="relative h-[calc(100dvh-4rem)] min-h-[32rem] w-full overflow-hidden bg-background"
-    >
+    <div className="fixed inset-0 z-50 h-dvh w-screen overflow-hidden bg-background">
       {juego.archivo_url ? (
         <iframe
           ref={iframeRef}
@@ -290,8 +286,7 @@ function JuegoConSesion() {
           src={juego.archivo_url}
           className="absolute inset-0 h-full w-full bg-black"
           sandbox="allow-scripts allow-pointer-lock allow-forms"
-          allow="autoplay; fullscreen; gamepad"
-          allowFullScreen
+          allow="autoplay; gamepad"
         />
       ) : (
         <>
@@ -324,13 +319,9 @@ function JuegoConSesion() {
         </Badge>
       </div>
 
-      <div className="absolute bottom-4 left-4 right-4 flex items-center justify-between gap-2">
-        <Button variant="secondary" size="sm" className="gap-2" onClick={alternarPantalla}>
-          {pantallaCompleta ? <Minimize className="h-4 w-4" /> : <Maximize className="h-4 w-4" />}
-          {pantallaCompleta ? "Salir de pantalla completa" : "Pantalla completa"}
-        </Button>
-        <Button asChild variant="secondary" size="sm">
-          <Link to="/biblioteca">Salir del juego</Link>
+      <div className="absolute bottom-4 left-4 right-4 flex items-center justify-end gap-2">
+        <Button variant="secondary" size="sm" onClick={salirDelJuego}>
+          Salir del juego
         </Button>
       </div>
     </div>

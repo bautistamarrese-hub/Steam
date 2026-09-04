@@ -3,6 +3,7 @@ from sqlalchemy.orm import Session
 
 from src.db.models.comprarJuego_model import Compra
 from src.db.models.desbloquearLogro_model import LogroDesbloqueado
+from src.db.models.desarrolladorJuego_model import Juego
 from src.db.models.logros_model import Logro
 from src.db.models.registroUsuario_model import Usuario
 
@@ -12,7 +13,8 @@ class DesbloqueoLogroService:
         self.db = db
 
     def desbloquear_logro(self, usuario_id: int, logro_id: int) -> LogroDesbloqueado:
-        if not self.db.query(Usuario).filter(Usuario.id == usuario_id).first():
+        usuario = self.db.query(Usuario).filter(Usuario.id == usuario_id).first()
+        if not usuario:
             raise ValueError("El usuario no existe.")
 
         logro = self.db.query(Logro).filter(Logro.id == logro_id).first()
@@ -24,7 +26,11 @@ class DesbloqueoLogroService:
             .filter(Compra.usuario_id == usuario_id, Compra.juego_id == logro.juego_id)
             .first()
         )
-        if not comprado:
+        juego_propio = self.db.query(Juego.id).filter(
+            Juego.id == logro.juego_id,
+            Juego.desarrollador_id == usuario.desarrollador_id,
+        ).first()
+        if not comprado and not juego_propio:
             raise ValueError("El usuario no posee el juego al que pertenece este logro.")
 
         desbloqueado = (
@@ -51,14 +57,19 @@ class DesbloqueoLogroService:
         evento: str,
         valor: float,
     ) -> list[LogroDesbloqueado]:
-        if not self.db.query(Usuario).filter(Usuario.id == usuario_id).first():
+        usuario = self.db.query(Usuario).filter(Usuario.id == usuario_id).first()
+        if not usuario:
             raise ValueError("El usuario no existe.")
 
         comprado = self.db.query(Compra).filter(
             Compra.usuario_id == usuario_id,
             Compra.juego_id == juego_id,
         ).first()
-        if not comprado:
+        juego_propio = self.db.query(Juego.id).filter(
+            Juego.id == juego_id,
+            Juego.desarrollador_id == usuario.desarrollador_id,
+        ).first()
+        if not comprado and not juego_propio:
             raise ValueError("El usuario no posee el juego informado.")
 
         evento_normalizado = evento.strip().lower()
