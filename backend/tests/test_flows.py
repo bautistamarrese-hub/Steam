@@ -765,6 +765,28 @@ def test_desarrollador_desbloquea_logros_de_su_propio_juego_sin_comprarlo(
         "Buscaminas de prueba",
         precio=0,
     )
+    biblioteca_dev = assert_status(
+        client.get(f"/api/usuarios/{desarrollador['id']}/biblioteca"), 200
+    )
+    assert [item["juego"]["id"] for item in biblioteca_dev] == [juego["id"]]
+    assert biblioteca_dev[0]["es_del_desarrollador"] is True
+    assert biblioteca_dev[0]["fecha"] is None
+    assert biblioteca_dev[0]["precio_pagado"] is None
+    assert_status(
+        client.post(
+            f"/api/usuarios/{desarrollador['id']}/comprar/{juego['id']}",
+            headers=desarrollador.headers,
+        ),
+        400,
+    )
+    assert_status(
+        client.post(
+            f"/api/usuarios/{desarrollador['id']}/wishlist",
+            headers=desarrollador.headers,
+            json={"juego_id": juego["id"]},
+        ),
+        400,
+    )
     logro = assert_status(
         client.post(
             f"/api/juegos/{juego['id']}/logros",

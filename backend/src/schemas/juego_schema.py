@@ -53,5 +53,6 @@ class GetJuegoTopSchema(GetJuegoSchema):
 
 class GetItemBibliotecaSchema(BaseModel):
     juego: GetJuegoSchema
-    fecha: datetime
-    precio_pagado: float
+    fecha: datetime | None = None
+    precio_pagado: float | None = None
+    es_del_desarrollador: bool = False

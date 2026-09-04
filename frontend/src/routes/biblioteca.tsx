@@ -14,10 +14,13 @@ export const Route = createFileRoute("/biblioteca")({
       { title: "Mi biblioteca — Steamn't" },
       {
         name: "description",
-        content: "Todos los juegos que compraste, con fecha de compra y precio pagado.",
+        content: "Todos los juegos que compraste o publicaste como desarrollador.",
       },
       { property: "og:title", content: "Mi biblioteca — Steamn't" },
-      { property: "og:description", content: "Tus juegos comprados, filtrables por género." },
+      {
+        property: "og:description",
+        content: "Tus juegos comprados y propios, filtrables por género.",
+      },
     ],
   }),
   component: Biblioteca,
@@ -81,9 +84,13 @@ function BibliotecaConSesion() {
             footer={
               <div className="space-y-2">
                 <div className="flex justify-between text-sm text-muted-foreground">
-                  <span>Comprado el {item.fecha}</span>
+                  <span>
+                    {item.es_del_desarrollador ? "Juego propio" : `Comprado el ${item.fecha}`}
+                  </span>
                   <span className="font-semibold text-accent">
-                    {formatPrecio(item.precio_pagado)}
+                    {item.es_del_desarrollador
+                      ? "Publicado por vos"
+                      : formatPrecio(item.precio_pagado ?? 0)}
                   </span>
                 </div>
                 <Button asChild size="sm" className="w-full">

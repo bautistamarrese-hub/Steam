@@ -17,6 +17,11 @@ class CompraService:
         juego = self.db.query(Juego).filter(Juego.id == juego_id).first()
         if not juego:
             raise ValueError("El juego no existe.")
+        if (
+            usuario.desarrollador_id is not None
+            and usuario.desarrollador_id == juego.desarrollador_id
+        ):
+            raise ValueError("Este juego ya es tuyo y está disponible en tu biblioteca.")
 
         # Verificar si ya posee el juego
         compra_previa = (

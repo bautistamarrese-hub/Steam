@@ -121,6 +121,7 @@ function DetalleJuego() {
   const comprado = compras.some((item) => item.juego.id === id);
   const deseado = wishlist.some((item) => item.juego_id === id);
   const esMiJuego = esAdmin && usuario?.desarrollador_id === juego.desarrollador_id;
+  const enBiblioteca = comprado || esMiJuego;
   const capturas = [juego.imagen, ...(juego.galeria ?? [])];
   const imagenPrincipal = principal ?? juego.imagen;
 
@@ -178,23 +179,23 @@ function DetalleJuego() {
             <p className="mt-6 text-3xl font-bold text-accent">{formatPrecio(juego.precio)}</p>
             <div className="mt-4 flex gap-2">
               <Button
-                disabled={comprado}
+                disabled={enBiblioteca}
                 onClick={() =>
                   accion(() => comprarJuego(usuario!.id, id), `Compraste ${juego.titulo}`)
                 }
               >
-                {comprado ? "Ya en tu biblioteca" : "Comprar ahora"}
+                {esMiJuego ? "Es tu juego" : comprado ? "Ya en tu biblioteca" : "Comprar ahora"}
               </Button>
               <Button
                 variant="secondary"
-                disabled={comprado || deseado}
+                disabled={enBiblioteca || deseado}
                 onClick={() =>
                   accion(() => agregarAWishlist(usuario!.id, id), "Agregado a la wishlist")
                 }
               >
-                {deseado ? "En tu wishlist" : "Agregar a wishlist"}
+                {esMiJuego ? "Ya es tuyo" : deseado ? "En tu wishlist" : "Agregar a wishlist"}
               </Button>
-              {(comprado || esMiJuego) && (
+              {enBiblioteca && (
                 <Button asChild variant="secondary">
                   <Link
                     to="/jugar/$juegoId"

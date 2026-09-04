@@ -204,7 +204,8 @@ function PerfilUsuario() {
                 <div className="min-w-0 flex-1">
                   <p className="truncate font-medium">{item.juego.titulo}</p>
                   <p className="text-xs text-muted-foreground">
-                    {item.juego.genero} · comprado el {item.fecha}
+                    {item.juego.genero} ·{" "}
+                    {item.es_del_desarrollador ? "juego propio" : `comprado el ${item.fecha}`}
                   </p>
                 </div>
               </Link>

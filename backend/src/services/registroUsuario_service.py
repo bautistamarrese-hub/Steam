@@ -205,6 +205,11 @@ class UsuarioService:
         juego = self.db.query(Juego).filter(Juego.id == juego_id).first()
         if not juego:
             raise ValueError("El juego no existe.")
+        if (
+            usuario.desarrollador_id is not None
+            and usuario.desarrollador_id == juego.desarrollador_id
+        ):
+            raise ValueError("Este juego ya es tuyo y está disponible en tu biblioteca.")
         if self.db.query(Compra).filter_by(usuario_id=usuario_id, juego_id=juego_id).first():
             raise ValueError("El usuario ya posee este juego.")
         if usuario.saldo < juego.precio:
@@ -225,7 +230,7 @@ class UsuarioService:
         return compra
 
     def obtener_biblioteca(self, usuario_id: int, genero: str | None = None) -> list[dict]:
-        self.obtener(usuario_id)
+        usuario = self.obtener(usuario_id)
         query = (
             self.db.query(Compra, Juego)
             .join(Juego, Compra.juego_id == Juego.id)
@@ -233,16 +238,51 @@ class UsuarioService:
         )
         if genero:
             query = query.filter(Juego.genero == genero)
-        return [
-            {"juego": juego, "fecha": compra.fecha, "precio_pagado": compra.precio_pagado}
+        comprados = [
+            {
+                "juego": juego,
+                "fecha": compra.fecha,
+                "precio_pagado": compra.precio_pagado,
+                "es_del_desarrollador": bool(
+                    usuario.desarrollador_id is not None
+                    and usuario.desarrollador_id == juego.desarrollador_id
+                ),
+            }
             for compra, juego in query.order_by(Compra.fecha.desc()).all()
         ]
 
+        if usuario.desarrollador_id is None:
+            return comprados
+
+        juegos_propios_query = self.db.query(Juego).filter(
+            Juego.desarrollador_id == usuario.desarrollador_id
+        )
+        if genero:
+            juegos_propios_query = juegos_propios_query.filter(Juego.genero == genero)
+        comprados_ids = {item["juego"].id for item in comprados}
+        juegos_propios = [
+            {
+                "juego": juego,
+                "fecha": None,
+                "precio_pagado": None,
+                "es_del_desarrollador": True,
+            }
+            for juego in juegos_propios_query.order_by(Juego.id.desc()).all()
+            if juego.id not in comprados_ids
+        ]
+        return juegos_propios + comprados
+
     def agregar_a_wishlist(self, usuario_id: int, payload) -> Wishlist:
-        self.obtener(usuario_id)
+        usuario = self.obtener(usuario_id)
         juego_id = payload.juego_id
-        if not self.db.query(Juego).filter(Juego.id == juego_id).first():
+        juego = self.db.query(Juego).filter(Juego.id == juego_id).first()
+        if not juego:
             raise ValueError("El juego no existe.")
+        if (
+            usuario.desarrollador_id is not None
+            and usuario.desarrollador_id == juego.desarrollador_id
+        ):
+            raise ValueError("No podés agregar a la wishlist un juego que ya es tuyo.")
         if self.db.query(Compra).filter_by(usuario_id=usuario_id, juego_id=juego_id).first():
             raise ValueError("No se puede agregar un juego ya comprado.")
         if self.db.query(Wishlist).filter_by(usuario_id=usuario_id, juego_id=juego_id).first():
@@ -254,13 +294,15 @@ class UsuarioService:
         return item
 
     def obtener_wishlist(self, usuario_id: int) -> list[Wishlist]:
-        self.obtener(usuario_id)
-        return (
+        usuario = self.obtener(usuario_id)
+        query = (
             self.db.query(Wishlist)
+            .join(Juego, Juego.id == Wishlist.juego_id)
             .filter(Wishlist.usuario_id == usuario_id)
-            .order_by(Wishlist.fecha_agregado.asc())
-            .all()
         )
+        if usuario.desarrollador_id is not None:
+            query = query.filter(Juego.desarrollador_id != usuario.desarrollador_id)
+        return query.order_by(Wishlist.fecha_agregado.asc()).all()
 
     def quitar_de_wishlist(self, usuario_id: int, juego_id: int) -> None:
         item = self.db.query(Wishlist).filter_by(

@@ -10,10 +10,17 @@ class WishlistService:
         self.db = db
 
     def agregar_a_wishlist(self, usuario_id: int, juego_id: int) -> Wishlist:
-        if not self.db.query(Usuario).filter(Usuario.id == usuario_id).first():
+        usuario = self.db.query(Usuario).filter(Usuario.id == usuario_id).first()
+        if not usuario:
             raise ValueError("El usuario no existe.")
-        if not self.db.query(Juego).filter(Juego.id == juego_id).first():
+        juego = self.db.query(Juego).filter(Juego.id == juego_id).first()
+        if not juego:
             raise ValueError("El juego no existe.")
+        if (
+            usuario.desarrollador_id is not None
+            and usuario.desarrollador_id == juego.desarrollador_id
+        ):
+            raise ValueError("No podés agregar a la wishlist un juego que ya es tuyo.")
 
         # Verificar si ya compró el juego
         ya_comprado = (
@@ -40,15 +47,18 @@ class WishlistService:
         return nuevo_item
 
     def obtener_wishlist(self, usuario_id: int) -> list[Wishlist]:
-        if not self.db.query(Usuario).filter(Usuario.id == usuario_id).first():
+        usuario = self.db.query(Usuario).filter(Usuario.id == usuario_id).first()
+        if not usuario:
             raise ValueError("El usuario no existe.")
 
-        return (
+        query = (
             self.db.query(Wishlist)
+            .join(Juego, Juego.id == Wishlist.juego_id)
             .filter(Wishlist.usuario_id == usuario_id)
-            .order_by(Wishlist.fecha_agregado.asc())
-            .all()
         )
+        if usuario.desarrollador_id is not None:
+            query = query.filter(Juego.desarrollador_id != usuario.desarrollador_id)
+        return query.order_by(Wishlist.fecha_agregado.asc()).all()
 
     def eliminar_de_wishlist(self, usuario_id: int, juego_id: int) -> None:
         item = (

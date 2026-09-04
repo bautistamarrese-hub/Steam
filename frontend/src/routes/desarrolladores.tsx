@@ -194,7 +194,12 @@ function PanelDesarrollador() {
           ),
         ),
       );
-      await queryClient.invalidateQueries({ queryKey: ["juegos-desarrollador", dev.id] });
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["juegos-desarrollador", dev.id] }),
+        queryClient.invalidateQueries({ queryKey: ["juegos"] }),
+        queryClient.invalidateQueries({ queryKey: ["biblioteca", usuario.id] }),
+        queryClient.invalidateQueries({ queryKey: ["wishlist", usuario.id] }),
+      ]);
       setTitulo("");
       setPrecio("0");
       setResumen("");

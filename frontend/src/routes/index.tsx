@@ -169,6 +169,8 @@ function Tienda() {
           {juegos.map((juego) => {
             const comprado = compradosIds.has(juego.id);
             const deseado = deseadosIds.has(juego.id);
+            const esPropio = usuario?.desarrollador_id === juego.desarrollador_id;
+            const enBiblioteca = comprado || esPropio;
             return (
               <JuegoCard
                 key={juego.id}
@@ -179,7 +181,7 @@ function Tienda() {
                     <Button
                       size="sm"
                       className="flex-1"
-                      disabled={comprado}
+                      disabled={enBiblioteca}
                       onClick={() =>
                         accion(
                           (usuarioId) => comprarJuego(usuarioId, juego.id),
@@ -187,12 +189,12 @@ function Tienda() {
                         )
                       }
                     >
-                      {comprado ? "En biblioteca" : "Comprar"}
+                      {esPropio ? "Es tu juego" : comprado ? "En biblioteca" : "Comprar"}
                     </Button>
                     <Button
                       size="sm"
                       variant="secondary"
-                      disabled={comprado || deseado}
+                      disabled={enBiblioteca || deseado}
                       onClick={() =>
                         accion(
                           (usuarioId) => agregarAWishlist(usuarioId, juego.id),

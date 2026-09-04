@@ -111,8 +111,9 @@ export interface SolicitudAmistad {
 
 export interface ItemBiblioteca {
   juego: Juego;
-  fecha: string;
-  precio_pagado: number;
+  fecha: string | null;
+  precio_pagado: number | null;
+  es_del_desarrollador: boolean;
 }
 
 export interface EstadisticasUsuario {
