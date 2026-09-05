@@ -7,19 +7,30 @@ from src.middlewares.auth_middleware import get_current_user, get_feature_user, 
 from src.schemas.amigo_schema import CreateAmigoSchema, GetAmigoSchema
 from src.schemas.compra_schema import GetCompraSchema, GetRecargaSchema
 from src.schemas.juego_schema import GetItemBibliotecaSchema
-from src.schemas.logro_schema import GetLogroDesbloqueadoSchema, ProgresoLogroSchema
+from src.schemas.logro_schema import (
+    GetLogroDesbloqueadoSchema,
+    GetProgresoLogroSchema,
+    ProgresoLogroSchema,
+)
 from src.schemas.notificacionVenta_schema import (
     GetIngresosDesarrolladorSchema,
     GetNotificacionVentaSchema,
 )
 from src.schemas.solicitudAmistad_schema import GetSolicitudAmistadSchema
 from src.schemas.usuario_schema import (
+    ActualizarCuentaSchema,
+    ConfigurarRecuperacionSchema,
+    ConsultarRecuperacionSchema,
+    EstadoRecuperacionSchema,
     CreateUsuarioSchema,
     GetEstadisticasUsuarioSchema,
     GetUsuarioSchema,
     LoginResponseSchema,
     LoginUsuarioSchema,
+    MensajeSchema,
+    PreguntasRecuperacionSchema,
     RecargarSaldoSchema,
+    RestablecerPasswordSchema,
 )
 from src.schemas.wishlist_schema import CreateWishlistSchema, GetWishlistSchema
 from src.services.desbloquearLogro_service import DesbloqueoLogroService
@@ -46,6 +57,22 @@ def iniciar_sesion(payload: LoginUsuarioSchema, db: Session = Depends(get_db)):
     }
 
 
+@router.post("/recuperacion/preguntas", response_model=PreguntasRecuperacionSchema)
+def consultar_preguntas_recuperacion(
+    payload: ConsultarRecuperacionSchema,
+    db: Session = Depends(get_db),
+):
+    return UsuarioService(db).consultar_preguntas_recuperacion(str(payload.email))
+
+
+@router.post("/recuperacion/restablecer", response_model=MensajeSchema)
+def restablecer_password(
+    payload: RestablecerPasswordSchema,
+    db: Session = Depends(get_db),
+):
+    return UsuarioService(db).restablecer_password(payload)
+
+
 @router.get("/", response_model=list[GetUsuarioSchema])
 def listar_usuarios(email: str | None = Query(default=None), db: Session = Depends(get_db)):
     return UsuarioService(db).listar(email)
@@ -54,6 +81,38 @@ def listar_usuarios(email: str | None = Query(default=None), db: Session = Depen
 @router.get("/me", response_model=GetUsuarioSchema)
 def obtener_sesion_actual(usuario: Usuario = Depends(get_current_user)):
     return usuario
+
+
+@router.put("/{id}/cuenta", response_model=GetUsuarioSchema)
+def actualizar_cuenta(
+    id: int,
+    payload: ActualizarCuentaSchema,
+    db: Session = Depends(get_db),
+    usuario: Usuario = Depends(get_current_user),
+):
+    require_same_user(id, usuario)
+    return UsuarioService(db).actualizar_cuenta(id, payload)
+
+
+@router.get("/{id}/recuperacion", response_model=EstadoRecuperacionSchema)
+def obtener_estado_recuperacion(
+    id: int,
+    db: Session = Depends(get_db),
+    usuario: Usuario = Depends(get_current_user),
+):
+    require_same_user(id, usuario)
+    return UsuarioService(db).obtener_estado_recuperacion(id)
+
+
+@router.put("/{id}/recuperacion", response_model=EstadoRecuperacionSchema)
+def configurar_recuperacion(
+    id: int,
+    payload: ConfigurarRecuperacionSchema,
+    db: Session = Depends(get_db),
+    usuario: Usuario = Depends(get_current_user),
+):
+    require_same_user(id, usuario)
+    return UsuarioService(db).configurar_recuperacion(id, payload)
 
 
 @router.get("/{id}", response_model=GetUsuarioSchema)
@@ -227,6 +286,20 @@ def registrar_progreso_logros(
         payload.evento,
         payload.valor,
     )
+
+
+@router.get(
+    "/{id}/juegos/{juego_id}/progreso",
+    response_model=list[GetProgresoLogroSchema],
+)
+def obtener_progreso_logros(
+    id: int,
+    juego_id: int,
+    db: Session = Depends(get_db),
+    usuario: Usuario = Depends(get_feature_user),
+):
+    require_same_user(id, usuario)
+    return DesbloqueoLogroService(db).obtener_progreso(id, juego_id)
 
 
 @router.get("/{id}/logros", response_model=list[GetLogroDesbloqueadoSchema])

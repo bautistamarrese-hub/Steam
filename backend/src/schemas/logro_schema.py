@@ -43,6 +43,13 @@ class ProgresoLogroSchema(BaseModel):
     valor: float = Field(ge=0)
 
 
+class GetProgresoLogroSchema(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    evento: str
+    valor: float
+
+
 class DesbloquearLogroSchema(BaseModel):
     logro_id: int
 

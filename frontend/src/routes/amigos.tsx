@@ -1,5 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { toast } from "sonner";
+import { toast } from "@/lib/notificaciones";
 import { useQueries, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import {
@@ -31,6 +31,7 @@ import {
   solicitudesRecibidas,
 } from "@/lib/api";
 import { useSesion } from "@/lib/sesion";
+import { formatearFechaHoraLocal } from "@/lib/fecha";
 
 export const Route = createFileRoute("/amigos")({
   head: () => ({
@@ -162,7 +163,7 @@ function Amigos() {
                 <div className="min-w-0 flex-1">
                   <p className="truncate font-medium">{solicitud.autor?.nickname ?? "Usuario"}</p>
                   <p className="text-xs text-muted-foreground">
-                    Te envió una solicitud · {solicitud.fecha}
+                    Te envió una solicitud · {formatearFechaHoraLocal(solicitud.fecha)}
                   </p>
                 </div>
                 <Button
@@ -252,7 +253,7 @@ function Amigos() {
                     </Badge>
                   </div>
                   <p className="truncate text-xs text-muted-foreground">
-                    Miembro desde {u.fecha_registro}
+                    Miembro desde {formatearFechaHoraLocal(u.fecha_registro)}
                   </p>
                 </div>
                 {amigo ? (

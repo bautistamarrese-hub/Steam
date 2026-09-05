@@ -82,7 +82,7 @@ class NotificacionVentaService:
             .first()
         )
         if not notificacion:
-            raise ValueError("La notificaciÃ³n de venta no existe.")
+            raise ValueError("La notificación de venta no existe.")
         self.db.delete(notificacion)
         self.db.commit()
 
@@ -147,7 +147,10 @@ class NotificacionVentaService:
                 2,
             )
 
-        hoy = date.today()
+        # Usa la fecha de la misma base que asigna `Compra.fecha`. Esto evita
+        # perder ventas cerca de medianoche si servidor y base tienen zonas
+        # horarias diferentes (por ejemplo, hora local frente a UTC).
+        hoy = self.db.query(func.current_date()).scalar() or date.today()
         if periodo == "7d":
             dias = [hoy - timedelta(days=offset) for offset in range(6, -1, -1)]
         elif periodo == "30d":

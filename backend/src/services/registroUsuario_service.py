@@ -1,4 +1,5 @@
 from pathlib import Path
+import unicodedata
 from urllib.parse import quote
 from uuid import uuid4
 
@@ -13,6 +14,7 @@ from src.db.models.desarrolladorJuego_model import Desarrollador, Juego
 from src.db.models.desbloquearLogro_model import LogroDesbloqueado
 from src.db.models.logros_model import Logro
 from src.db.models.recargarSaldo_model import Recarga
+from src.db.models.recuperacionCuenta_model import RecuperacionCuenta
 from src.db.models.registroUsuario_model import Usuario
 from src.db.models.wishlist_model import Wishlist
 from src.services.notificacionVenta_service import NotificacionVentaService
@@ -78,6 +80,155 @@ class UsuarioService:
             raise ValueError("Email o contraseña incorrectos.")
         return usuario
 
+    @staticmethod
+    def _normalizar_respuesta(respuesta: str) -> str:
+        normalizada = unicodedata.normalize("NFKC", respuesta).strip().casefold()
+        if not normalizada:
+            raise ValueError("Las respuestas son obligatorias.")
+        if any(caracter.isspace() for caracter in normalizada):
+            raise ValueError("Cada respuesta debe tener una sola palabra, sin espacios.")
+        return normalizada
+
+    @staticmethod
+    def _normalizar_pregunta(pregunta: str) -> str:
+        return unicodedata.normalize("NFKC", pregunta).strip()
+
+    def actualizar_cuenta(self, usuario_id: int, payload) -> Usuario:
+        usuario = self.obtener(usuario_id)
+        email = str(payload.email).strip().lower() if payload.email is not None else None
+        nickname = payload.nickname.strip() if payload.nickname is not None else None
+        if email is None and nickname is None and payload.password_nueva is None:
+            raise ValueError("Indicá un nuevo email, nickname o una nueva contraseña.")
+
+        if email is not None:
+            duplicado = (
+                self.db.query(Usuario)
+                .filter(
+                    Usuario.id != usuario_id,
+                    func.lower(Usuario.email) == email,
+                )
+                .first()
+            )
+            if duplicado:
+                raise ValueError("Ese email ya está en uso.")
+            usuario.email = email
+
+        if nickname is not None:
+            duplicado = (
+                self.db.query(Usuario)
+                .filter(
+                    Usuario.id != usuario_id,
+                    func.lower(Usuario.nickname) == nickname.lower(),
+                )
+                .first()
+            )
+            if duplicado:
+                raise ValueError("Ese nickname ya está en uso.")
+            usuario.nickname = nickname
+
+        if payload.password_nueva is not None:
+            if not payload.password_actual:
+                raise ValueError("Ingresá tu contraseña actual para cambiarla.")
+            if not verify_password(payload.password_actual, usuario.password_hash):
+                raise ValueError("La contraseña actual es incorrecta.")
+            if verify_password(payload.password_nueva, usuario.password_hash):
+                raise ValueError("La contraseña nueva debe ser diferente de la actual.")
+            usuario.password_hash = hash_password(payload.password_nueva)
+
+        try:
+            self.db.commit()
+        except IntegrityError as exc:
+            self.db.rollback()
+            raise ValueError("Ese email o nickname ya está en uso.") from exc
+        self.db.refresh(usuario)
+        return usuario
+
+    def obtener_estado_recuperacion(self, usuario_id: int) -> dict:
+        self.obtener(usuario_id)
+        configuracion = self.db.get(RecuperacionCuenta, usuario_id)
+        if not configuracion:
+            return {"configurada": False, "pregunta_1": None, "pregunta_2": None}
+        return {
+            "configurada": True,
+            "pregunta_1": configuracion.pregunta_1,
+            "pregunta_2": configuracion.pregunta_2,
+        }
+
+    def configurar_recuperacion(self, usuario_id: int, payload) -> dict:
+        usuario = self.obtener(usuario_id)
+        if not verify_password(payload.password_actual, usuario.password_hash):
+            raise ValueError("La contraseña actual es incorrecta.")
+        pregunta_1 = self._normalizar_pregunta(payload.pregunta_1)
+        pregunta_2 = self._normalizar_pregunta(payload.pregunta_2)
+        if pregunta_1.casefold() == pregunta_2.casefold():
+            raise ValueError("Las dos preguntas de seguridad deben ser diferentes.")
+
+        configuracion = self.db.get(RecuperacionCuenta, usuario_id)
+        if configuracion is None:
+            if payload.respuesta_1 is None or payload.respuesta_2 is None:
+                raise ValueError("Ingresá las dos respuestas para agregar la seguridad.")
+            configuracion = RecuperacionCuenta(usuario_id=usuario_id)
+            self.db.add(configuracion)
+        else:
+            if pregunta_1 != configuracion.pregunta_1 and payload.respuesta_1 is None:
+                raise ValueError("Ingresá una respuesta nueva para la primera pregunta.")
+            if pregunta_2 != configuracion.pregunta_2 and payload.respuesta_2 is None:
+                raise ValueError("Ingresá una respuesta nueva para la segunda pregunta.")
+        configuracion.pregunta_1 = pregunta_1
+        configuracion.pregunta_2 = pregunta_2
+        if payload.respuesta_1 is not None:
+            configuracion.respuesta_1_hash = hash_password(
+                self._normalizar_respuesta(payload.respuesta_1)
+            )
+        if payload.respuesta_2 is not None:
+            configuracion.respuesta_2_hash = hash_password(
+                self._normalizar_respuesta(payload.respuesta_2)
+            )
+        self.db.commit()
+        return self.obtener_estado_recuperacion(usuario_id)
+
+    def consultar_preguntas_recuperacion(self, email: str) -> dict:
+        usuario = (
+            self.db.query(Usuario)
+            .filter(func.lower(Usuario.email) == str(email).strip().lower())
+            .first()
+        )
+        configuracion = self.db.get(RecuperacionCuenta, usuario.id) if usuario else None
+        if configuracion is None:
+            raise ValueError(
+                "No se puede recuperar la contraseña porque esta cuenta no configuró "
+                "las dos preguntas de seguridad."
+            )
+        return {
+            "pregunta_1": configuracion.pregunta_1,
+            "pregunta_2": configuracion.pregunta_2,
+        }
+
+    def restablecer_password(self, payload) -> dict:
+        usuario = (
+            self.db.query(Usuario)
+            .filter(func.lower(Usuario.email) == str(payload.email).strip().lower())
+            .first()
+        )
+        configuracion = self.db.get(RecuperacionCuenta, usuario.id) if usuario else None
+        if configuracion is None:
+            raise ValueError(
+                "No se puede recuperar la contraseña porque esta cuenta no configuró "
+                "las dos preguntas de seguridad."
+            )
+        respuesta_1 = self._normalizar_respuesta(payload.respuesta_1)
+        respuesta_2 = self._normalizar_respuesta(payload.respuesta_2)
+        if not (
+            verify_password(respuesta_1, configuracion.respuesta_1_hash)
+            and verify_password(respuesta_2, configuracion.respuesta_2_hash)
+        ):
+            raise ValueError("Una o ambas respuestas son incorrectas.")
+        if verify_password(payload.password_nueva, usuario.password_hash):
+            raise ValueError("La contraseña nueva debe ser diferente de la anterior.")
+        usuario.password_hash = hash_password(payload.password_nueva)
+        self.db.commit()
+        return {"mensaje": "Contraseña restablecida correctamente."}
+
     def listar(self, email: str | None = None) -> list[Usuario]:
         query = self.db.query(Usuario)
         if email:
@@ -136,9 +287,17 @@ class UsuarioService:
         return usuario
 
     def recargar_saldo(self, usuario_id: int, payload) -> Recarga:
-        usuario = self.obtener(usuario_id)
-        recarga = Recarga(usuario_id=usuario_id, monto=payload.monto)
-        usuario.saldo += payload.monto
+        usuario = (
+            self.db.query(Usuario)
+            .filter(Usuario.id == usuario_id)
+            .with_for_update()
+            .first()
+        )
+        if not usuario:
+            raise ValueError("El usuario no existe.")
+        monto = round(payload.monto, 2)
+        recarga = Recarga(usuario_id=usuario_id, monto=monto)
+        usuario.saldo = round(usuario.saldo + monto, 2)
         self.db.add(recarga)
         self.db.commit()
         self.db.refresh(recarga)
@@ -154,7 +313,14 @@ class UsuarioService:
         )
 
     def comprar_juego(self, usuario_id: int, juego_id: int) -> Compra:
-        usuario = self.obtener(usuario_id)
+        usuario = (
+            self.db.query(Usuario)
+            .filter(Usuario.id == usuario_id)
+            .with_for_update()
+            .first()
+        )
+        if not usuario:
+            raise ValueError("El usuario no existe.")
         juego = self.db.query(Juego).filter(Juego.id == juego_id).first()
         if not juego:
             raise ValueError("El juego no existe.")
@@ -171,7 +337,7 @@ class UsuarioService:
         compra = Compra(
             usuario_id=usuario_id, juego_id=juego_id, precio_pagado=juego.precio
         )
-        usuario.saldo -= juego.precio
+        usuario.saldo = round(usuario.saldo - juego.precio, 2)
         deseado = self.db.query(Wishlist).filter_by(
             usuario_id=usuario_id, juego_id=juego_id
         ).first()
@@ -179,7 +345,11 @@ class UsuarioService:
             self.db.delete(deseado)
         self.db.add(compra)
         NotificacionVentaService(self.db).acreditar_venta(juego)
-        self.db.commit()
+        try:
+            self.db.commit()
+        except IntegrityError as exc:
+            self.db.rollback()
+            raise ValueError("El usuario ya posee este juego.") from exc
         self.db.refresh(compra)
         return compra
 

@@ -2,13 +2,14 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { Flag, Gamepad2, Lock, ThumbsDown, ThumbsUp, Trophy } from "lucide-react";
-import { toast } from "sonner";
+import { toast } from "@/lib/notificaciones";
 import { Badge } from "@/components/ui/badge";
 import { SaldoInsuficienteDialog } from "@/components/SaldoInsuficienteDialog";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Progress } from "@/components/ui/progress";
 import { Textarea } from "@/components/ui/textarea";
 import {
   agregarAWishlist,
@@ -23,16 +24,48 @@ import {
   obtenerDesarrollador,
   obtenerJuego,
   obtenerLogrosDesbloqueados,
+  obtenerProgresoLogros,
   obtenerWishlist,
   resenasDeJuego,
 } from "@/lib/api";
-import { etiquetaMetricaLogro, METRICAS_LOGRO, type MetricaLogro } from "@/lib/logros";
+import {
+  etiquetaMetricaLogro,
+  METRICAS_LOGRO,
+  normalizarMetricaLogro,
+  type MetricaLogro,
+} from "@/lib/logros";
 import { useSesion } from "@/lib/sesion";
+import { formatearFechaLocal } from "@/lib/fecha";
 
 export const Route = createFileRoute("/juegos/$juegoId")({
   head: () => ({ meta: [{ title: "Detalle de juego — Steamn't" }] }),
   component: DetalleJuego,
 });
+
+const cantidadLegible = (valor: number) =>
+  valor.toLocaleString("es-AR", { maximumFractionDigits: 2 });
+
+function descripcionProgreso(evento: string, actual: number, faltante: number): string {
+  const metrica = normalizarMetricaLogro(evento);
+  const actualTexto = cantidadLegible(actual);
+  const faltanteTexto = cantidadLegible(faltante);
+  if (metrica === "victorias") {
+    return `Tenés ${actualTexto} ${actual === 1 ? "partida ganada" : "partidas ganadas"} y te ${faltante === 1 ? "falta" : "faltan"} ${faltanteTexto} ${faltante === 1 ? "partida" : "partidas"} para conseguir el logro.`;
+  }
+  if (metrica === "puntaje") {
+    return `Tenés ${actualTexto} puntos y te faltan ${faltanteTexto} para conseguir el logro.`;
+  }
+  if (metrica === "enemigos_derrotados") {
+    return `Derrotaste ${actualTexto} ${actual === 1 ? "enemigo" : "enemigos"} y te faltan ${faltanteTexto} para conseguir el logro.`;
+  }
+  if (metrica === "nivel_alcanzado") {
+    return `Llegaste al nivel ${actualTexto} y te faltan ${faltanteTexto} niveles para conseguir el logro.`;
+  }
+  if (metrica === "tiempo_jugado_segundos") {
+    return `Llevás ${actualTexto} segundos y te faltan ${faltanteTexto} para conseguir el logro.`;
+  }
+  return `Llevás ${actualTexto} de ${etiquetaMetricaLogro(evento).toLocaleLowerCase("es")} y te faltan ${faltanteTexto} para conseguir el logro.`;
+}
 
 function DetalleJuego() {
   const id = Number(Route.useParams().juegoId);
@@ -82,6 +115,16 @@ function DetalleJuego() {
     queryFn: () => obtenerDesarrollador(juego!.desarrollador_id),
     enabled: Boolean(juego),
   });
+  const comprado = compras.some((item) => item.juego.id === id);
+  const esMiJuego = Boolean(
+    juego && esAdmin && usuario?.desarrollador_id === juego.desarrollador_id,
+  );
+  const enBiblioteca = comprado || esMiJuego;
+  const { data: progresos = [] } = useQuery({
+    queryKey: ["progreso-logros", usuario?.id, id],
+    queryFn: () => obtenerProgresoLogros(usuario!.id, id),
+    enabled: Boolean(usuario && enBiblioteca),
+  });
 
   const miResena = resenas.find((resena) => resena.usuario_id === usuario?.id);
   useEffect(() => {
@@ -122,10 +165,7 @@ function DetalleJuego() {
   if (!juego)
     return <p className="px-4 py-24 text-center text-muted-foreground">Cargando juego...</p>;
 
-  const comprado = compras.some((item) => item.juego.id === id);
   const deseado = wishlist.some((item) => item.juego_id === id);
-  const esMiJuego = esAdmin && usuario?.desarrollador_id === juego.desarrollador_id;
-  const enBiblioteca = comprado || esMiJuego;
   const capturas = [juego.imagen, ...(juego.galeria ?? [])];
   const imagenPrincipal = principal ?? juego.imagen;
   const totalValoraciones = resenas.length;
@@ -205,7 +245,9 @@ function DetalleJuego() {
             <div className="mt-4 flex flex-wrap gap-2">
               <Badge variant="secondary">{juego.genero}</Badge>
               <Badge variant="outline">{desarrollador?.nombre ?? "Desarrollador"}</Badge>
-              <Badge variant="outline">Lanzamiento {juego.fecha_lanzamiento}</Badge>
+              <Badge variant="outline">
+                Lanzamiento {formatearFechaLocal(juego.fecha_lanzamiento)}
+              </Badge>
             </div>
             <p className="mt-6 text-3xl font-bold text-accent">{formatPrecio(juego.precio)}</p>
             {!esSuperAdmin && (
@@ -370,8 +412,22 @@ function DetalleJuego() {
           <div className="mt-4 grid gap-3 md:grid-cols-2">
             {logros.map((logro) => {
               const hecho = desbloqueados.some((item) => item.logro_id === logro.id);
+              const objetivo = logro.requisito_valor ?? 0;
+              const progresoRegistrado = logro.requisito_evento
+                ? (progresos.find(
+                    (item) =>
+                      normalizarMetricaLogro(item.evento) ===
+                      normalizarMetricaLogro(logro.requisito_evento!),
+                  )?.valor ?? 0)
+                : 0;
+              const progresoActual = hecho
+                ? Math.max(progresoRegistrado, objetivo)
+                : progresoRegistrado;
+              const faltante = Math.max(0, objetivo - progresoActual);
+              const porcentajeProgreso =
+                objetivo > 0 ? Math.min(100, (progresoActual / objetivo) * 100) : 0;
               return (
-                <Card key={logro.id} className="flex flex-row items-center gap-3 p-4">
+                <Card key={logro.id} className="flex flex-row items-start gap-3 p-4">
                   {hecho ? (
                     <Trophy className="h-5 w-5 text-accent" />
                   ) : (
@@ -381,10 +437,24 @@ function DetalleJuego() {
                     <p className="font-medium">{logro.nombre}</p>
                     <p className="text-sm text-muted-foreground">{logro.descripcion}</p>
                     {logro.requisito_evento && logro.requisito_valor != null && (
-                      <p className="mt-1 text-xs text-muted-foreground">
-                        Requisito: {etiquetaMetricaLogro(logro.requisito_evento)} ≥{" "}
-                        {logro.requisito_valor}
-                      </p>
+                      <>
+                        <p className="mt-1 text-xs text-muted-foreground">
+                          Requisito: {etiquetaMetricaLogro(logro.requisito_evento)} ≥{" "}
+                          {logro.requisito_valor}
+                        </p>
+                        {usuario && enBiblioteca && (
+                          <div className="mt-3 rounded-md border border-border bg-background/40 p-2.5">
+                            <Progress value={porcentajeProgreso} className="h-1.5" />
+                            <p className="mt-2 text-xs text-foreground/90">
+                              {descripcionProgreso(
+                                logro.requisito_evento,
+                                progresoActual,
+                                faltante,
+                              )}
+                            </p>
+                          </div>
+                        )}
+                      </>
                     )}
                   </div>
                   <Badge variant="secondary">{logro.puntos} pts</Badge>

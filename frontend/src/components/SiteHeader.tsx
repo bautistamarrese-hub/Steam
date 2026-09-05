@@ -33,6 +33,56 @@ const LINKS_SUPERADMIN = [
   { to: "/top", label: "Top", requiereSesion: false },
 ] as const;
 
+const CLAVE_ULTIMO_JUEGO = "steamnt-ultimo-juego";
+const CLAVE_ULTIMO_USUARIO = "steamnt-ultimo-usuario";
+const CLAVE_PESTANA_ANTERIOR = "steamnt-pestana-anterior";
+const CAMBIOS_MAXIMOS = 3;
+
+type RecuerdoNavegacion = { id: string; cambiosRestantes: number };
+
+const leerRecuerdo = (clave: string): RecuerdoNavegacion | null => {
+  const guardado = sessionStorage.getItem(clave);
+  if (!guardado) return null;
+  try {
+    const recuerdo = JSON.parse(guardado) as Partial<RecuerdoNavegacion>;
+    if (typeof recuerdo.id !== "string" || typeof recuerdo.cambiosRestantes !== "number") {
+      return null;
+    }
+    return { id: recuerdo.id, cambiosRestantes: recuerdo.cambiosRestantes };
+  } catch {
+    // Convierte automáticamente el formato anterior, que guardaba solamente el id.
+    return { id: guardado, cambiosRestantes: CAMBIOS_MAXIMOS };
+  }
+};
+
+const guardarRecuerdo = (clave: string, recuerdo: RecuerdoNavegacion | null) => {
+  if (recuerdo) sessionStorage.setItem(clave, JSON.stringify(recuerdo));
+  else sessionStorage.removeItem(clave);
+};
+
+const pestanaDeRuta = (ruta: string): string | null => {
+  if (ruta === "/" || ruta.startsWith("/juegos/")) return "tienda";
+  if (ruta === "/biblioteca" || ruta.startsWith("/jugar/")) return "biblioteca";
+  if (ruta === "/wishlist") return "wishlist";
+  if (ruta === "/top") return "top";
+  if (ruta === "/amigos" || ruta.startsWith("/usuarios/")) return "amigos";
+  if (ruta === "/perfil") return "perfil";
+  if (ruta === "/desarrolladores") return "panel";
+  if (ruta === "/administracion") return "administracion";
+  return null;
+};
+
+const descontarCambio = (
+  recuerdo: RecuerdoNavegacion | null,
+  cambioDePestana: boolean,
+  pestanaActual: string | null,
+  pestanaDelRecuerdo: string,
+): RecuerdoNavegacion | null => {
+  if (!recuerdo || !cambioDePestana || pestanaActual === pestanaDelRecuerdo) return recuerdo;
+  const restantes = recuerdo.cambiosRestantes - 1;
+  return restantes > 0 ? { ...recuerdo, cambiosRestantes: restantes } : null;
+};
+
 export function SiteHeader() {
   const { usuario, esAdmin, esSuperAdmin, abrirAcceso, logout } = useSesion();
   const navigate = useNavigate();
@@ -49,27 +99,36 @@ export function SiteHeader() {
   const contadorSolicitudes = solicitudesPendientes > 9 ? "+9" : String(solicitudesPendientes);
 
   useEffect(() => {
+    const pestanaActual = pestanaDeRuta(rutaActual);
+    const pestanaAnterior = sessionStorage.getItem(CLAVE_PESTANA_ANTERIOR);
+    const cambioDePestana = Boolean(
+      pestanaActual && pestanaAnterior && pestanaActual !== pestanaAnterior,
+    );
     const juegoActual = /^\/juegos\/(\d+)$/.exec(rutaActual)?.[1];
+    let recuerdoJuego = leerRecuerdo(CLAVE_ULTIMO_JUEGO);
     if (rutaActual === "/") {
-      sessionStorage.removeItem("steamnt-ultimo-juego");
-      setUltimoJuegoId(null);
+      recuerdoJuego = null;
     } else if (juegoActual) {
-      sessionStorage.setItem("steamnt-ultimo-juego", juegoActual);
-      setUltimoJuegoId(juegoActual);
+      recuerdoJuego = { id: juegoActual, cambiosRestantes: CAMBIOS_MAXIMOS };
     } else {
-      setUltimoJuegoId(sessionStorage.getItem("steamnt-ultimo-juego"));
+      recuerdoJuego = descontarCambio(recuerdoJuego, cambioDePestana, pestanaActual, "tienda");
     }
+    guardarRecuerdo(CLAVE_ULTIMO_JUEGO, recuerdoJuego);
+    setUltimoJuegoId(recuerdoJuego?.id ?? null);
 
     const usuarioActual = /^\/usuarios\/(\d+)$/.exec(rutaActual)?.[1];
+    let recuerdoUsuario = leerRecuerdo(CLAVE_ULTIMO_USUARIO);
     if (rutaActual === "/amigos") {
-      sessionStorage.removeItem("steamnt-ultimo-usuario");
-      setUltimoUsuarioId(null);
+      recuerdoUsuario = null;
     } else if (usuarioActual) {
-      sessionStorage.setItem("steamnt-ultimo-usuario", usuarioActual);
-      setUltimoUsuarioId(usuarioActual);
+      recuerdoUsuario = { id: usuarioActual, cambiosRestantes: CAMBIOS_MAXIMOS };
     } else {
-      setUltimoUsuarioId(sessionStorage.getItem("steamnt-ultimo-usuario"));
+      recuerdoUsuario = descontarCambio(recuerdoUsuario, cambioDePestana, pestanaActual, "amigos");
     }
+    guardarRecuerdo(CLAVE_ULTIMO_USUARIO, recuerdoUsuario);
+    setUltimoUsuarioId(recuerdoUsuario?.id ?? null);
+
+    if (pestanaActual) sessionStorage.setItem(CLAVE_PESTANA_ANTERIOR, pestanaActual);
   }, [rutaActual]);
 
   const contenidoEnlace = (link: { to: string; label: string }) => (

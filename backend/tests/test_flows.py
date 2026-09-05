@@ -166,6 +166,202 @@ def test_registro_rechaza_email_y_nickname_duplicados_sin_importar_mayusculas(
     assert_status(duplicado_nick, 400)
 
 
+def test_usuario_actualiza_nickname_y_password_propios(client: TestClient):
+    usuario = registrar(client, "cuenta_editable")
+    otro = registrar(client, "cuenta_otra")
+
+    assert_status(
+        client.put(
+            f"/api/usuarios/{usuario['id']}/cuenta",
+            headers=otro.headers,
+            json={"nickname": "NoAutorizado"},
+        ),
+        403,
+    )
+    assert_status(
+        client.put(
+            f"/api/usuarios/{usuario['id']}/cuenta",
+            headers=usuario.headers,
+            json={"nickname": otro["nickname"].upper()},
+        ),
+        400,
+    )
+    actualizado = assert_status(
+        client.put(
+            f"/api/usuarios/{usuario['id']}/cuenta",
+            headers=usuario.headers,
+            json={
+                "email": "cuenta_nueva@example.com",
+                "nickname": "NombreNuevo",
+                "password_actual": "secreto123",
+                "password_nueva": "claveNueva456",
+            },
+        ),
+        200,
+    )
+    assert actualizado["nickname"] == "NombreNuevo"
+    assert actualizado["email"] == "cuenta_nueva@example.com"
+    assert assert_status(client.get(f"/api/usuarios/{usuario['id']}"), 200)["nickname"] == (
+        "NombreNuevo"
+    )
+    assert_status(
+        client.post(
+            "/api/usuarios/login",
+            json={"email": "cuenta_nueva@example.com", "password": "secreto123"},
+        ),
+        400,
+    )
+    assert_status(
+        client.post(
+            "/api/usuarios/login",
+            json={"email": "cuenta_nueva@example.com", "password": "claveNueva456"},
+        ),
+        200,
+    )
+
+
+def test_recuperacion_exige_dos_preguntas_y_compara_respuestas_normalizadas(
+    client: TestClient,
+):
+    usuario = registrar(client, "recuperable")
+    sin_configuracion = client.post(
+        "/api/usuarios/recuperacion/preguntas",
+        json={"email": usuario["email"]},
+    )
+    assert_status(sin_configuracion, 400)
+    assert "no configuró las dos preguntas" in sin_configuracion.json()["detail"]
+
+    assert_status(
+        client.put(
+            f"/api/usuarios/{usuario['id']}/recuperacion",
+            headers=usuario.headers,
+            json={
+                "password_actual": "incorrecta",
+                "pregunta_1": "¿En qué ciudad naciste?",
+                "respuesta_1": "Rosario",
+                "pregunta_2": "¿Cómo se llamaba tu primera mascota?",
+                "respuesta_2": "Mora",
+            },
+        ),
+        400,
+    )
+    assert_status(
+        client.put(
+            f"/api/usuarios/{usuario['id']}/recuperacion",
+            headers=usuario.headers,
+            json={
+                "password_actual": "secreto123",
+                "pregunta_1": "¿En qué ciudad naciste?",
+                "respuesta_1": "Buenos Aires",
+                "pregunta_2": "¿Cómo se llamaba tu primera mascota?",
+                "respuesta_2": "Mora",
+            },
+        ),
+        400,
+    )
+    configuracion = assert_status(
+        client.put(
+            f"/api/usuarios/{usuario['id']}/recuperacion",
+            headers=usuario.headers,
+            json={
+                "password_actual": "secreto123",
+                "pregunta_1": "¿En qué ciudad naciste?",
+                "respuesta_1": "ÁRBOL",
+                "pregunta_2": "¿Cómo se llamaba tu primera mascota?",
+                "respuesta_2": "MÉNDEZ",
+            },
+        ),
+        200,
+    )
+    assert configuracion == {
+        "configurada": True,
+        "pregunta_1": "¿En qué ciudad naciste?",
+        "pregunta_2": "¿Cómo se llamaba tu primera mascota?",
+    }
+    assert "respuesta" not in str(configuracion).lower()
+
+    assert_status(
+        client.put(
+            f"/api/usuarios/{usuario['id']}/recuperacion",
+            headers=usuario.headers,
+            json={
+                "password_actual": "secreto123",
+                "pregunta_1": configuracion["pregunta_1"],
+                "pregunta_2": configuracion["pregunta_2"],
+            },
+        ),
+        200,
+    )
+
+    preguntas = assert_status(
+        client.post(
+            "/api/usuarios/recuperacion/preguntas",
+            json={"email": usuario["email"].upper()},
+        ),
+        200,
+    )
+    assert preguntas["pregunta_1"] == configuracion["pregunta_1"]
+    assert_status(
+        client.post(
+            "/api/usuarios/recuperacion/restablecer",
+            json={
+                "email": usuario["email"],
+                "respuesta_1": "incorrecta",
+                "respuesta_2": "méndez",
+                "password_nueva": "recuperada789",
+            },
+        ),
+        400,
+    )
+    assert_status(
+        client.post(
+            "/api/usuarios/recuperacion/restablecer",
+            json={
+                "email": usuario["email"],
+                "respuesta_1": "árbol",
+                "respuesta_2": "méndez",
+                "password_nueva": "recuperada789",
+            },
+        ),
+        200,
+    )
+    assert_status(
+        client.post(
+            "/api/usuarios/login",
+            json={"email": usuario["email"], "password": "recuperada789"},
+        ),
+        200,
+    )
+    # Recuperar una vez no elimina las preguntas: se pueden reutilizar si el
+    # usuario vuelve a olvidar la nueva contraseña.
+    assert_status(
+        client.post(
+            "/api/usuarios/recuperacion/preguntas",
+            json={"email": usuario["email"]},
+        ),
+        200,
+    )
+    assert_status(
+        client.post(
+            "/api/usuarios/recuperacion/restablecer",
+            json={
+                "email": usuario["email"],
+                "respuesta_1": "árbol",
+                "respuesta_2": "méndez",
+                "password_nueva": "recuperadaOtraVez987",
+            },
+        ),
+        200,
+    )
+    assert_status(
+        client.post(
+            "/api/usuarios/login",
+            json={"email": usuario["email"], "password": "recuperadaOtraVez987"},
+        ),
+        200,
+    )
+
+
 def test_publicacion_busqueda_y_validaciones_de_juego(client: TestClient):
     dev = registrar(client, "publicador", rol="admin", estudio="Sur Games")
     juego = publicar_juego(
@@ -932,6 +1128,13 @@ def test_logros_se_desbloquean_automaticamente_por_progreso(client: TestClient):
         ),
         200,
     ) == []
+    assert assert_status(client.get(progreso_url, headers=jugador.headers), 200) == [
+        {"evento": "puntaje", "valor": 4.0}
+    ]
+    # El mismo valor pertenece a la métrica "puntaje": representa 4/5 para
+    # el primer logro y, simultáneamente, 4/10 para el segundo.
+    logros_pendientes = assert_status(client.get(f"/api/juegos/{juego['id']}/logros"), 200)
+    assert [logro["requisito_valor"] for logro in logros_pendientes] == [5.0, 10.0]
     primero = assert_status(
         client.post(
             progreso_url,
@@ -954,10 +1157,13 @@ def test_logros_se_desbloquean_automaticamente_por_progreso(client: TestClient):
         client.post(
             progreso_url,
             headers=jugador.headers,
-            json={"evento": "puntaje", "valor": 20},
+            json={"evento": "puntaje", "valor": 8},
         ),
         200,
     ) == []
+    assert assert_status(client.get(progreso_url, headers=jugador.headers), 200) == [
+        {"evento": "puntaje", "valor": 10.0}
+    ]
 
     ajeno_url = f"/api/usuarios/{ajeno['id']}/juegos/{juego['id']}/progreso"
     assert_status(

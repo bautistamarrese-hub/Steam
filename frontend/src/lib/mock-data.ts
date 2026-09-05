@@ -8,7 +8,6 @@ import type {
   Recarga,
   Resena,
   SolicitudAmistad,
-  Usuario,
   WishlistItem,
 } from "./types";
 
@@ -16,56 +15,6 @@ import type {
  * Datos de ejemplo (mock). Cuando conectes el backend real podés borrar
  * este archivo y usar únicamente las llamadas de `src/lib/api.ts`.
  */
-
-export const usuarios: Usuario[] = [
-  {
-    id: 1,
-    email: "lucia@mail.com",
-    nickname: "LuciaGG",
-    password: "steamnt123",
-    saldo: 4500,
-    fecha_registro: "2024-03-11",
-    rol: "cliente",
-  },
-  {
-    id: 2,
-    email: "marco@mail.com",
-    nickname: "M4rco",
-    password: "steamnt123",
-    saldo: 1200,
-    fecha_registro: "2024-05-02",
-    rol: "cliente",
-  },
-  {
-    id: 3,
-    email: "sofi@mail.com",
-    nickname: "SofiPlays",
-    password: "steamnt123",
-    saldo: 300,
-    fecha_registro: "2024-07-19",
-    rol: "cliente",
-  },
-  {
-    id: 4,
-    email: "juan@mail.com",
-    nickname: "JuanZ",
-    password: "steamnt123",
-    saldo: 8900,
-    fecha_registro: "2023-12-01",
-    rol: "admin",
-    desarrollador_id: 1,
-  },
-  {
-    id: 5,
-    email: "nadia@mail.com",
-    nickname: "Nad1a",
-    password: "steamnt123",
-    saldo: 60,
-    fecha_registro: "2025-01-23",
-    rol: "admin",
-    desarrollador_id: 2,
-  },
-];
 
 export const desarrolladores: Desarrollador[] = [
   { id: 1, nombre: "Nebula Works", pais: "Argentina" },

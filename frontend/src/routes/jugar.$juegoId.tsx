@@ -2,7 +2,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { Trophy } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { toast } from "sonner";
+import { toast } from "@/lib/notificaciones";
 import { Badge } from "@/components/ui/badge";
 import { AccesoRequerido } from "@/components/AccesoRequerido";
 import { Button } from "@/components/ui/button";
@@ -115,6 +115,13 @@ function JuegoConSesion() {
   const puedeJugar = comprado || esMiJuego;
 
   useEffect(() => {
+    desbloqueandoRef.current.clear();
+    progresoMaximoRef.current.clear();
+    setPuntaje(0);
+    setObjetivo({ x: 50, y: 50 });
+  }, [id]);
+
+  useEffect(() => {
     const overflowHtml = document.documentElement.style.overflow;
     const overflowBody = document.body.style.overflow;
     document.documentElement.style.overflow = "hidden";
@@ -165,11 +172,6 @@ function JuegoConSesion() {
       const anterior = progresoMaximoRef.current.get(clave) ?? -1;
       if (valor <= anterior) return;
       progresoMaximoRef.current.set(clave, valor);
-
-      const puedeDesbloquear = relevantes.some(
-        (logro) => logro.requisito_valor != null && valor >= logro.requisito_valor,
-      );
-      if (!puedeDesbloquear) return;
 
       try {
         const nuevos = await reportarProgresoLogros(usuario.id, id, clave, valor);

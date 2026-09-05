@@ -1,6 +1,6 @@
 # Integración frontend–backend
 
-Fecha de revisión: 2026-09-03.
+Fecha de revisión: 2026-09-04.
 
 ## Estado
 
@@ -14,7 +14,7 @@ VITE_API_URL=http://localhost:8000/api
 Las pantallas usan React Query para cargar datos asíncronos y para invalidar
 biblioteca, wishlist, perfil, reseñas y logros después de una mutación. El mock
 ya no se usa como base de datos: sólo aporta imágenes y descripciones de muestra
-porque esos campos no existen en el modelo actual de `Juego`.
+para registros antiguos que todavía no tienen contenido editorial cargado.
 
 ## Matriz de endpoints conectados
 
@@ -40,6 +40,8 @@ porque esos campos no existen en el modelo actual de `Juego`.
 | Solicitudes de amistad | `POST /api/solicitudes`; `PUT`, `DELETE /api/solicitudes/{id}`; `GET /api/usuarios/{id}/solicitudes/{recibidas,enviadas}` | comunidad y perfil público |
 | Rankings | `GET /api/juegos/top-ventas`, `GET /api/juegos/mejor-valorados` | top |
 | Estadísticas | `GET /api/usuarios/{id}/estadisticas` | perfil y comunidad |
+| Notificaciones e ingresos | `GET`, `DELETE /api/usuarios/{id}/notificaciones-ventas`; `GET /api/usuarios/{id}/ingresos-desarrollador` | perfil de desarrollador |
+| Denuncias | `POST /api/juegos/{id}/denuncias`; `GET`, `PUT /api/administracion/denuncias` | detalle y panel de administración |
 | Administración de usuarios | `PUT`, `DELETE /api/administracion/usuarios/{id}` | panel de superadministración |
 | Administración de juegos | `PUT`, `DELETE /api/administracion/juegos/{id}`; `POST /api/administracion/juegos/{id}/{archivo,logros}` | panel de superadministración |
 
@@ -51,14 +53,14 @@ El registro deriva la contraseña con PBKDF2-SHA256 y el login valida email y
 contraseña mediante `POST /api/usuarios/login`. El login emite un token JWT que
 el frontend conserva junto con la sesión y envía como Bearer token. Las rutas de
 `/api/administracion` verifican tanto la identidad como el rol `superadmin`.
-Los endpoints históricos de cliente y desarrollador todavía identifican al
-actor por parámetros de ruta; antes de producción también deben protegerse con
-el token o con cookies seguras.
+Los endpoints que modifican datos de cliente y desarrollador validan el token,
+la identidad de la ruta y, cuando corresponde, la propiedad del estudio. Las
+lecturas destinadas a perfiles públicos permanecen públicas deliberadamente.
 
 ### 2. Almacenamiento de imágenes
 
-El backend ya guarda `descripcion`, `resumen`, `imagen` y `galeria`; el frontend
-mantiene las imágenes de muestra como fallback para registros anteriores. Las
+El backend guarda `descripcion`, `resumen`, `imagen` y `galeria`; el frontend
+mantiene imágenes de muestra sólo como fallback para registros anteriores. Las
 portadas y capturas nuevas se guardan como data URLs para simplificar el entorno
 académico. En producción conviene moverlas a almacenamiento de objetos y guardar
 solo sus URLs. Los avatares sí se almacenan como archivos bajo `backend/storage`.
@@ -85,8 +87,8 @@ necesitan un restablecimiento de contraseña; las cuentas nuevas ya son compatib
 El script `src/db/migrations/20260902_perfiles_imagenes.sql` agrega el avatar y
 los campos editoriales sin borrar los datos existentes.
 El script `src/db/migrations/20260903_superadmin.sql` crea o normaliza la cuenta
-administradora principal; el servicio de login también garantiza su existencia
-de forma idempotente.
+administradora principal. El login únicamente autentica cuentas persistidas y
+nunca altera credenciales.
 El script `src/db/migrations/20260903_logros_automaticos.sql` agrega una métrica
 y un objetivo opcionales a los logros anteriores. Los logros nuevos usan esos
 campos para evaluarse automáticamente a partir del progreso informado por el
@@ -99,3 +101,5 @@ publicación, búsqueda, recargas, compra transaccional, wishlist, biblioteca,
 reseñas editables, logros, amistades bidireccionales, solicitudes, login con
 contraseña y token, estadísticas, rankings y permisos de superadministración.
 Se ejecuta contra SQLite aislado con `pytest -q` y no modifica la base local.
+La suite actual contiene 21 pruebas, incluido el contrato de métricas de los 12
+juegos HTML incluidos.

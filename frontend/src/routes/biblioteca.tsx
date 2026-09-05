@@ -6,6 +6,7 @@ import { AccesoRequerido } from "@/components/AccesoRequerido";
 import { Button } from "@/components/ui/button";
 import { biblioteca, formatPrecio } from "@/lib/api";
 import { useSesion, useUsuario } from "@/lib/sesion";
+import { formatearFechaHoraLocal } from "@/lib/fecha";
 import type { Genero } from "@/lib/types";
 
 export const Route = createFileRoute("/biblioteca")({
@@ -99,7 +100,9 @@ function BibliotecaConSesion() {
               <div className="space-y-2">
                 <div className="flex justify-between text-sm text-muted-foreground">
                   <span>
-                    {item.es_del_desarrollador ? "Juego propio" : `Comprado el ${item.fecha}`}
+                    {item.es_del_desarrollador
+                      ? "Juego propio"
+                      : `Comprado el ${formatearFechaHoraLocal(item.fecha)}`}
                   </span>
                   <span className="font-semibold text-accent">
                     {item.es_del_desarrollador

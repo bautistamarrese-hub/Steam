@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import Optional, TYPE_CHECKING
 
-from sqlalchemy import DateTime, Float, ForeignKey, Integer, String, func
+from sqlalchemy import CheckConstraint, DateTime, Float, ForeignKey, Integer, String, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from src.db.connection import Base
@@ -17,6 +17,13 @@ if TYPE_CHECKING:
 
 class Usuario(Base):
     __tablename__ = "usuarios"
+    __table_args__ = (
+        CheckConstraint("saldo >= 0", name="check_usuario_saldo"),
+        CheckConstraint(
+            "rol IN ('cliente', 'admin', 'superadmin')",
+            name="check_usuario_rol",
+        ),
+    )
 
     id: Mapped[int] = mapped_column(
         Integer,

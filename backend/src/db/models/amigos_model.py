@@ -11,7 +11,7 @@ class Amigos(Base):
 
     # Restricción a nivel de base de datos para no ser amigo de uno mismo
     __table_args__ = (
-        CheckConstraint("usuario_a != usuario_b", name="check_no_auto_amistad"),
+        CheckConstraint("usuario_a < usuario_b", name="check_amistad_ordenada"),
     )
 
     # Clave primaria compuesta para impedir duplicados idénticos

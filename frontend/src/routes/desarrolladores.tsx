@@ -2,9 +2,10 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { Pencil, Trash2 } from "lucide-react";
 import { useState, type Dispatch, type ReactNode, type SetStateAction } from "react";
-import { toast } from "sonner";
+import { toast } from "@/lib/notificaciones";
 import { Badge } from "@/components/ui/badge";
 import { AccesoRequerido } from "@/components/AccesoRequerido";
+import { ConfirmarEliminacionDialog } from "@/components/ConfirmarEliminacionDialog";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -99,6 +100,7 @@ function PanelDesarrollador() {
   const [eArchivo, setEArchivo] = useState<File | null>(null);
   const [guardando, setGuardando] = useState(false);
   const [eliminandoId, setEliminandoId] = useState<number | null>(null);
+  const [juegoAEliminar, setJuegoAEliminar] = useState<Juego | null>(null);
 
   const { data: dev, isLoading: cargandoDev } = useQuery({
     queryKey: ["desarrollador", usuario.desarrollador_id],
@@ -272,14 +274,9 @@ function PanelDesarrollador() {
     }
   };
 
-  const borrar = async (juego: Juego) => {
-    if (
-      !window.confirm(
-        `¿Seguro que querés borrar "${juego.titulo}"? Esta acción no se puede deshacer.`,
-      )
-    ) {
-      return;
-    }
+  const borrar = async () => {
+    if (!juegoAEliminar) return;
+    const juego = juegoAEliminar;
     setEliminandoId(juego.id);
     try {
       await eliminarJuego(juego.id, dev.id);
@@ -292,6 +289,7 @@ function PanelDesarrollador() {
         queryClient.invalidateQueries({ queryKey: ["biblioteca"] }),
         queryClient.invalidateQueries({ queryKey: ["wishlist"] }),
       ]);
+      setJuegoAEliminar(null);
       toast.success("Juego eliminado");
     } catch (error) {
       toast.error(error instanceof ApiError ? error.message : "No se pudo eliminar el juego.");
@@ -539,7 +537,7 @@ function PanelDesarrollador() {
                   size="sm"
                   variant="destructive"
                   disabled={eliminandoId === juego.id}
-                  onClick={() => void borrar(juego)}
+                  onClick={() => setJuegoAEliminar(juego)}
                 >
                   <Trash2 className="h-4 w-4" />
                   {eliminandoId === juego.id ? "Eliminando…" : "Eliminar"}
@@ -650,6 +648,20 @@ function PanelDesarrollador() {
           </div>
         </Card>
       )}
+
+      <ConfirmarEliminacionDialog
+        abierto={Boolean(juegoAEliminar)}
+        titulo="¿Eliminar este juego?"
+        descripcion={
+          <>
+            Se eliminará definitivamente <strong>{juegoAEliminar?.titulo}</strong>, junto con sus
+            compras asociadas, reseñas, logros y archivos. Esta acción no se puede deshacer.
+          </>
+        }
+        procesando={eliminandoId !== null}
+        onOpenChange={(abierto) => !abierto && eliminandoId === null && setJuegoAEliminar(null)}
+        onConfirmar={borrar}
+      />
     </div>
   );
 }

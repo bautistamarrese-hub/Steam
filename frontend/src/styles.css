@@ -166,3 +166,18 @@
 @utility shadow-glow {
   box-shadow: var(--shadow-glow);
 }
+
+/* Los errores requieren atención inmediata; el resto de los avisos conserva
+   su posición discreta en la esquina inferior derecha. */
+[data-sonner-toaster][data-y-position="top"][data-x-position="center"] {
+  top: 50% !important;
+  right: auto !important;
+  bottom: auto !important;
+  left: 50% !important;
+  width: min(24rem, calc(100vw - 2rem)) !important;
+  transform: translate(-50%, -50%) !important;
+}
+
+[data-sonner-toaster][data-y-position="top"][data-x-position="center"] [data-sonner-toast] {
+  width: 100% !important;
+}

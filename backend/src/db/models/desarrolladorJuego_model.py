@@ -1,7 +1,7 @@
 from datetime import date
 from typing import List, Optional, TYPE_CHECKING
 
-from sqlalchemy import Boolean, Date, Float, ForeignKey, Integer, JSON, String, Text, UniqueConstraint
+from sqlalchemy import Boolean, CheckConstraint, Date, Float, ForeignKey, Integer, JSON, String, Text, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from src.db.connection import Base
@@ -30,6 +30,7 @@ class Juego(Base):
     # Restricción: 'titulo' es único por desarrollador
     __table_args__ = (
         UniqueConstraint("titulo", "desarrollador_id", name="uq_titulo_desarrollador"),
+        CheckConstraint("precio >= 0", name="check_juego_precio"),
     )
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
@@ -39,7 +40,7 @@ class Juego(Base):
     )
     precio: Mapped[float] = mapped_column(Float(precision=2), nullable=False)
     fecha_lanzamiento: Mapped[Optional[date]] = mapped_column(Date, nullable=True)
-    genero: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
+    genero: Mapped[str] = mapped_column(String(50), nullable=False)
     descripcion: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     resumen: Mapped[Optional[str]] = mapped_column(String(500), nullable=True)
     imagen: Mapped[Optional[str]] = mapped_column(Text, nullable=True)

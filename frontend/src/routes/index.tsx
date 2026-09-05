@@ -2,7 +2,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Search } from "lucide-react";
-import { toast } from "sonner";
+import { toast } from "@/lib/notificaciones";
 import { JuegoCard } from "@/components/JuegoCard";
 import { SaldoInsuficienteDialog } from "@/components/SaldoInsuficienteDialog";
 import { Button } from "@/components/ui/button";

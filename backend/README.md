@@ -1,6 +1,6 @@
 # Initial Structure — FastAPI + SQLAlchemy + Pydantic
 
-Estructura base de un proyecto en capas (routers, services, repositories, models, schemas, dtos, mappers, middlewares).
+Backend de la tienda, organizado en capas activas de routers, servicios, modelos, schemas y middlewares.
 
 ## Importante: este repo es un TEMPLATE
 
@@ -83,6 +83,9 @@ psql -U postgres -d steamdb -f .\src\db\migrations\20260903_superadmin.sql
 psql -U postgres -d steamdb -f .\src\db\migrations\20260903_logros_automaticos.sql
 psql -U postgres -d steamdb -f .\src\db\migrations\20260904_notificaciones_ventas.sql
 psql -U postgres -d steamdb -f .\src\db\migrations\20260904_denuncias_juegos.sql
+psql -U postgres -d steamdb -f .\src\db\migrations\20260904_integridad_datos.sql
+psql -U postgres -d steamdb -f .\src\db\migrations\20260904_recuperacion_cuenta.sql
+psql -U postgres -d steamdb -f .\src\db\migrations\20260904_progreso_logros.sql
 ```
 
 Los juegos reproducibles deben ser un unico archivo `.html`. Los archivos
@@ -104,6 +107,13 @@ usan endpoints administrativos protegidos con el token de la sesión.
 La migración `20260904_denuncias_juegos.sql` agrega la bandeja de denuncias y
 `20260904_notificaciones_ventas.sql` agrega las notificaciones acumuladas por
 ventas para cada desarrollador.
+`20260904_integridad_datos.sql` alinea bases ya creadas con las restricciones
+de saldo, precios, recargas, amistades y solicitudes vigentes.
+`20260904_recuperacion_cuenta.sql` habilita dos preguntas personales por cuenta.
+Las respuestas se normalizan para comparar mayúsculas y minúsculas y se guardan
+exclusivamente como hashes; nunca se exponen por la API.
+`20260904_progreso_logros.sql` conserva el avance máximo de cada métrica por
+usuario y juego para mostrar cuánto falta para desbloquear cada logro.
 
 La migración `20260903_logros_automaticos.sql` permite definir cada logro con
 una métrica y un valor objetivo. Un juego HTML reporta el valor acumulado así:
@@ -138,19 +148,15 @@ http://localhost: 8080/
 src/
 ├── db/
 │   ├── connection.py
-│   ├── models/          # SQLAlchemy
-│   ├── migrations/      # Alembic
-│   └── seeders/
-├── schemas/             # Pydantic (validación HTTP)
-├── dtos/                # Pydantic (transporte entre capas)
-├── mappers/             # Model ⇄ DTO
-├── repositories/        # queries
-├── services/            # lógica de negocio
+│   ├── models/          # modelos SQLAlchemy
+│   └── migrations/      # scripts SQL idempotentes
+├── schemas/             # validación y contratos HTTP con Pydantic
+├── services/            # casos de uso y transacciones SQLAlchemy
 ├── routers/             # endpoints FastAPI
-├── middlewares/
+├── middlewares/         # autenticación y manejo de errores
 ├── config/
 ├── utils/
-├── app.py               # crea app FastAPI
+├── app.py               # crea la aplicación FastAPI
 └── main.py              # entry point
 ```
 
@@ -166,11 +172,10 @@ El resto de los métodos (`GET`, `PUT`, `DELETE`) y los demás dominios (`produc
 
 ## Reglas de la arquitectura
 
-1. `routers` no tocan la BD.
-2. `services` no tocan `Request` / `Response`.
-3. `repositories` no tienen lógica de negocio.
-4. `models` no salen del repository / service.
-5. `schemas` solo en routers.
-6. Al cliente siempre va un DTO, nunca un Model.
+1. `routers` no contienen consultas ni lógica de negocio.
+2. `services` no dependen de `Request` / `Response`.
+3. Los modelos SQLAlchemy no se exponen sin un `response_model` de Pydantic.
+4. Las mutaciones relacionadas se confirman en una única transacción.
+5. Toda operación privada valida identidad, rol o propiedad según corresponda.
 
 

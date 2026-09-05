@@ -21,6 +21,52 @@ class LoginUsuarioSchema(BaseModel):
     email: EmailStr
     password: str = Field(min_length=6, max_length=128)
 
+
+class ActualizarCuentaSchema(BaseModel):
+    model_config = ConfigDict(str_strip_whitespace=True)
+
+    email: EmailStr | None = None
+    nickname: str | None = Field(default=None, min_length=3, max_length=50)
+    password_actual: str | None = Field(default=None, min_length=6, max_length=128)
+    password_nueva: str | None = Field(default=None, min_length=6, max_length=128)
+
+
+class ConfigurarRecuperacionSchema(BaseModel):
+    model_config = ConfigDict(str_strip_whitespace=True)
+
+    password_actual: str = Field(min_length=6, max_length=128)
+    pregunta_1: str = Field(min_length=5, max_length=200)
+    respuesta_1: str | None = Field(default=None, min_length=1, max_length=80)
+    pregunta_2: str = Field(min_length=5, max_length=200)
+    respuesta_2: str | None = Field(default=None, min_length=1, max_length=80)
+
+
+class ConsultarRecuperacionSchema(BaseModel):
+    model_config = ConfigDict(str_strip_whitespace=True)
+
+    email: EmailStr
+
+
+class RestablecerPasswordSchema(ConsultarRecuperacionSchema):
+    respuesta_1: str = Field(min_length=1, max_length=80)
+    respuesta_2: str = Field(min_length=1, max_length=80)
+    password_nueva: str = Field(min_length=6, max_length=128)
+
+
+class EstadoRecuperacionSchema(BaseModel):
+    configurada: bool
+    pregunta_1: str | None = None
+    pregunta_2: str | None = None
+
+
+class PreguntasRecuperacionSchema(BaseModel):
+    pregunta_1: str
+    pregunta_2: str
+
+
+class MensajeSchema(BaseModel):
+    mensaje: str
+
 class RecargarSaldoSchema(BaseModel):
     model_config = ConfigDict(str_strip_whitespace=True)
 

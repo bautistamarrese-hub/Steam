@@ -52,7 +52,7 @@ class JuegoService:
         juego = Juego(
             titulo=payload.titulo.strip(),
             desarrollador_id=payload.desarrollador_id,
-            precio=payload.precio,
+            precio=round(payload.precio, 2),
             fecha_lanzamiento=payload.fecha_lanzamiento,
             genero=payload.genero,
             descripcion=payload.descripcion,
@@ -104,6 +104,8 @@ class JuegoService:
         for campo in ("precio", "genero", "descripcion", "resumen", "imagen", "galeria"):
             valor = getattr(payload, campo)
             if valor is not None:
+                if campo == "precio":
+                    valor = round(valor, 2)
                 setattr(juego, campo, valor)
 
         self.db.commit()

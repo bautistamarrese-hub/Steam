@@ -10,7 +10,7 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
-import { toast } from "sonner";
+import { toast } from "@/lib/notificaciones";
 import {
   AlertTriangle,
   Award,
@@ -29,6 +29,7 @@ import {
 } from "lucide-react";
 import { AvatarGamer } from "@/components/AvatarGamer";
 import { AvatarCropDialog } from "@/components/AvatarCropDialog";
+import { ConfiguracionCuenta } from "@/components/ConfiguracionCuenta";
 import { AccesoRequerido } from "@/components/AccesoRequerido";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -54,6 +55,7 @@ import {
   soloDigitos,
 } from "@/lib/api";
 import { leerImagen } from "@/lib/imagen";
+import { formatearDiaMes, formatearFechaHoraLocal } from "@/lib/fecha";
 import { useSesion, useUsuario } from "@/lib/sesion";
 import type { EstadisticasUsuario, PeriodoIngresos } from "@/lib/types";
 
@@ -67,9 +69,9 @@ const ESTADISTICAS_VACIAS: EstadisticasUsuario = {
 };
 
 export const Route = createFileRoute("/perfil")({
-  validateSearch: (search: Record<string, unknown>) => {
-    const recarga = Number(search.recarga);
-    return { recarga: Number.isFinite(recarga) && recarga > 0 ? recarga : undefined };
+  validateSearch: (search: Record<string, unknown>): { recarga?: number } => {
+    const recarga = Number(search["recarga"]);
+    return Number.isFinite(recarga) && recarga > 0 ? { recarga } : {};
   },
   head: () => ({
     meta: [
@@ -92,12 +94,15 @@ function Perfil() {
   }
   if (esSuperAdmin) {
     return (
-      <div className="mx-auto max-w-2xl px-4 py-24 text-center">
-        <ShieldCheck className="mx-auto h-10 w-10 text-primary" />
-        <h1 className="mt-4 text-2xl font-bold">Cuenta exclusivamente administrativa</h1>
-        <p className="mt-2 text-muted-foreground">
-          Esta cuenta solamente puede gestionar usuarios, juegos y denuncias desde el panel.
-        </p>
+      <div className="mx-auto max-w-5xl px-4 py-10">
+        <div className="text-center">
+          <ShieldCheck className="mx-auto h-10 w-10 text-primary" />
+          <h1 className="mt-4 text-2xl font-bold">Cuenta administrativa</h1>
+          <p className="mt-2 text-muted-foreground">
+            También podés administrar el acceso y la recuperación de esta cuenta.
+          </p>
+        </div>
+        <ConfiguracionCuenta />
       </div>
     );
   }
@@ -110,7 +115,7 @@ function PerfilConSesion() {
   const { recarga } = Route.useSearch();
   const queryClient = useQueryClient();
   const montoNecesario = recarga
-    ? Math.max(MONTO_MINIMO_RECARGA, Math.ceil(recarga * 100) / 100)
+    ? Math.min(MONTO_MAXIMO_RECARGA, Math.max(MONTO_MINIMO_RECARGA, Math.ceil(recarga * 100) / 100))
     : 1000;
   const [monto, setMonto] = useState(String(montoNecesario));
   const [tarjeta, setTarjeta] = useState("");
@@ -209,7 +214,7 @@ function PerfilConSesion() {
       await queryClient.invalidateQueries({
         queryKey: ["notificaciones-ventas", usuario.id],
       });
-      toast.success("NotificaciÃ³n confirmada");
+      toast.success("Notificación confirmada");
     } catch (error) {
       toast.error(error instanceof ApiError ? error.message : "No se pudo confirmar el ingreso");
     }
@@ -260,7 +265,7 @@ function PerfilConSesion() {
             </Badge>
           </div>
           <p className="text-muted-foreground">
-            {usuario.email} · miembro desde {usuario.fecha_registro}
+            {usuario.email} · miembro desde {formatearFechaHoraLocal(usuario.fecha_registro)}
             {dev ? ` · ${dev.nombre}` : ""}
           </p>
           <div className="mt-2 flex flex-wrap items-center gap-2">
@@ -294,6 +299,8 @@ function PerfilConSesion() {
           </div>
         </div>
       </div>
+
+      <ConfiguracionCuenta />
 
       {hayError && (
         <Card className="mt-6 flex flex-row items-center gap-3 border-destructive/50 p-4">
@@ -336,7 +343,7 @@ function PerfilConSesion() {
                   size="icon"
                   className="shrink-0"
                   aria-label={`Confirmar ingreso por ${notificacion.juego_titulo}`}
-                  title="Confirmar notificaciÃ³n"
+                  title="Confirmar notificación"
                   onClick={() => confirmarIngreso(notificacion.id)}
                 >
                   <Check className="h-4 w-4" />
@@ -402,7 +409,7 @@ function PerfilConSesion() {
                   <CartesianGrid strokeDasharray="3 3" opacity={0.2} />
                   <XAxis
                     dataKey="fecha"
-                    tickFormatter={(fecha: string) => fecha.slice(5)}
+                    tickFormatter={(fecha: string) => formatearDiaMes(fecha)}
                     fontSize={12}
                   />
                   <YAxis tickFormatter={(valor: number) => `$${valor}`} fontSize={12} />
@@ -562,6 +569,9 @@ function PerfilConSesion() {
               <Input
                 id="monto"
                 type="number"
+                min={MONTO_MINIMO_RECARGA}
+                max={MONTO_MAXIMO_RECARGA}
+                step="0.01"
                 value={monto}
                 onChange={(e) => setMonto(e.target.value)}
               />
@@ -593,7 +603,7 @@ function PerfilConSesion() {
           <ul className="mt-2 space-y-1 text-sm text-muted-foreground">
             {recargas.map((r) => (
               <li key={r.id} className="flex justify-between border-b border-border py-1">
-                <span>{r.fecha}</span>
+                <span>{formatearFechaHoraLocal(r.fecha)}</span>
                 <span className="text-accent">+{formatSaldo(r.monto)}</span>
               </li>
             ))}

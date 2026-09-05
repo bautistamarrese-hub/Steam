@@ -51,7 +51,7 @@ class AdministracionService:
             usuario.nickname = nickname
 
         if payload.saldo is not None:
-            usuario.saldo = payload.saldo
+            usuario.saldo = round(payload.saldo, 2)
         if payload.password is not None:
             usuario.password_hash = hash_password(payload.password)
 

@@ -5,6 +5,7 @@ import type {
   DenunciaJuego,
   Desarrollador,
   EstadisticasUsuario,
+  EstadoRecuperacion,
   Genero,
   ItemBiblioteca,
   Juego,
@@ -18,6 +19,8 @@ import type {
   Resena,
   RolRegistro,
   PeriodoIngresos,
+  PreguntasRecuperacion,
+  ProgresoLogro,
   SolicitudAmistad,
   Usuario,
   UsuarioAdministracion,
@@ -125,7 +128,7 @@ async function requestArchivo<T>(
   return response.json() as Promise<T>;
 }
 
-type UsuarioApi = Omit<Usuario, "password" | "desarrollador_id"> & {
+type UsuarioApi = Omit<Usuario, "desarrollador_id"> & {
   desarrollador_id: number | null;
 };
 type LoginApi = {
@@ -145,7 +148,6 @@ const adaptarUsuario = (usuario: UsuarioApi): Usuario => {
   return {
     ...datos,
     ...(usuario.avatar ? { avatar: new URL(usuario.avatar, BASE_URL).toString() } : {}),
-    password: "",
     ...(desarrollador_id === null ? {} : { desarrollador_id }),
   };
 };
@@ -239,6 +241,100 @@ export const obtenerUsuario = async (id: number): Promise<Usuario> =>
 
 export const obtenerSesionActual = async (): Promise<Usuario> =>
   adaptarUsuario(await request<UsuarioApi>("/usuarios/me"));
+
+export interface CambiosCuenta {
+  email?: string;
+  nickname?: string;
+  password_actual?: string;
+  password_nueva?: string;
+}
+
+export const actualizarCuenta = async (
+  usuarioId: number,
+  cambios: CambiosCuenta,
+): Promise<Usuario> => {
+  if (cambios.email !== undefined) textoRequerido(cambios.email, "El email");
+  if (cambios.nickname !== undefined) textoRequerido(cambios.nickname, "El nickname");
+  if (cambios.password_nueva !== undefined) {
+    if ((cambios.password_actual ?? "").length < LARGO_MINIMO_PASSWORD)
+      throw new ApiError("Ingresá tu contraseña actual.");
+    if (cambios.password_nueva.length < LARGO_MINIMO_PASSWORD)
+      throw new ApiError(
+        `La contraseña nueva debe tener al menos ${LARGO_MINIMO_PASSWORD} caracteres.`,
+      );
+  }
+  return adaptarUsuario(
+    await request<UsuarioApi>(`/usuarios/${usuarioId}/cuenta`, {
+      method: "PUT",
+      body: JSON.stringify(cambios),
+    }),
+  );
+};
+
+export const obtenerEstadoRecuperacion = (usuarioId: number): Promise<EstadoRecuperacion> =>
+  request(`/usuarios/${usuarioId}/recuperacion`);
+
+export interface ConfiguracionRecuperacion {
+  password_actual: string;
+  pregunta_1: string;
+  respuesta_1?: string;
+  pregunta_2: string;
+  respuesta_2?: string;
+}
+
+const validarRespuestaSeguridad = (respuesta: string) => {
+  const limpia = textoRequerido(respuesta, "La respuesta");
+  if (/\s/u.test(limpia)) throw new ApiError("Cada respuesta debe tener una sola palabra.");
+  return limpia;
+};
+
+export const configurarRecuperacion = (
+  usuarioId: number,
+  configuracion: ConfiguracionRecuperacion,
+): Promise<EstadoRecuperacion> =>
+  request(`/usuarios/${usuarioId}/recuperacion`, {
+    method: "PUT",
+    body: JSON.stringify({
+      password_actual: configuracion.password_actual,
+      pregunta_1: textoRequerido(configuracion.pregunta_1, "La primera pregunta"),
+      ...(configuracion.respuesta_1
+        ? { respuesta_1: validarRespuestaSeguridad(configuracion.respuesta_1) }
+        : {}),
+      pregunta_2: textoRequerido(configuracion.pregunta_2, "La segunda pregunta"),
+      ...(configuracion.respuesta_2
+        ? { respuesta_2: validarRespuestaSeguridad(configuracion.respuesta_2) }
+        : {}),
+    }),
+  });
+
+export const consultarPreguntasRecuperacion = (email: string): Promise<PreguntasRecuperacion> =>
+  request("/usuarios/recuperacion/preguntas", {
+    method: "POST",
+    body: JSON.stringify({ email: textoRequerido(email, "El email").toLowerCase() }),
+  });
+
+export const restablecerPassword = (
+  email: string,
+  respuesta1: string,
+  respuesta2: string,
+  passwordNueva: string,
+  confirmacion: string,
+): Promise<{ mensaje: string }> => {
+  if (passwordNueva.length < LARGO_MINIMO_PASSWORD)
+    throw new ApiError(
+      `La contraseña nueva debe tener al menos ${LARGO_MINIMO_PASSWORD} caracteres.`,
+    );
+  if (passwordNueva !== confirmacion) throw new ApiError("Las contraseñas no coinciden.");
+  return request("/usuarios/recuperacion/restablecer", {
+    method: "POST",
+    body: JSON.stringify({
+      email: textoRequerido(email, "El email").toLowerCase(),
+      respuesta_1: validarRespuestaSeguridad(respuesta1),
+      respuesta_2: validarRespuestaSeguridad(respuesta2),
+      password_nueva: passwordNueva,
+    }),
+  });
+};
 
 export interface CambiosUsuarioAdmin {
   email?: string;
@@ -492,9 +588,9 @@ export async function recargarSaldo(
   if (!tarjetaValida(tarjeta)) throw new ApiError("La tarjeta debe tener 16 cifras.");
   if (!cvvValido(cvv)) throw new ApiError("El CVV debe tener 3 cifras.");
   if (!titularTarjetaValido(titular))
-    throw new ApiError("IngresÃ¡ el nombre y apellido del titular de la tarjeta.");
+    throw new ApiError("Ingresá el nombre y apellido del titular de la tarjeta.");
   if (!vencimientoTarjetaValido(vencimiento))
-    throw new ApiError("IngresÃ¡ una fecha de vencimiento vigente en formato MM/AA.");
+    throw new ApiError("Ingresá una fecha de vencimiento vigente en formato MM/AA.");
   numeroFinito(monto, "El monto");
   if (monto < MONTO_MINIMO_RECARGA)
     throw new ApiError(`El monto mínimo de recarga es ${MONTO_MINIMO_RECARGA}.`);
@@ -670,6 +766,11 @@ export const reportarProgresoLogros = (
     method: "POST",
     body: JSON.stringify({ evento: evento.trim().toLowerCase(), valor }),
   });
+
+export const obtenerProgresoLogros = (
+  usuarioId: number,
+  juegoId: number,
+): Promise<ProgresoLogro[]> => request(`/usuarios/${usuarioId}/juegos/${juegoId}/progreso`);
 
 export const amigosDe = async (usuarioId: number): Promise<Usuario[]> =>
   (await request<UsuarioApi[]>(`/usuarios/${usuarioId}/amigos`)).map(adaptarUsuario);

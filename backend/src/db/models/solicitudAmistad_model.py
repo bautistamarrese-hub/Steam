@@ -17,8 +17,12 @@ class SolicitudAmistad(Base):
     )
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
-    de: Mapped[int] = mapped_column(Integer, ForeignKey("usuarios.id"), nullable=False)
-    para: Mapped[int] = mapped_column(Integer, ForeignKey("usuarios.id"), nullable=False)
+    de: Mapped[int] = mapped_column(
+        Integer, ForeignKey("usuarios.id", ondelete="CASCADE"), nullable=False
+    )
+    para: Mapped[int] = mapped_column(
+        Integer, ForeignKey("usuarios.id", ondelete="CASCADE"), nullable=False
+    )
     fecha: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )

@@ -1,0 +1,21 @@
+# Dependencias y entornos locales
+**/node_modules/
+**/.venv/
+**/venv/
+
+# Salidas generadas
+**/__pycache__/
+**/*.py[cod]
+**/.pytest_cache/
+**/.output/
+**/.tanstack/
+**/.wrangler/
+**/dist/
+
+# Configuración y datos locales
+**/.env
+**/.env.local
+**/storage/
+**/*.sqlite
+**/*.db
+

@@ -8,8 +8,6 @@ export interface Usuario {
   id: number;
   email: string;
   nickname: string;
-  /** Solo mock: en el backend real nunca se devuelve al cliente. */
-  password: string;
   saldo: number;
   fecha_registro: string;
   rol: Rol;
@@ -17,6 +15,17 @@ export interface Usuario {
   avatar?: string;
   /** Solo para rol "admin": estudio al que pertenece. */
   desarrollador_id?: number;
+}
+
+export interface EstadoRecuperacion {
+  configurada: boolean;
+  pregunta_1: string | null;
+  pregunta_2: string | null;
+}
+
+export interface PreguntasRecuperacion {
+  pregunta_1: string;
+  pregunta_2: string;
 }
 
 export interface Desarrollador {
@@ -121,6 +130,11 @@ export interface LogroDesbloqueado {
   usuario_id: number;
   logro_id: number;
   fecha: string;
+}
+
+export interface ProgresoLogro {
+  evento: string;
+  valor: number;
 }
 
 export interface Resena {

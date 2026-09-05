@@ -2,21 +2,13 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { Flag, Gamepad2, Pencil, Search, ShieldCheck, Trash2, Users, XCircle } from "lucide-react";
 import { useMemo, useState } from "react";
-import { toast } from "sonner";
+import { toast } from "@/lib/notificaciones";
 import { AccesoRequerido } from "@/components/AccesoRequerido";
 import { AvatarGamer } from "@/components/AvatarGamer";
+import { ConfirmarEliminacionDialog } from "@/components/ConfirmarEliminacionDialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import {
-  AlertDialog,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -27,6 +19,7 @@ import {
   eliminarJuegoAdmin,
   eliminarUsuarioAdmin,
   formatPrecio,
+  formatSaldo,
   listarDenunciasAdmin,
   listarJuegos,
   listarUsuariosAdmin,
@@ -35,6 +28,7 @@ import {
   resolverDenunciaAdmin,
 } from "@/lib/api";
 import { leerImagen, leerImagenes } from "@/lib/imagen";
+import { formatearFechaHoraLocal } from "@/lib/fecha";
 import { METRICAS_LOGRO, type MetricaLogro } from "@/lib/logros";
 import { useSesion } from "@/lib/sesion";
 import type { DenunciaJuego, Genero, Juego, UsuarioAdministracion } from "@/lib/types";
@@ -130,6 +124,8 @@ function PanelAdministracion({
   const [ordenUsuarios, setOrdenUsuarios] = useState<
     "recientes" | "antiguos" | "mas-juegos" | "menos-juegos"
   >("recientes");
+  const [usuarioAEliminar, setUsuarioAEliminar] = useState<UsuarioAdministracion | null>(null);
+  const [juegoAEliminar, setJuegoAEliminar] = useState<Juego | null>(null);
   const [denunciaAEliminar, setDenunciaAEliminar] = useState<DenunciaJuego | null>(null);
   const { data: logrosJuego = [] } = useQuery({
     queryKey: ["logros-juego", juegoEditando?.id],
@@ -246,8 +242,9 @@ function PanelAdministracion({
     }
   };
 
-  const borrarUsuario = async (usuario: UsuarioAdministracion) => {
-    if (!window.confirm(`¿Eliminar definitivamente al usuario ${usuario.nickname}?`)) return;
+  const borrarUsuario = async () => {
+    if (!usuarioAEliminar) return;
+    const usuario = usuarioAEliminar;
     setProcesando(true);
     try {
       await eliminarUsuarioAdmin(token, usuario.id);
@@ -257,6 +254,7 @@ function PanelAdministracion({
         queryClient.invalidateQueries({ queryKey: ["juegos"] }),
       ]);
       if (usuarioEditando?.id === usuario.id) setUsuarioEditando(null);
+      setUsuarioAEliminar(null);
       toast.success("Usuario eliminado");
     } catch (error) {
       toast.error(error instanceof ApiError ? error.message : "No se pudo eliminar el usuario.");
@@ -323,8 +321,9 @@ function PanelAdministracion({
     }
   };
 
-  const borrarJuego = async (juego: Juego) => {
-    if (!window.confirm(`¿Eliminar definitivamente el juego ${juego.titulo}?`)) return;
+  const borrarJuego = async () => {
+    if (!juegoAEliminar) return;
+    const juego = juegoAEliminar;
     setProcesando(true);
     try {
       await eliminarJuegoAdmin(token, juego.id);
@@ -335,6 +334,7 @@ function PanelAdministracion({
         queryClient.invalidateQueries({ queryKey: ["mejor-valorados"] }),
       ]);
       if (juegoEditando?.id === juego.id) setJuegoEditando(null);
+      setJuegoAEliminar(null);
       toast.success("Juego eliminado");
     } catch (error) {
       toast.error(error instanceof ApiError ? error.message : "No se pudo eliminar el juego.");
@@ -432,7 +432,7 @@ function PanelAdministracion({
                   </Link>
                   <p className="text-xs text-muted-foreground">
                     Reportado por {denuncia.usuario_nickname} ·{" "}
-                    {new Date(denuncia.fecha).toLocaleDateString("es-AR")}
+                    {formatearFechaHoraLocal(denuncia.fecha)}
                   </p>
                 </div>
                 <Badge variant="outline">Pendiente</Badge>
@@ -760,11 +760,11 @@ function PanelAdministracion({
                       {usuario.nickname}
                     </Link>
                     <p className="truncate text-xs text-muted-foreground">
-                      {usuario.email} · {formatPrecio(usuario.saldo)}
+                      {usuario.email} · saldo {formatSaldo(usuario.saldo)}
                     </p>
                     <p className="mt-1 text-xs text-muted-foreground">
                       {usuario.cantidad_juegos_comprados} juegos comprados · alta{" "}
-                      {new Date(usuario.fecha_registro).toLocaleDateString("es-AR")}
+                      {formatearFechaHoraLocal(usuario.fecha_registro)}
                     </p>
                     <Badge className="mt-2" variant={protegido ? "default" : "secondary"}>
                       {usuario.rol === "superadmin"
@@ -792,7 +792,7 @@ function PanelAdministracion({
                       size="sm"
                       variant="destructive"
                       disabled={protegido || procesando}
-                      onClick={() => borrarUsuario(usuario)}
+                      onClick={() => setUsuarioAEliminar(usuario)}
                     >
                       <Trash2 className="h-4 w-4" /> Eliminar
                     </Button>
@@ -878,7 +878,7 @@ function PanelAdministracion({
                     size="sm"
                     variant="destructive"
                     disabled={procesando}
-                    onClick={() => borrarJuego(juego)}
+                    onClick={() => setJuegoAEliminar(juego)}
                   >
                     <Trash2 className="h-4 w-4" /> Eliminar
                   </Button>
@@ -894,31 +894,48 @@ function PanelAdministracion({
         </section>
       </div>
 
-      <AlertDialog
-        open={Boolean(denunciaAEliminar)}
+      <ConfirmarEliminacionDialog
+        abierto={Boolean(usuarioAEliminar)}
+        titulo="¿Eliminar este perfil?"
+        descripcion={
+          <>
+            Se eliminará definitivamente el perfil de <strong>{usuarioAEliminar?.nickname}</strong>{" "}
+            y todos sus datos relacionados. Si es un desarrollador, también se eliminarán sus
+            juegos. Esta acción no se puede deshacer.
+          </>
+        }
+        procesando={procesando}
+        onOpenChange={(abierto) => !abierto && !procesando && setUsuarioAEliminar(null)}
+        onConfirmar={borrarUsuario}
+      />
+
+      <ConfirmarEliminacionDialog
+        abierto={Boolean(juegoAEliminar)}
+        titulo="¿Eliminar este juego?"
+        descripcion={
+          <>
+            Se eliminará definitivamente <strong>{juegoAEliminar?.titulo}</strong>, junto con sus
+            compras asociadas, reseñas, logros y archivos. Esta acción no se puede deshacer.
+          </>
+        }
+        procesando={procesando}
+        onOpenChange={(abierto) => !abierto && !procesando && setJuegoAEliminar(null)}
+        onConfirmar={borrarJuego}
+      />
+
+      <ConfirmarEliminacionDialog
+        abierto={Boolean(denunciaAEliminar)}
+        titulo="¿Eliminar el juego denunciado?"
+        descripcion={
+          <>
+            Se eliminará definitivamente <strong>{denunciaAEliminar?.juego_titulo}</strong>, junto
+            con sus compras asociadas, reseñas, logros y archivos. Esta acción no se puede deshacer.
+          </>
+        }
+        procesando={procesando}
         onOpenChange={(abierto) => !abierto && !procesando && setDenunciaAEliminar(null)}
-      >
-        <AlertDialogContent className="border-destructive/50">
-          <AlertDialogHeader>
-            <AlertDialogTitle>¿Eliminar el juego denunciado?</AlertDialogTitle>
-            <AlertDialogDescription>
-              Vas a eliminar definitivamente <strong>{denunciaAEliminar?.juego_titulo}</strong>, sus
-              compras asociadas, reseñas, logros y archivos. Esta acción no se puede deshacer.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel disabled={procesando}>Cancelar</AlertDialogCancel>
-            <Button
-              variant="destructive"
-              disabled={procesando}
-              onClick={() => void eliminarJuegoDenunciado()}
-            >
-              <Trash2 className="h-4 w-4" />
-              {procesando ? "Eliminando..." : "Confirmar eliminación"}
-            </Button>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+        onConfirmar={eliminarJuegoDenunciado}
+      />
     </div>
   );
 }

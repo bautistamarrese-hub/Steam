@@ -1,13 +1,14 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
-import { toast } from "sonner";
+import { toast } from "@/lib/notificaciones";
 import { JuegoCard } from "@/components/JuegoCard";
 import { SaldoInsuficienteDialog } from "@/components/SaldoInsuficienteDialog";
 import { AccesoRequerido } from "@/components/AccesoRequerido";
 import { Button } from "@/components/ui/button";
 import { ApiError, comprarJuego, obtenerWishlist, quitarDeWishlist } from "@/lib/api";
 import { useSesion, useUsuario } from "@/lib/sesion";
+import { formatearFechaHoraLocal } from "@/lib/fecha";
 
 export const Route = createFileRoute("/wishlist")({
   head: () => ({
@@ -79,7 +80,9 @@ function WishlistConSesion() {
             wishlisted
             footer={
               <div className="space-y-2">
-                <p className="text-xs text-muted-foreground">Agregado el {item.fecha_agregado}</p>
+                <p className="text-xs text-muted-foreground">
+                  Agregado el {formatearFechaHoraLocal(item.fecha_agregado)}
+                </p>
                 <div className="flex gap-2">
                   <Button
                     size="sm"

@@ -9,6 +9,11 @@ import type { RolRegistro, Usuario } from "@/lib/types";
 
 const CLAVE = "steamnt.sesion";
 const CLAVE_TOKEN = "steamnt.token";
+const CLAVES_MEMORIA_NAVEGACION = [
+  "steamnt-ultimo-juego",
+  "steamnt-ultimo-usuario",
+  "steamnt-pestana-anterior",
+];
 
 interface SesionCtx {
   usuario: Usuario | null;
@@ -55,7 +60,10 @@ export function SesionProvider({ children }: { children: React.ReactNode }) {
 
   const guardar = useCallback((nuevo: Usuario | null, nuevoToken?: string | null) => {
     if (nuevo) localStorage.setItem(CLAVE, JSON.stringify(nuevo));
-    else localStorage.removeItem(CLAVE);
+    else {
+      localStorage.removeItem(CLAVE);
+      CLAVES_MEMORIA_NAVEGACION.forEach((clave) => sessionStorage.removeItem(clave));
+    }
     if (nuevoToken !== undefined) {
       if (nuevoToken) localStorage.setItem(CLAVE_TOKEN, nuevoToken);
       else localStorage.removeItem(CLAVE_TOKEN);

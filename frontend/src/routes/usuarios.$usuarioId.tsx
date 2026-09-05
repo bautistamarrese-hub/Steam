@@ -1,5 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { toast } from "sonner";
+import { toast } from "@/lib/notificaciones";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   Award,
@@ -29,6 +29,7 @@ import {
   solicitudesRecibidas,
 } from "@/lib/api";
 import { useSesion } from "@/lib/sesion";
+import { formatearFechaHoraLocal } from "@/lib/fecha";
 
 export const Route = createFileRoute("/usuarios/$usuarioId")({
   head: () => ({
@@ -142,7 +143,9 @@ function PerfilUsuario() {
                   : "Jugador"}
             </Badge>
           </div>
-          <p className="text-muted-foreground">Miembro desde {usuario.fecha_registro}</p>
+          <p className="text-muted-foreground">
+            Miembro desde {formatearFechaHoraLocal(usuario.fecha_registro)}
+          </p>
         </div>
         {!esSuperAdmin &&
           !esYo &&
@@ -208,7 +211,9 @@ function PerfilUsuario() {
                   <p className="truncate font-medium">{item.juego.titulo}</p>
                   <p className="text-xs text-muted-foreground">
                     {item.juego.genero} ·{" "}
-                    {item.es_del_desarrollador ? "juego propio" : `comprado el ${item.fecha}`}
+                    {item.es_del_desarrollador
+                      ? "juego propio"
+                      : `comprado el ${formatearFechaHoraLocal(item.fecha)}`}
                   </p>
                 </div>
               </Link>
@@ -228,7 +233,7 @@ function PerfilUsuario() {
                 <div className="min-w-0 flex-1">
                   <p className="truncate font-medium">{l.logro.nombre}</p>
                   <p className="truncate text-xs text-muted-foreground">
-                    {l.juego.titulo} · {l.fecha}
+                    {l.juego.titulo} · {formatearFechaHoraLocal(l.fecha)}
                   </p>
                 </div>
                 <Badge variant="secondary">{l.logro.puntos} pts</Badge>
